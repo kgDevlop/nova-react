@@ -112,34 +112,29 @@ export const useWSStore = () => {
   }, [activeId]);
 
   const createDoc = useCallback((type, title, appColor) => {
-    const id = _uid();
-    const desired = title || _autoName(type);
-    let doc;
-    setWS(p => {
-      if (!p.length) {
-        return p;
+    if (!ws.length) {
+      return null;
+    }
+    // Fall back to the first workspace if activeId is stale — mirrors the
+    // `active` selector so we never silently no-op on a stale id.
+    const target = ws.find(w => w.id === activeId) || ws[0];
+    const doc = {
+      id: _uid(),
+      title: _uniqueTitle(target.docs, type, title || _autoName(type)),
+      type,
+      modified: new Date(),
+      starred: false,
+      content: "",
+      appColor,
+    };
+    setWS(p => p.map(w => {
+      if (w.id !== target.id) {
+        return w;
       }
-      // Fall back to the first workspace if activeId is stale — mirrors the
-      // `active` selector so we never silently no-op on a stale id.
-      const targetIdx = Math.max(0, p.findIndex(w => w.id === activeId));
-      return p.map((w, i) => {
-        if (i !== targetIdx) {
-          return w;
-        }
-        doc = {
-          id,
-          title: _uniqueTitle(w.docs, type, desired),
-          type,
-          modified: new Date(),
-          starred: false,
-          content: "",
-          appColor,
-        };
-        return { ...w, docs: [doc, ...w.docs] };
-      });
-    });
+      return { ...w, docs: [doc, ...w.docs] };
+    }));
     return doc;
-  }, [activeId]);
+  }, [ws, activeId]);
 
   const updateDoc = useCallback((id, ch) => {
     let resolved = ch;

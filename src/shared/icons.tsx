@@ -1,0 +1,163 @@
+
+/**
+ * @fileoverview Nova Office icon library.
+ *
+ * Architecture notes
+ * ------------------
+ * - `Ic` is the single SVG primitive. Every icon is a thin wrapper over it.
+ * - Icons accept `IconProps` (see types/index.js) — no extra props.
+ * - `d` can be a string or string[] for multi-path icons.
+ * - Consumers import the `I` map: `import { I } from '../icons'`
+ * - Tree-shaking works because each key is a separate arrow function.
+ * - All icons are 24×24 viewBox to match the Feather/Lucide grid.
+ */
+
+import React from "react";
+
+// ── Primitive ────────────────────────────────────────────────────────────────
+
+type IcProps = {
+  d: string | string[];
+  size?: number;
+  color?: string;
+  fill?: string;
+  sw?: number;
+  style?: React.CSSProperties;
+};
+
+/**
+ * @param {{ d: string | string[], size?: number, color?: string,
+ *           fill?: string, sw?: number, style?: React.CSSProperties }} props
+ */
+const Ic = ({
+  d,
+  size = 16,
+  color = "currentColor",
+  fill = "none",
+  sw = 2,
+  style = {},
+}: IcProps) => {
+  // `d` may be a single path string or an array of them — normalise to array
+  // so the JSX below can render both shapes uniformly.
+  const paths = Array.isArray(d) ? d : [d];
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill={fill}
+      stroke={color}
+      strokeWidth={sw}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0, display: "block", ...style }}
+    >
+      {paths.map((p, i) => <path key={i} d={p} />)}
+    </svg>
+  );
+};
+
+// ── Icon Map ─────────────────────────────────────────────────────────────────
+// Keys are PascalCase semantic names — not visual descriptions.
+// Icons are grouped by domain for easy scanning.
+
+/** @type {{ [name: string]: React.ComponentType<import('../types').IconProps> }} */
+export const I: { [name: string]: React.ComponentType<import('./modals/types.js').IconProps>; } = {
+  // ── Documents ──────────────────────────────────────────────────────────────
+  FileText: p => <Ic {...p} d={["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z", "M14 2v6h6", "M16 13H8", "M16 17H8", "M10 9H8"]} />,
+  File:     p => <Ic {...p} d={["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z", "M14 2v6h6"]} />,
+  FilePdf:  p => <Ic {...p} d={["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z", "M14 2v6h6"]} />,
+  Folder:   p => <Ic {...p} d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />,
+  Copy:     p => <Ic {...p} d={["M20 9h-9a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2z", "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"]} />,
+
+  // ── Navigation & Layout ────────────────────────────────────────────────────
+  Home:      p => <Ic {...p} d={["M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z", "M9 22V12h6v10"]} />,
+  Menu:      p => <Ic {...p} d="M3 12h18M3 6h18M3 18h18" />,
+  ChevLeft:  p => <Ic {...p} d="M15 18l-6-6 6-6" />,
+  ChevRight: p => <Ic {...p} d="M9 18l6-6-6-6" />,
+  ChevDown:  p => <Ic {...p} d="M6 9l6 6 6-6" />,
+  ArrowR:    p => <Ic {...p} d="M5 12h14M12 5l7 7-7 7" />,
+  ArrowL:    p => <Ic {...p} d="M19 12H5M12 19l-7-7 7-7" />,
+  Layers:    p => <Ic {...p} d={["M12 2L2 7l10 5 10-5-10-5z", "M2 17l10 5 10-5", "M2 12l10 5 10-5"]} />,
+  Layout:    p => <Ic {...p} d={["M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z", "M3 9h18", "M9 21V9"]} />,
+
+  // ── Actions ────────────────────────────────────────────────────────────────
+  Plus:     p => <Ic {...p} d="M12 5v14M5 12h14" />,
+  X:        p => <Ic {...p} d="M18 6L6 18M6 6l12 12" />,
+  Check:    p => <Ic {...p} d="M20 6L9 17l-5-5" />,
+  Trash:    p => <Ic {...p} d={["M3 6h18", "M19 6l-1 14H6L5 6", "M8 6V4h8v2", "M10 11v6", "M14 11v6"]} />,
+  Pencil:   p => <Ic {...p} d={["M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7", "M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"]} />,
+  Refresh:  p => <Ic {...p} d={["M23 4v6h-6", "M1 20v-6h6", "M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"]} />,
+  Share:    p => <Ic {...p} d={["M18 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", "M6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", "M18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", "M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"]} />,
+  Upload:   p => <Ic {...p} d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", "M17 8l-5-5-5 5", "M12 3v12"]} />,
+  Send:     p => <Ic {...p} d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />,
+
+  // ── Text Formatting ────────────────────────────────────────────────────────
+  Bold:       p => <Ic {...p} d={["M6 4h8a4 4 0 0 1 0 8H6z", "M6 12h9a4 4 0 0 1 0 8H6z"]} />,
+  Italic:     p => <Ic {...p} d="M19 4h-9M14 20H5M15 4L9 20" />,
+  Underline:  p => <Ic {...p} d={["M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3", "M4 21h16"]} />,
+  AlignLeft:  p => <Ic {...p} d="M3 6h18M3 12h12M3 18h15" />,
+  AlignCenter:p => <Ic {...p} d="M3 6h18M6 12h12M4.5 18h15" />,
+  AlignRight: p => <Ic {...p} d="M3 6h18M9 12h12M6 18h15" />,
+  TypeT:      p => <Ic {...p} d={["M4 7V4h16v3", "M9 20h6", "M12 4v16"]} />,
+  Quote:      p => <Ic {...p} d={["M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z", "M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"]} />,
+  Link2:      p => <Ic {...p} d={["M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71", "M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"]} />,
+  ListUl:     p => <Ic {...p} d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" />,
+
+  // ── Spreadsheet ────────────────────────────────────────────────────────────
+  Grid:      p => <Ic {...p} d={["M3 3h7v7H3z", "M14 3h7v7h-7z", "M14 14h7v7h-7z", "M3 14h7v7H3z"]} />,
+  BorderAll: p => <Ic {...p} d={["M3 3h18v18H3z", "M3 9h18", "M3 15h18", "M9 3v18", "M15 3v18"]} />,
+  Dollar:    p => <Ic {...p} d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />,
+  Percent:   p => <Ic {...p} d={["M19 5 5 19", "M6.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z", "M17.5 16a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"]} />,
+  Table:     p => <Ic {...p} d={["M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4m0 0h18"]} />,
+
+  // ── Drawing & Canvas ───────────────────────────────────────────────────────
+  PenTool:   p => <Ic {...p} d={["M12 19l7-7 3 3-7 7-3-3z", "M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z", "M2 2l7.586 7.586"]} />,
+  Square:    p => <Ic {...p} d="M3 3h18v18H3z" />,
+  ImageIcon: p => <Ic {...p} d={["M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z", "M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z", "M21 15l-5-5L5 21"]} />,
+  ZoomIn:    p => <Ic {...p} d={["M11 17.25a6.25 6.25 0 1 1 0-12.5 6.25 6.25 0 0 1 0 12.5z", "M16 16l4.5 4.5", "M11 8v6", "M8 11h6"]} />,
+  ZoomOut:   p => <Ic {...p} d={["M11 17.25a6.25 6.25 0 1 1 0-12.5 6.25 6.25 0 0 1 0 12.5z", "M16 16l4.5 4.5", "M8 11h6"]} />,
+  Maximize:  p => <Ic {...p} d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />,
+  Palette:   p => <Ic {...p} d={["M12 22C6.49 22 2 17.52 2 12.01c0-5.51 4.49-10 10.01-10A10 10 0 0 1 22 12c0 2.76-2.24 5-5 5h-1.5A1.5 1.5 0 0 0 14 18.5c0 .83.67 1.5 1.5 1.5A5.5 5.5 0 0 0 22 12.5"]} />,
+
+  // ── App-specific ───────────────────────────────────────────────────────────
+  Monitor:  p => <Ic {...p} d={["M20 3H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1z", "M8 21h8", "M12 17v4"]} />,
+  Form:     p => <Ic {...p} d={["M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2", "M9 5a2 2 0 0 1 4 0", "M9 12h6", "M9 16h4"]} />,
+  Database: p => <Ic {...p} d={["M12 2C6.48 2 2 4.24 2 7s4.48 5 10 5 10-2.24 10-5-4.48-5-10-5z", "M2 7v5c0 2.76 4.48 5 10 5s10-2.24 10-5V7", "M2 12v5c0 2.76 4.48 5 10 5s10-2.24 10-5v-5"]} />,
+  ChartBar: p => <Ic {...p} d={["M18 20V10", "M12 20V4", "M6 20v-6"]} />,
+  Mail:     p => <Ic {...p} d={["M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z", "M22 6l-10 7L2 6"]} />,
+  Calendar: p => <Ic {...p} d={["M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z", "M16 2v4", "M8 2v4", "M3 10h18"]} />,
+  Video:    p => <Ic {...p} d={["M23 7l-7 5 7 5V7z", "M14 5H3a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"]} />,
+  Code:     p => <Ic {...p} d="M16 18l6-6-6-6M8 6l-6 6 6 6" />,
+  Globe:    p => <Ic {...p} d={["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z", "M2 12h20", "M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"]} />,
+
+  // ── People & Account ───────────────────────────────────────────────────────
+  User:     p => <Ic {...p} d={["M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2", "M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"]} />,
+  Lock:     p => <Ic {...p} d={["M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z", "M7 11V7a5 5 0 0 1 10 0v4"]} />,
+  Bell:     p => <Ic {...p} d={["M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9", "M13.73 21a2 2 0 0 1-3.46 0"]} />,
+
+  // ── Status & Utility ───────────────────────────────────────────────────────
+  Search:   p => <Ic {...p} d={["M11 17.25a6.25 6.25 0 1 1 0-12.5 6.25 6.25 0 0 1 0 12.5z", "M16 16l4.5 4.5"]} />,
+  Settings: p => <Ic {...p} d={["M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"]} />,
+  Clock:    p => <Ic {...p} d={["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z", "M12 6v6l4 2"]} />,
+  Star:     p => <Ic {...p} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />,
+  Eye:      p => <Ic {...p} d={["M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z", "M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"]} />,
+  Filter:   p => <Ic {...p} d="M22 3H2l8 9.46V19l4 2v-8.54L22 3" />,
+  SortAsc:  p => <Ic {...p} d="M3 6h18M3 12h12M3 18h8M15 14l3-3 3 3M18 11v8" />,
+  List:     p => <Ic {...p} d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />,
+  Checklist:p => <Ic {...p} d={["M9 6h12", "M9 12h12", "M9 18h12", "M3 6l1.5 1.5L7 5", "M3 12l1.5 1.5L7 11", "M3 18l1.5 1.5L7 17"]} />,
+  Rows:     p => <Ic {...p} d={["M3 4h18", "M3 9h18", "M3 14h18", "M3 19h18"]} />,
+  Dots:     p => <Ic {...p} d={["M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z", "M19 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z", "M5 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"]} fill={p.color || "currentColor"} />,
+  Zap:      p => <Ic {...p} d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />,
+  Sparkles: p => <Ic {...p} d={["M12 3l1.5 3L17 7.5 13.5 9 12 12l-1.5-3L7 7.5 10.5 6z"]} />,
+
+  // ── Theme ──────────────────────────────────────────────────────────────────
+  Moon: p => <Ic {...p} d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />,
+  Sun:  p => <Ic {...p} d={["M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z", "M12 1v2", "M12 21v2", "M4.22 4.22l1.42 1.42", "M18.36 18.36l1.42 1.42", "M1 12h2", "M21 12h2", "M4.22 19.78l1.42-1.42", "M18.36 5.64l1.42-1.42"]} />,
+
+  // ── Media ──────────────────────────────────────────────────────────────────
+  Play:   p => <Ic {...p} d="M5 3l14 9-14 9V3z" fill={p.color || "currentColor"} stroke="none" />,
+  StopSq: p => <Ic {...p} d="M3 3h18v18H3z" fill={p.color || "currentColor"} stroke="none" />,
+  Mic:    p => <Ic {...p} d={["M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z", "M19 10v2a7 7 0 0 1-14 0v-2", "M12 19v4", "M8 23h8"]} />,
+};

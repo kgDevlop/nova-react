@@ -1,0 +1,21 @@
+name: Validate PR Branch Name
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch name
+        env:
+          BRANCH_NAME: ${{ github.head_ref }}
+          PATTERN: '^v\d+\.\d+\.\d+$'
+        run: |
+          if [[ "$BRANCH_NAME" =~ $PATTERN ]]; then
+            echo "Branch '$BRANCH_NAME' matches required pattern '$PATTERN'."
+          else
+            echo "::error::Branch '$BRANCH_NAME' does not match required pattern '$PATTERN'. Use a release branch like v1.2.3."
+            exit 1
+          fi

@@ -514,6 +514,7 @@ export const MobSidebar = ({
   onNew,
   onRenameWS,
   onDeleteWS,
+  onSettings,
 }) => {
   const theme = useT();
 
@@ -524,16 +525,16 @@ export const MobSidebar = ({
         onClick={e => e.stopPropagation()}
         style={{
           position: "absolute",
-          left: 0,
+          right: 0,
           top: 0,
           bottom: 0,
           width: 264,
           background: theme.surface,
-          borderRight: `1px solid ${theme.bd}`,
+          borderLeft: `1px solid ${theme.bd}`,
           padding: "12px 8px",
           display: "flex",
           flexDirection: "column",
-          animation: "slideL 0.24s ease",
+          animation: "slideR 0.24s ease",
         }}
       >
         <div
@@ -608,14 +609,47 @@ export const MobSidebar = ({
             </div>
           ))}
         </div>
+
+        <div style={{ borderTop: `1px solid ${theme.bd}`, paddingTop: 8 }}>
+          <div
+            className="nnav"
+            onClick={() => {
+              onSettings?.();
+              onClose();
+            }}
+          >
+            <I.Settings size={14} />
+            <span style={{ fontSize: 12 }}>Settings</span>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
 // ── Mobile top bar ────────────────────────────────────────────────────────
-export const MobTopBar = ({ onOpen, q, setQ }) => {
+// Hamburger sits on the right since the menu drawer slides in from the right
+// (dominant-thumb reach). Back/forward live between the logo and the profile
+// cluster, replacing the mobile TabBar.
+export const MobTopBar = ({ onOpen, onSearchClick, onBack, onForward, canBack, canForward, workspace }) => {
   const theme = useT();
+
+  const navBtnStyle = enabled => ({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 28,
+    height: 28,
+    border: "none",
+    background: "transparent",
+    borderRadius: theme.r6,
+    cursor: enabled ? "pointer" : "default",
+    color: enabled ? theme.tx : theme.tm,
+    opacity: enabled ? 1 : 0.4,
+    padding: 0,
+    transition: theme.tr,
+    flexShrink: 0,
+  });
 
   return (
     <div
@@ -626,54 +660,38 @@ export const MobTopBar = ({ onOpen, q, setQ }) => {
         display: "flex",
         alignItems: "center",
         padding: "0 10px",
-        gap: 8,
+        gap: 6,
         flexShrink: 0,
       }}
     >
-      <button className="nb ni" onClick={onOpen}>
+      <NovaLogo workspace={workspace} />
+      {onSearchClick && (
+        <button className="nb ni" onClick={onSearchClick} title="Search">
+          <I.Search size={15} />
+        </button>
+      )}
+      <div style={{ flex: 1 }} />
+      <button
+        type="button"
+        title="Back"
+        disabled={!canBack}
+        onClick={onBack}
+        style={navBtnStyle(!!canBack)}
+      >
+        <I.ArrowL size={14} />
+      </button>
+      <button
+        type="button"
+        title="Forward"
+        disabled={!canForward}
+        onClick={onForward}
+        style={navBtnStyle(!!canForward)}
+      >
+        <I.ArrowR size={14} />
+      </button>
+      <button className="nb ni" onClick={onOpen} title="Menu">
         <I.Menu size={17} />
       </button>
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          gap: 7,
-          background: theme.sa,
-          borderRadius: theme.rF,
-          padding: "6px 11px",
-          border: `1px solid ${theme.bd}`,
-        }}
-      >
-        <I.Search size={12} color={theme.tm} />
-        <input
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          style={{
-            flex: 1,
-            background: "transparent",
-            border: "none",
-            outline: "none",
-            fontSize: 12,
-            color: theme.tx,
-            fontFamily: theme.fn,
-          }}
-          placeholder="Search documents…"
-        />
-      </div>
-      <div
-        style={{
-          width: 30,
-          height: 30,
-          borderRadius: theme.rF,
-          background: theme.as,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <I.User size={13} color={theme.ac} />
-      </div>
     </div>
   );
 };

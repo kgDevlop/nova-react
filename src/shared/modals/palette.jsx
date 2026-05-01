@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { I } from "../icons";
 import { useT } from "../theme";
+import { useDeviceCaps } from "../hooks/system";
 import { AppChip } from "../atoms";
 import { registry } from "../_constants";
 import { utils, registry as registryU } from "../_utils";
@@ -15,6 +16,7 @@ export const CommandPalette = ({
   setShowShortcuts,
 }) => {
   const theme = useT();
+  const { isMobile } = useDeviceCaps();
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(0);
   const inputRef = useRef(null);
@@ -206,19 +208,31 @@ export const CommandPalette = ({
               fontFamily: theme.fn,
             }}
           />
-          <kbd
-            style={{
-              fontSize: 9,
-              color: theme.tm,
-              background: theme.sa,
-              border: `1px solid ${theme.bd}`,
-              borderRadius: theme.r6,
-              padding: "1px 5px",
-              flexShrink: 0,
-            }}
-          >
-            ESC
-          </kbd>
+          {isMobile ? (
+            <button
+              type="button"
+              className="nb ni"
+              onClick={onClose}
+              title="Close"
+              style={{ padding: 6, flexShrink: 0 }}
+            >
+              <I.X size={14} />
+            </button>
+          ) : (
+            <kbd
+              style={{
+                fontSize: 9,
+                color: theme.tm,
+                background: theme.sa,
+                border: `1px solid ${theme.bd}`,
+                borderRadius: theme.r6,
+                padding: "1px 5px",
+                flexShrink: 0,
+              }}
+            >
+              ESC
+            </kbd>
+          )}
         </div>
 
         {/* ── Results ── */}

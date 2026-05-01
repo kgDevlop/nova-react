@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { I } from "../icons";
 import { useT } from "../theme";
 import { AppChip } from "../atoms";
-import { theme, registry } from "../_constants";
+import { useDeviceCaps } from "../hooks/system";
+import { theme as themeC, registry } from "../_constants";
 
 export const SettingsPanel = ({
   onClose,
@@ -11,9 +12,13 @@ export const SettingsPanel = ({
   getAppColor,
   setAppColor,
   activeWS,
+  mobileDisabled,
+  setMobileDisabled,
   onShowShortcuts,
 }) => {
   const t = useT();
+  const device = useDeviceCaps();
+  const isMobile = device.isMobile && !mobileDisabled;
   const [tab, setTab] = useState("appearance");
 
   const TABS = [
@@ -39,40 +44,105 @@ export const SettingsPanel = ({
       <div
         className="nmod"
         style={{
-          maxWidth: 660,
+          maxWidth: isMobile ? "none" : 660,
+          width: isMobile ? "100%" : undefined,
+          height: isMobile ? "100%" : undefined,
           padding: 0,
           display: "flex",
+          flexDirection: isMobile ? "column" : "row",
           overflow: "hidden",
-          maxHeight: "86vh",
+          maxHeight: isMobile ? "100%" : "86vh",
           position: "relative",
         }}
       >
-        {/* ── Sidebar ── */}
-        <div
-          style={{
-            width: 172,
-            borderRight: `1px solid ${t.bd}`,
-            padding: "18px 7px",
-            flexShrink: 0,
-          }}
-        >
-          <div style={{ fontSize: 12, fontWeight: 800, color: t.tx, padding: "3px 9px 14px" }}>
-            Settings
-          </div>
-          {TABS.map(({ id, l, I: Ico }) => (
-            <div
-              key={id}
-              className={`nnav ${tab === id ? "active" : ""}`}
-              onClick={() => setTab(id)}
-            >
-              <Ico size={13} />
-              <span style={{ fontSize: 11 }}>{l}</span>
+        {isMobile ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "12px 14px",
+              borderBottom: `1px solid ${t.bd}`,
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 800, color: t.tx, flex: 1 }}>
+              Settings
             </div>
-          ))}
-        </div>
+            <button className="nb ni" style={{ padding: 6 }} onClick={onClose}>
+              <I.X size={15} />
+            </button>
+          </div>
+        ) : (
+          /* ── Sidebar (desktop) ── */
+          <div
+            style={{
+              width: 172,
+              borderRight: `1px solid ${t.bd}`,
+              padding: "18px 7px",
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ fontSize: 12, fontWeight: 800, color: t.tx, padding: "3px 9px 14px" }}>
+              Settings
+            </div>
+            {TABS.map(({ id, l, I: Ico }) => (
+              <div
+                key={id}
+                className={`nnav ${tab === id ? "active" : ""}`}
+                onClick={() => setTab(id)}
+              >
+                <Ico size={13} />
+                <span style={{ fontSize: 11 }}>{l}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {isMobile && (
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              padding: "10px 12px",
+              borderBottom: `1px solid ${t.bd}`,
+              flexShrink: 0,
+              overflowX: "auto",
+            }}
+          >
+            {TABS.map(({ id, l, I: Ico }) => {
+              const active = tab === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setTab(id)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "7px 12px",
+                    borderRadius: t.rF,
+                    border: `1px solid ${active ? t.ac + "66" : t.bd}`,
+                    background: active ? t.as : "transparent",
+                    color: active ? t.tx : t.ts,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    fontFamily: t.fn,
+                    cursor: "pointer",
+                    flexShrink: 0,
+                    outline: "none",
+                  }}
+                >
+                  <Ico size={12} color={active ? t.ac : t.ts} />
+                  {l}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* ── Content ── */}
-        <div style={{ flex: 1, padding: "22px 24px", overflowY: "auto" }}>
+        <div style={{ flex: 1, padding: isMobile ? "16px 16px" : "22px 24px", overflowY: "auto" }}>
           {tab === "appearance" && (
             <div>
               <h3 style={{ fontSize: 14, fontWeight: 800, color: t.tx, marginBottom: 3 }}>
@@ -139,7 +209,7 @@ export const SettingsPanel = ({
                 Accent colour
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 22 }}>
-                {theme.ACCENT_PRESETS.map(p => {
+                {themeC.ACCENT_PRESETS.map(p => {
                   const active = theme.accentId === p.id;
                   return (
                     <button
@@ -175,6 +245,46 @@ export const SettingsPanel = ({
                   );
                 })}
               </div>
+
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: t.tm,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  marginBottom: 9,
+                }}
+              >
+                Layout
+              </div>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 9,
+                  padding: "9px 11px",
+                  borderRadius: t.r10,
+                  border: `1px solid ${t.bd}`,
+                  cursor: "pointer",
+                  marginBottom: 22,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={!!mobileDisabled}
+                  onChange={e => setMobileDisabled?.(e.target.checked)}
+                  style={{ cursor: "pointer", margin: 0 }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: t.tx }}>
+                    Disable mobile site
+                  </div>
+                  <div style={{ fontSize: 10, color: t.ts, marginTop: 2 }}>
+                    Always use the desktop layout, even on small screens.
+                  </div>
+                </div>
+              </label>
             </div>
           )}
 
@@ -189,25 +299,29 @@ export const SettingsPanel = ({
               </p>
               {registry.APPS.map(app => {
                 const cur = getAppColor(activeWS.id, app.id, app.dc);
-                const isCustom = !theme.APP_COLORS.includes(cur) && cur !== app.dc;
+                const isCustom = !themeC.APP_COLORS.includes(cur) && cur !== app.dc;
                 return (
                   <div
                     key={app.id}
                     style={{
                       display: "flex",
-                      alignItems: "center",
-                      gap: 10,
+                      flexDirection: isMobile ? "column" : "row",
+                      alignItems: isMobile ? "stretch" : "center",
+                      gap: isMobile ? 8 : 10,
                       padding: "9px 0",
                       borderBottom: `1px solid ${t.bd}`,
                     }}
                   >
-                    <AppChip appId={app.id} size={32} colorOverride={cur} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: t.tx }}>{app.label}</div>
-                      <div style={{ fontSize: 10, color: t.tm }}>{app.desc}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                      <AppChip appId={app.id} size={32} colorOverride={cur} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: t.tx }}>{app.label}</div>
+                        <div style={{ fontSize: 10, color: t.tm }}>{app.desc}</div>
+                      </div>
                     </div>
-                    <div style={{ display: "flex", gap: 3, flexWrap: "wrap", maxWidth: 148 }}>
-                      {theme.APP_COLORS.slice(0, 8).map(c => (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: isMobile ? 0 : "auto" }}>
+                    <div style={{ display: "flex", gap: 3, flexWrap: "wrap", maxWidth: isMobile ? "none" : 148 }}>
+                      {themeC.APP_COLORS.slice(0, 8).map(c => (
                         <button
                           key={c}
                           onClick={() => setAppColor(activeWS.id, app.id, c)}
@@ -274,6 +388,7 @@ export const SettingsPanel = ({
                     >
                       <I.Refresh size={11} />
                     </button>
+                    </div>
                   </div>
                 );
               })}
@@ -309,13 +424,15 @@ export const SettingsPanel = ({
           </div>
         </div>
 
-        <button
-          className="nb ni"
-          style={{ position: "absolute", top: 14, right: 14, padding: 6 }}
-          onClick={onClose}
-        >
-          <I.X size={15} />
-        </button>
+        {!isMobile && (
+          <button
+            className="nb ni"
+            style={{ position: "absolute", top: 14, right: 14, padding: 6 }}
+            onClick={onClose}
+          >
+            <I.X size={15} />
+          </button>
+        )}
       </div>
     </div>
   );

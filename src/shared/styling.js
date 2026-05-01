@@ -23,6 +23,7 @@ body{font-family:${theme.fn};background:${theme.bg};color:${theme.tx};-webkit-fo
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideL{from{transform:translateX(-100%)}to{transform:none}}
+@keyframes slideR{from{transform:translateX(100%)}to{transform:none}}
 @keyframes popIn{from{opacity:0;transform:scale(0.95) translateY(-5px)}to{opacity:1;transform:none}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 

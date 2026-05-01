@@ -45,7 +45,7 @@ const _parseContent = (content) => {
   }
 };
 
-export const ListEditor = ({ appColor, doc, t: theme, onContentChange, registerActions }) => {
+export const ListEditor = ({ appColor, doc, t: theme, onContentChange, registerActions, onTitleChange }) => {
   const [view, setView] = useState("todo");
   const [todo, setTodo] = useState(() => _parseContent(doc.content).todo);
   const [done, setDone] = useState(() => _parseContent(doc.content).done);
@@ -55,13 +55,42 @@ export const ListEditor = ({ appColor, doc, t: theme, onContentChange, registerA
   // Skip the first save effect — initial state already reflects doc.content.
   const initialMount = useRef(true);
 
+  // Title-edit state. A "new" list is one whose doc.content was empty at open;
+  // we start with an empty draft so the placeholder shows and we focus the
+  // input. For existing lists, the draft mirrors the current title.
+  const [titleDraft, setTitleDraft] = useState(() => (doc.content ? doc.title || "" : ""));
+  const [titleFocused, setTitleFocused] = useState(false);
+  const titleRef = useRef(null);
+  const isNewDoc = useRef(!doc.content);
+
   // Reload state when switching documents.
   useEffect(() => {
     const parsed = _parseContent(doc.content);
     setTodo(parsed.todo);
     setDone(parsed.done);
     initialMount.current = true;
+    isNewDoc.current = !doc.content;
+    setTitleDraft(doc.content ? doc.title || "" : "");
   }, [doc.id]);
+
+  // Auto-focus the title input on a freshly-created list so the user can name
+  // it without an extra click.
+  useEffect(() => {
+    if (isNewDoc.current && titleRef.current) {
+      titleRef.current.focus();
+    }
+  }, [doc.id]);
+
+  const commitTitle = () => {
+    const t = titleDraft.trim();
+    if (t && t !== doc.title) {
+      onTitleChange?.(t);
+    } else if (!t) {
+      // User cleared the field — revert the draft so the placeholder reflects
+      // the current saved title rather than leaving an empty input.
+      setTitleDraft(doc.title || "");
+    }
+  };
 
   // Persist on any change. Skip the initial render (and re-mount per doc.id).
   useEffect(() => {
@@ -219,6 +248,57 @@ export const ListEditor = ({ appColor, doc, t: theme, onContentChange, registerA
       }}
     >
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
+        <input
+          ref={titleRef}
+          value={titleDraft}
+          onChange={e => setTitleDraft(e.target.value)}
+          onFocus={() => setTitleFocused(true)}
+          onBlur={() => {
+            setTitleFocused(false);
+            commitTitle();
+          }}
+          onKeyDown={e => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commitTitle();
+              titleRef.current?.blur();
+            } else if (e.key === "Escape") {
+              setTitleDraft(doc.title || "");
+              titleRef.current?.blur();
+            }
+          }}
+          onMouseEnter={e => {
+            if (document.activeElement !== e.currentTarget) {
+              e.currentTarget.style.background = appColor + "14";
+              e.currentTarget.style.borderColor = appColor + "55";
+            }
+          }}
+          onMouseLeave={e => {
+            if (document.activeElement !== e.currentTarget) {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.borderColor = "transparent";
+            }
+          }}
+          placeholder="Untitled list"
+          title="Click to rename"
+          style={{
+            width: "100%",
+            background: titleFocused ? theme.surface : "transparent",
+            border: `1px solid ${titleFocused ? appColor : "transparent"}`,
+            borderRadius: theme.r10,
+            outline: "none",
+            color: theme.tx,
+            fontSize: 24,
+            fontWeight: 800,
+            fontFamily: theme.fn,
+            letterSpacing: "-0.02em",
+            padding: "6px 10px",
+            margin: "0 -10px 14px",
+            cursor: titleFocused ? "text" : "pointer",
+            boxShadow: titleFocused ? `0 0 0 3px ${appColor}22` : "none",
+            transition: theme.tr,
+          }}
+        />
         <div
           style={{
             display: "flex",

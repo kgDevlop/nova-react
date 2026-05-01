@@ -55,9 +55,16 @@ export const AppChip = ({ appId, size = 36, colorOverride }) => {
   );
 };
 
-export const NovaLogo = ({ compact }) => {
+export const NovaLogo = ({ compact, workspace }) => {
   const theme = useT();
   const monogramColor = theme.dk ? "#09060A" : "#fff";
+
+  // When a workspace is provided, swap the brand mark for the workspace's
+  // initial + name. Mobile uses this so the active workspace is the primary
+  // identity on screen instead of generic "Nova".
+  const label = workspace?.name || "Nova";
+  const monogram = (workspace?.name?.[0] || "N").toUpperCase();
+  const bg = workspace?.color || theme.ac;
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, overflow: "hidden" }}>
@@ -66,7 +73,7 @@ export const NovaLogo = ({ compact }) => {
           width: 30,
           height: 30,
           borderRadius: theme.r10,
-          background: theme.ac,
+          background: bg,
           flexShrink: 0,
           display: "flex",
           alignItems: "center",
@@ -81,7 +88,7 @@ export const NovaLogo = ({ compact }) => {
             fontFamily: theme.fn,
           }}
         >
-          N
+          {monogram}
         </span>
       </div>
       {!compact && (
@@ -92,9 +99,11 @@ export const NovaLogo = ({ compact }) => {
             color: theme.tx,
             whiteSpace: "nowrap",
             letterSpacing: "-0.01em",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
           }}
         >
-          Nova
+          {label}
         </span>
       )}
     </div>

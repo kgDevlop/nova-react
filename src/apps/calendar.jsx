@@ -13,7 +13,7 @@ const buildMonthCells = (year, month) => {
   });
 };
 
-export const CalendarEditor = ({ appColor, doc, t: theme, registerActions }) => {
+export const CalendarEditor = ({ appColor, doc, t: theme, registerActions, isMobile, onBack, saveStatus, activeWS, onTitleChange }) => {
   const now = new Date();
   const [view,    setView]    = useState("month");
   const [cursor,  setCursor]  = useState(now);
@@ -225,7 +225,15 @@ export const CalendarEditor = ({ appColor, doc, t: theme, registerActions }) => 
       </div>
 
       {/* Right sidebar */}
-      <AppsSidebar doc={doc} appColor={appColor}>
+      <AppsSidebar
+        doc={doc}
+        appColor={appColor}
+        mobile={isMobile}
+        onBack={onBack}
+        saveStatus={saveStatus}
+        activeWS={activeWS}
+        onTitleChange={onTitleChange}
+      >
         <AppsSidebarSection title="My Calendars" icon={I.Calendar}>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {C.CALENDARS.map(c => {

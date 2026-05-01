@@ -99,7 +99,7 @@ const ErrBoundary = ({ children, onBack }) => {
 
 // ── App shell ───────────────────────────────────────────────────────────────
 
-export const AppShell = ({ doc, onBack, getAppColor, activeWS, updateDoc }) => {
+export const AppShell = ({ doc, onBack, getAppColor, activeWS, updateDoc, isMobile }) => {
   const theme = useT();
   const def = registry._app(doc.type);
   const appColor = doc.appColor || getAppColor(activeWS.id, doc.type, def.dc);
@@ -115,6 +115,7 @@ export const AppShell = ({ doc, onBack, getAppColor, activeWS, updateDoc }) => {
   const showZoom = doc.type === "draw";
   const leftText = C.LEFT_HINTS[doc.type] || "";
   const ownsSidebar = C.OWNS_SIDEBAR.has(doc.type);
+  const hideToolbar = isMobile && C.MOBILE_OWNS_TOOLBAR.has(doc.type);
 
   const handleAction = useCallback((id, val) => {
     actionsRef.current?.(id, val);
@@ -124,23 +125,29 @@ export const AppShell = ({ doc, onBack, getAppColor, activeWS, updateDoc }) => {
     actionsRef.current = fn;
   }, []);
 
+  const handleTitleChange = useCallback(title => {
+    updateDoc(doc.id, { title });
+  }, [doc.id, updateDoc]);
+
   return (
     <ErrBoundary onBack={onBack}>
-      <AppTopBar
-        doc={doc}
-        onBack={onBack}
-        appColor={appColor}
-        saveStatus={saveStatus}
-        activeWS={activeWS}
-        onTitleChange={title => {
-          updateDoc(doc.id, { title });
-        }}
-      />
-      <ToolbarRow
-        appId={doc.type}
-        onAction={handleAction}
-        appColor={appColor}
-      />
+      {!isMobile && (
+        <AppTopBar
+          doc={doc}
+          onBack={onBack}
+          appColor={appColor}
+          saveStatus={saveStatus}
+          activeWS={activeWS}
+          onTitleChange={handleTitleChange}
+        />
+      )}
+      {!hideToolbar && (
+        <ToolbarRow
+          appId={doc.type}
+          onAction={handleAction}
+          appColor={appColor}
+        />
+      )}
       <div style={{ flex: 1, display: "flex", flexDirection: "row", overflow: "hidden", minHeight: 0 }}>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
           {Canvas && (
@@ -151,13 +158,28 @@ export const AppShell = ({ doc, onBack, getAppColor, activeWS, updateDoc }) => {
                 t={theme}
                 onContentChange={setContent}
                 registerActions={registerActions}
+                isMobile={isMobile}
+                onBack={onBack}
+                saveStatus={saveStatus}
+                activeWS={activeWS}
+                onTitleChange={handleTitleChange}
               />
             ) : (
               <Canvas appColor={appColor} t={theme} />
             )
           )}
         </div>
-        {!ownsSidebar && <AppsSidebar doc={doc} appColor={appColor} />}
+        {!ownsSidebar && (
+          <AppsSidebar
+            doc={doc}
+            appColor={appColor}
+            mobile={isMobile}
+            onBack={onBack}
+            saveStatus={saveStatus}
+            activeWS={activeWS}
+            onTitleChange={handleTitleChange}
+          />
+        )}
       </div>
       <StatusBar
         leftText={leftText}

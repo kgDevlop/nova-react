@@ -276,7 +276,11 @@ export const shell = {
 
   // Editors that render their own right-side panel and should suppress the
   // default AppsSidebar (e.g. calendar shows My Calendars + mini-month).
-  OWNS_SIDEBAR: new Set(["calendar"]),
+  OWNS_SIDEBAR: new Set(["calendar", "writer"]),
+
+  // Editors that surface their toolbar inside the mobile drawer; the shell
+  // suppresses the desktop ToolbarRow for these on mobile.
+  MOBILE_OWNS_TOOLBAR: new Set(["writer"]),
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -344,6 +348,10 @@ export const left_sidebar = {
 export const nova_base = {
   // Max history stack size for back/forward page navigation.
   HIST_LIMIT: 50,
+  // localStorage key for the "disable mobile site" preference. When true, the
+  // viewport-width mobile detection is overridden and the desktop layout is
+  // forced even on small screens.
+  MOBILE_DISABLED_KEY: "nova:mobile-disabled:v1",
 };
 
 // ═══════════════════════════════════════════════════════════════════════════

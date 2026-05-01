@@ -327,15 +327,25 @@ export const HomeScreen = ({
   onDelete,
   onRename,
   getAppColor,
+  isMobile,
 }) => {
   const theme = useT();
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("modified");
   const [vm, setVm] = useState("grid");
   const [favOnly, setFavOnly] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const searchRef = useRef(null);
   useKbd("k", () => searchRef.current?.focus());
+
+  // On mobile the search input is hidden behind an icon button; opening it
+  // focuses the field.
+  useEffect(() => {
+    if (isMobile && searchOpen) {
+      searchRef.current?.focus();
+    }
+  }, [isMobile, searchOpen]);
 
   // Grid sizing: slider picks a column count, snapped to ticks. Max columns is
   // recomputed from the grid's measured width so the upper bound matches what
@@ -393,25 +403,27 @@ export const HomeScreen = ({
         margin: "0 auto",
       }}
     >
-      <div
-        style={{
-          marginBottom: 26,
-          animation: "fadeUp 0.3s ease both",
-        }}
-      >
-        <h1
+      {view !== "home" && (
+        <div
           style={{
-            fontSize: 23,
-            fontWeight: 800,
-            color: theme.tx,
-            letterSpacing: "-0.03em",
+            marginBottom: 26,
+            animation: "fadeUp 0.3s ease both",
           }}
         >
-          {view === "home" ? activeWS.name : utils._vtitle(view)}
-        </h1>
-      </div>
+          <h1
+            style={{
+              fontSize: 23,
+              fontWeight: 800,
+              color: theme.tx,
+              letterSpacing: "-0.03em",
+            }}
+          >
+            {utils._vtitle(view)}
+          </h1>
+        </div>
+      )}
 
-      {qt && (
+      {qt && !isMobile && (
         <div
           style={{
             marginBottom: 26,
@@ -469,7 +481,7 @@ export const HomeScreen = ({
         </div>
       )}
 
-      {/* Search + sort + view-mode toolbar */}
+      {/* Doc count, view toggle, favorites, sort, search */}
       <div
         style={{
           display: "flex",
@@ -480,66 +492,26 @@ export const HomeScreen = ({
           animation: "fadeUp 0.3s ease 0.1s both",
         }}
       >
-        <div style={{ position: "relative", flex: 1, minWidth: 150, maxWidth: 300 }}>
-          <div
-            style={{
-              position: "absolute",
-              left: 9,
-              top: "50%",
-              transform: "translateY(-50%)",
-              pointerEvents: "none",
-            }}
-          >
-            <I.Search size={11} color={theme.tm} />
-          </div>
-          <input
-            ref={searchRef}
-            className="ninput"
-            style={{ paddingLeft: 27, fontSize: 12 }}
-            placeholder="Search…"
-            value={q}
-            onChange={e => setQ(e.target.value)}
-          />
+        <span style={{ fontSize: 10, color: theme.tm }}>
+          {visible.length} doc{visible.length !== 1 ? "s" : ""}
+        </span>
+        <div style={{ display: "flex", gap: 2 }}>
+          {[["grid", I.Grid], ["list", I.List]].map(([m, Ico]) => (
+            <button
+              key={m}
+              className="nb ni"
+              style={{
+                color: vm === m ? theme.tx : theme.tm,
+                background: vm === m ? theme.sa : "transparent",
+              }}
+              onClick={() => setVm(m)}
+            >
+              <Ico size={13} />
+            </button>
+          ))}
         </div>
-        <select
-          value={sort}
-          onChange={e => setSort(e.target.value)}
-          style={{
-            background: theme.surface,
-            border: `1px solid ${theme.bd}`,
-            color: theme.ts,
-            fontFamily: theme.fn,
-            fontSize: 11,
-            borderRadius: theme.r10,
-            padding: "6px 9px",
-            cursor: "pointer",
-            outline: "none",
-          }}
-        >
-          <option value="modified">Last modified</option>
-          <option value="name">Name A→Z</option>
-          <option value="type">App type</option>
-        </select>
-        <button
-          className="nb"
-          title={favOnly ? "Show all" : "Show favorites only"}
-          aria-pressed={favOnly}
-          onClick={() => setFavOnly(v => !v)}
-          style={{
-            padding: "6px 10px",
-            fontSize: 11,
-            fontWeight: 600,
-            background: favOnly ? theme.ac + "1F" : theme.surface,
-            color: favOnly ? theme.ac : theme.ts,
-            border: `1px solid ${favOnly ? theme.ac + "55" : theme.bd}`,
-            borderRadius: theme.r10,
-          }}
-        >
-          <I.Star size={11} fill={favOnly ? theme.ac : "none"} color={favOnly ? theme.ac : theme.ts} />
-          Favorites
-        </button>
-        {vm === "grid" && (
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
+        {vm === "grid" && !isMobile && (
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <input
               type="range"
               min={2}
@@ -560,24 +532,111 @@ export const HomeScreen = ({
             />
           </div>
         )}
-        <div style={{ display: "flex", gap: 2, marginLeft: vm === "grid" ? 0 : "auto" }}>
-          {[["grid", I.Grid], ["list", I.List]].map(([m, Ico]) => (
-            <button
-              key={m}
-              className="nb ni"
+        <button
+          className="nb"
+          title={favOnly ? "Show all" : "Show favorites only"}
+          aria-pressed={favOnly}
+          onClick={() => setFavOnly(v => !v)}
+          style={{
+            padding: "6px 10px",
+            fontSize: 11,
+            fontWeight: 600,
+            background: favOnly ? theme.ac + "1F" : theme.surface,
+            color: favOnly ? theme.ac : theme.ts,
+            border: `1px solid ${favOnly ? theme.ac + "55" : theme.bd}`,
+            borderRadius: theme.r10,
+          }}
+        >
+          <I.Star size={11} fill={favOnly ? theme.ac : "none"} color={favOnly ? theme.ac : theme.ts} />
+          Favorites
+        </button>
+        <select
+          value={sort}
+          onChange={e => setSort(e.target.value)}
+          style={{
+            background: theme.surface,
+            border: `1px solid ${theme.bd}`,
+            color: theme.ts,
+            fontFamily: theme.fn,
+            fontSize: 11,
+            borderRadius: theme.r10,
+            padding: "6px 9px",
+            cursor: "pointer",
+            outline: "none",
+          }}
+        >
+          <option value="modified">Last modified</option>
+          <option value="name">Name A→Z</option>
+          <option value="type">App type</option>
+        </select>
+        {isMobile && !searchOpen ? (
+          <button
+            className="nb ni"
+            onClick={() => setSearchOpen(true)}
+            title="Search"
+            style={{
+              marginLeft: "auto",
+              padding: 7,
+              border: `1px solid ${theme.bd}`,
+              borderRadius: theme.r10,
+              background: theme.surface,
+            }}
+          >
+            <I.Search size={13} />
+          </button>
+        ) : (
+          <div style={{ position: "relative", flex: 1, marginLeft: "auto", minWidth: 150, maxWidth: isMobile ? undefined : 300 }}>
+            <div
               style={{
-                color: vm === m ? theme.tx : theme.tm,
-                background: vm === m ? theme.sa : "transparent",
+                position: "absolute",
+                left: 9,
+                top: "50%",
+                transform: "translateY(-50%)",
+                pointerEvents: "none",
               }}
-              onClick={() => setVm(m)}
             >
-              <Ico size={13} />
-            </button>
-          ))}
-        </div>
-        <span style={{ fontSize: 10, color: theme.tm }}>
-          {visible.length} doc{visible.length !== 1 ? "s" : ""}
-        </span>
+              <I.Search size={11} color={theme.tm} />
+            </div>
+            <input
+              ref={searchRef}
+              className="ninput"
+              style={{ paddingLeft: 27, paddingRight: isMobile ? 28 : 12, fontSize: 12 }}
+              placeholder="Search…"
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Escape" && isMobile) {
+                  setQ("");
+                  setSearchOpen(false);
+                }
+              }}
+            />
+            {isMobile && (
+              <button
+                onClick={() => {
+                  setQ("");
+                  setSearchOpen(false);
+                }}
+                title="Close search"
+                style={{
+                  position: "absolute",
+                  right: 6,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: theme.tm,
+                  display: "flex",
+                  padding: 4,
+                  borderRadius: theme.r6,
+                }}
+              >
+                <I.X size={11} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {visible.length === 0 && (
@@ -622,7 +681,8 @@ export const HomeScreen = ({
       {visible.length > 0 && vm === "grid" && (
         <TileGrid
           gridRef={gridRef}
-          cols={cols}
+          cols={isMobile ? undefined : cols}
+          min={C.GRID_MIN_CARD_PX}
           style={{ animation: "fadeUp 0.3s ease 0.12s both" }}
         >
           {visible.map(doc => (

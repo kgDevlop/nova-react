@@ -37,73 +37,118 @@ function NovaApp() {
   const [showNewWS, setShowNewWS] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [mobQ, setMobQ] = useState("");
-
-  // ── Page nav history (back / forward) ────────────────────────────────────
-  // Tracks the last 50 "pages" — distinct {view, activeTabId} combinations.
-  const [navHist, setNavHist] = useState(() => ({
-    stack: [{ view: "home", activeTabId: null }],
-    idx: 0,
-  }));
-  const navRestoring = useRef(false);
-  const navLastPush = useRef(0);
+  const [mobileDisabled, setMobileDisabled] = useState(() => {
+    return localStorage.getItem(C.MOBILE_DISABLED_KEY) === "1";
+  });
 
   useEffect(() => {
-    if (navRestoring.current) {
-      navRestoring.current = false;
-      return;
-    }
-    // Coalesce rapid state changes (e.g. opening a doc updates `view` and
-    // `activeTabId` in the same tick) into a single history entry.
-    const now = Date.now();
-    const coalesce = now - navLastPush.current < 150;
-    navLastPush.current = now;
+    localStorage.setItem(C.MOBILE_DISABLED_KEY, mobileDisabled ? "1" : "0");
+  }, [mobileDisabled]);
+
+  const isMobile = device.isMobile && !mobileDisabled;
+
+  // ── Page nav history (back / forward) ────────────────────────────────────
+  //
+  // Each entry is a single string identifying a "page":
+  //   - "home" / "starred" / "all" / "catalogue"      — top-level views
+  //   - "<app-id>" (e.g. "writer")                    — app-filtered list
+  //   - "doc:<doc-id>"                                — an opened document
+  //
+  // The list + index are the source of truth. Two effects keep things in sync:
+  //   1. pageId effect — when the visible page differs from the entry at idx,
+  //      append a new entry (forward navigation) and tag the op as "push".
+  //   2. navHist effect — when navHist changes, push browser history if the op
+  //      was "push", and otherwise restore the active tab/view to match the
+  //      entry at idx (back/forward).
+  const pageId = tabs.activeTabId ? `doc:${tabs.activeTabId}` : view;
+
+  const [navHist, setNavHist] = useState(() => ({
+    entries: [pageId],
+    idx: 0,
+  }));
+  const navOpRef = useRef("init");
+
+  useEffect(() => {
     setNavHist(h => {
-      const top = h.stack[h.idx];
-      if (top && top.view === view && top.activeTabId === tabs.activeTabId) {
+      if (h.entries[h.idx] === pageId) {
         return h;
       }
-      const entry = { view, activeTabId: tabs.activeTabId };
-      if (coalesce && h.stack.length) {
-        const replaced = h.stack.slice(0, h.idx);
-        replaced.push(entry);
-        return { stack: replaced, idx: replaced.length - 1 };
-      }
-      const truncated = h.stack.slice(0, h.idx + 1);
-      truncated.push(entry);
+      navOpRef.current = "push";
+      const truncated = h.entries.slice(0, h.idx + 1);
+      truncated.push(pageId);
       const trimmed = truncated.slice(-C.HIST_LIMIT);
-      return { stack: trimmed, idx: trimmed.length - 1 };
+      return { entries: trimmed, idx: trimmed.length - 1 };
     });
-  }, [view, tabs.activeTabId]);
+  }, [pageId]);
 
   const canBack = navHist.idx > 0;
-  const canForward = navHist.idx < navHist.stack.length - 1;
+  const canForward = navHist.idx < navHist.entries.length - 1;
 
   const goBack = useCallback(() => {
-    setNavHist(h => {
-      if (h.idx <= 0) {
-        return h;
-      }
-      const target = h.stack[h.idx - 1];
-      navRestoring.current = true;
-      setView(target.view);
-      tabs.setActiveTabId(target.activeTabId);
-      return { ...h, idx: h.idx - 1 };
-    });
-  }, [tabs]);
+    setNavHist(h => (h.idx <= 0 ? h : { ...h, idx: h.idx - 1 }));
+  }, []);
 
   const goForward = useCallback(() => {
-    setNavHist(h => {
-      if (h.idx >= h.stack.length - 1) {
-        return h;
+    setNavHist(h => (h.idx >= h.entries.length - 1 ? h : { ...h, idx: h.idx + 1 }));
+  }, []);
+
+  // Mirror internal navHist onto window.history (so smartphone back gestures
+  // traverse our stack) and route the visible view to match the active entry.
+  useEffect(() => {
+    const op = navOpRef.current;
+    navOpRef.current = "idle";
+
+    if (op === "push") {
+      window.history.pushState({ appIdx: navHist.idx }, "");
+    }
+
+    const target = navHist.entries[navHist.idx];
+    if (target === pageId) {
+      return;
+    }
+    // Restoring an entry (back/forward) — switch view/tab to match.
+    if (target.startsWith("doc:")) {
+      const id = target.slice(4);
+      const doc = store.active.docs.find(d => d.id === id);
+      if (doc) {
+        tabs.openTab(doc);
+        return;
       }
-      const target = h.stack[h.idx + 1];
-      navRestoring.current = true;
-      setView(target.view);
-      tabs.setActiveTabId(target.activeTabId);
-      return { ...h, idx: h.idx + 1 };
-    });
-  }, [tabs]);
+      tabs.setActiveTabId(null);
+      setView("home");
+      return;
+    }
+    tabs.setActiveTabId(null);
+    setView(target);
+  }, [navHist]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tag the current browser entry with our index on first mount, so popstate
+  // can later identify it.
+  useEffect(() => {
+    if (window.history.state?.appIdx === undefined) {
+      window.history.replaceState({ appIdx: navHist.idx }, "");
+    }
+  }, []); // eslint-disable-line
+
+  // Listen for back/forward (in-app buttons trigger window.history.back/forward
+  // too, so this handles all sources uniformly).
+  useEffect(() => {
+    const handler = e => {
+      const target = e.state?.appIdx;
+      if (typeof target !== "number") {
+        return;
+      }
+      setNavHist(h => {
+        if (target === h.idx) return h;
+        const clamped = Math.max(0, Math.min(h.entries.length - 1, target));
+        return { ...h, idx: clamped };
+      });
+    };
+    window.addEventListener("popstate", handler);
+    return () => {
+      window.removeEventListener("popstate", handler);
+    };
+  }, []);
 
   // ── Global shortcuts ──────────────────────────────────────────────────────
   // ⌘N → new doc, ⌘K → command palette
@@ -218,7 +263,7 @@ function NovaApp() {
       }}
     >
       <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
-        {!device.isMobile && (
+        {!isMobile && (
           <Sidebar
             view={view}
             onNav={handleNav}
@@ -234,7 +279,7 @@ function NovaApp() {
             onSettings={() => setShowSettings(true)}
           />
         )}
-        {device.isMobile && showMobSB && (
+        {isMobile && showMobSB && (
           <MobSidebar
             onClose={() => setShowMobSB(false)}
             view={view}
@@ -246,6 +291,7 @@ function NovaApp() {
             onNew={() => setShowNewWS(true)}
             onRenameWS={store.renameWS}
             onDeleteWS={store.deleteWS}
+            onSettings={() => setShowSettings(true)}
           />
         )}
 
@@ -258,7 +304,7 @@ function NovaApp() {
             minWidth: 0,
           }}
         >
-          {!device.isMobile && collapsed && !isInEditor && (
+          {!isMobile && collapsed && !isInEditor && (
             <div
               style={{
                 height: 42,
@@ -290,15 +336,19 @@ function NovaApp() {
             </div>
           )}
 
-          {device.isMobile && (
+          {isMobile && (
             <MobTopBar
               onOpen={() => setShowMobSB(true)}
-              q={mobQ}
-              setQ={setMobQ}
+              onSearchClick={() => setShowPalette(true)}
+              onBack={() => window.history.back()}
+              onForward={() => window.history.forward()}
+              canBack={canBack}
+              canForward={canForward}
+              workspace={store.active}
             />
           )}
 
-          {!device.isMobile && (
+          {!isMobile && (
             <TabBar
               tabs={tabs.tabs}
               activeTabId={tabs.activeTabId}
@@ -307,20 +357,10 @@ function NovaApp() {
               getAppColor={ac.get}
               activeWS={store.active}
               onSearchClick={() => setShowPalette(true)}
-              onBack={goBack}
-              onForward={goForward}
+              onBack={() => window.history.back()}
+              onForward={() => window.history.forward()}
               canBack={canBack}
               canForward={canForward}
-            />
-          )}
-          {device.isMobile && (
-            <TabBar
-              tabs={tabs.tabs}
-              activeTabId={tabs.activeTabId}
-              onSelect={tabs.setActiveTabId}
-              onClose={tabs.closeTab}
-              getAppColor={ac.get}
-              activeWS={store.active}
             />
           )}
 
@@ -331,6 +371,7 @@ function NovaApp() {
               getAppColor={ac.get}
               activeWS={store.active}
               updateDoc={handleUpdateDoc}
+              isMobile={isMobile}
             />
           ) : view === "catalogue" ? (
             <AppCatalogueScreen
@@ -350,6 +391,7 @@ function NovaApp() {
               onDelete={handleDelete}
               onRename={handleRename}
               getAppColor={ac.get}
+              isMobile={isMobile}
             />
           )}
         </div>
@@ -376,6 +418,8 @@ function NovaApp() {
           getAppColor={ac.get}
           setAppColor={ac.put}
           activeWS={store.active}
+          mobileDisabled={mobileDisabled}
+          setMobileDisabled={setMobileDisabled}
           onShowShortcuts={() => {
             setShowSettings(false);
             setShowShortcuts(true);

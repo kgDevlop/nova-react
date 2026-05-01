@@ -1,27 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { I } from "../shared/icons";
 import { AppsSidebar, AppsSidebarSection, DefaultSections } from "../shared/apps_sidebar";
-
-// Static calendar list — singleton calendar app, no add/remove.
-const CALENDARS = [
-  { id: "work",   name: "Work",              color: "#4A8FE8" },
-  { id: "ent",    name: "Entertainment",     color: "#EF4444" },
-  { id: "agenda", name: "Agenda",            color: "#F59E0B" },
-  { id: "appts",  name: "Appointments",      color: "#3BB580" },
-  { id: "proj",   name: "Personal Projects", color: "#A87BE8" },
-  { id: "health", name: "Healthy",           color: "#FACC15" },
-];
-
-const DAYS      = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const DAYS_MINI = ["S", "M", "T", "W", "T", "F", "S"];
-const MONTHS    = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-const VIEWS = ["day", "week", "month", "year"];
-
-const CELL_MIN_H  = 90;
-const TODAY_BADGE = 22;
+import { calendar as C } from "../shared/_constants";
 
 // Build a 6×7 month grid (null-padded) so the layout never reflows.
 const buildMonthCells = (year, month) => {
@@ -37,7 +17,7 @@ export const CalendarEditor = ({ appColor, doc, t: theme, registerActions }) => 
   const now = new Date();
   const [view,    setView]    = useState("month");
   const [cursor,  setCursor]  = useState(now);
-  const [visible, setVisible] = useState(() => new Set(CALENDARS.map(c => c.id)));
+  const [visible, setVisible] = useState(() => new Set(C.CALENDARS.map(c => c.id)));
 
   const year  = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -78,7 +58,7 @@ export const CalendarEditor = ({ appColor, doc, t: theme, registerActions }) => 
     const cells = buildMonthCells(year, month);
     return (
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 1 }}>
-        {DAYS_MINI.map((d, i) => (
+        {C.DAYS_MINI.map((d, i) => (
           <div
             key={i}
             style={{
@@ -132,7 +112,7 @@ export const CalendarEditor = ({ appColor, doc, t: theme, registerActions }) => 
             border: `1px solid ${theme.bd}`,
           }}
         >
-          {DAYS.map(d => (
+          {C.DAYS.map(d => (
             <div
               key={d}
               style={{
@@ -152,7 +132,7 @@ export const CalendarEditor = ({ appColor, doc, t: theme, registerActions }) => 
               key={i}
               style={{
                 background: theme.surface,
-                minHeight: CELL_MIN_H,
+                minHeight: C.CELL_MIN_H,
                 padding: 5,
               }}
             >
@@ -162,8 +142,8 @@ export const CalendarEditor = ({ appColor, doc, t: theme, registerActions }) => 
                     fontSize: 11,
                     fontWeight: isToday(day) ? 700 : 500,
                     color: isToday(day) ? "#fff" : theme.ts,
-                    width: TODAY_BADGE,
-                    height: TODAY_BADGE,
+                    width: C.TODAY_BADGE,
+                    height: C.TODAY_BADGE,
                     borderRadius: "50%",
                     background: isToday(day) ? appColor : "transparent",
                     display: "flex",
@@ -198,7 +178,7 @@ export const CalendarEditor = ({ appColor, doc, t: theme, registerActions }) => 
           }}
         >
           <h2 style={{ fontSize: 17, fontWeight: 800, color: theme.tx, marginRight: 6 }}>
-            {MONTHS[month]} {year}
+            {C.MONTHS[month]} {year}
           </h2>
           <button className="nb ni" style={{ padding: 5 }} onClick={() => shiftMonth(-1)}>
             <I.ChevLeft size={13} />
@@ -208,7 +188,7 @@ export const CalendarEditor = ({ appColor, doc, t: theme, registerActions }) => 
           </button>
           <div style={{ flex: 1 }} />
           <div style={{ display: "flex", gap: 2, background: theme.sa, borderRadius: theme.r6, padding: 2 }}>
-            {VIEWS.map(v => (
+            {C.VIEWS.map(v => (
               <button
                 key={v}
                 onClick={() => setView(v)}
@@ -248,7 +228,7 @@ export const CalendarEditor = ({ appColor, doc, t: theme, registerActions }) => 
       <AppsSidebar doc={doc} appColor={appColor}>
         <AppsSidebarSection title="My Calendars" icon={I.Calendar}>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {CALENDARS.map(c => {
+            {C.CALENDARS.map(c => {
               const on = visible.has(c.id);
               return (
                 <button
@@ -308,7 +288,7 @@ export const CalendarEditor = ({ appColor, doc, t: theme, registerActions }) => 
           </div>
         </AppsSidebarSection>
 
-        <AppsSidebarSection title={`${MONTHS[month]} ${year}`} icon={I.Calendar}>
+        <AppsSidebarSection title={`${C.MONTHS[month]} ${year}`} icon={I.Calendar}>
           <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 8 }}>
             <div style={{ flex: 1, fontSize: 11, color: theme.ts, fontWeight: 600 }}>
               Jump to date

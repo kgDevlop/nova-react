@@ -2,11 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { I } from "../icons";
 import { useT } from "../theme";
 import { AppChip } from "../atoms";
-import { _autoName } from "../utils";
-import { APPS, _app } from "../../shell/registry";
-
-// Calendar is a singleton per workspace — it is never created from this modal.
-const CREATABLE_APPS = APPS.filter(a => a.id !== "calendar");
+import { new_doc_popup as C } from "../_constants";
+import { utils, registry } from "../_utils";
 
 export const NewDocModal = ({ onClose, onCreate, initType, getAppColor, activeWS }) => {
   const theme = useT();
@@ -27,7 +24,7 @@ export const NewDocModal = ({ onClose, onCreate, initType, getAppColor, activeWS
     }
     setCreating(true);
     try {
-      const color = getAppColor(activeWS.id, type, _app(type).dc);
+      const color = getAppColor(activeWS.id, type, registry._app(type).dc);
       onCreate(type, title, color);
     } catch (err) {
       console.error("Nova: doc create failed", err);
@@ -36,9 +33,9 @@ export const NewDocModal = ({ onClose, onCreate, initType, getAppColor, activeWS
     }
   };
 
-  const def = _app(type);
+  const def = registry._app(type);
   const currentColor = getAppColor(activeWS.id, type, def.dc);
-  const autoPreview = _autoName(type);
+  const autoPreview = utils._autoName(type);
 
   return (
     <div
@@ -102,7 +99,7 @@ export const NewDocModal = ({ onClose, onCreate, initType, getAppColor, activeWS
             flexShrink: 0,
           }}
         >
-          {CREATABLE_APPS.map(app => {
+          {C.CREATABLE_APPS.map(app => {
             const selected = type === app.id;
             const color = getAppColor(activeWS.id, app.id, app.dc);
             return (

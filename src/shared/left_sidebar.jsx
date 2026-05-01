@@ -3,7 +3,7 @@ import { I } from "./icons";
 import { useT } from "./theme";
 import { useOut } from "./hooks/system";
 import { NovaLogo } from "./atoms";
-import { APPS } from "../shell/registry";
+import { left_sidebar as C, registry } from "./_constants";
 
 // ── Delete workspace confirm ──────────────────────────────────────────────
 //
@@ -353,14 +353,6 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
   );
 };
 
-// ── Primary nav items ─────────────────────────────────────────────────────
-const PRIMARY_NAV = [
-  { id: "home", l: "Home", I: I.Home },
-  { id: "starred", l: "Starred", I: I.Star },
-  { id: "all", l: "All documents", I: I.Folder },
-  { id: "catalogue", l: "App catalogue", I: I.Layers },
-];
-
 // ── Desktop sidebar ───────────────────────────────────────────────────────
 export const Sidebar = ({
   view,
@@ -445,7 +437,7 @@ export const Sidebar = ({
       </div>
 
       <div style={{ flex: 1, overflowY: "auto" }}>
-        {PRIMARY_NAV.map(({ id, l, I: Ico }) => (
+        {C.PRIMARY_NAV.map(({ id, l, I: Ico }) => (
           <div
             key={id}
             className={`nnav ${view === id ? "active" : ""}`}
@@ -467,7 +459,7 @@ export const Sidebar = ({
           <div className="ndiv" style={{ margin: "8px 4px" }} />
         )}
 
-        {APPS.map(app => {
+        {registry.APPS.map(app => {
           const isActive = view === app.id;
           return (
             <div
@@ -586,7 +578,7 @@ export const MobSidebar = ({
           <I.Plus size={13} /> New document
         </button>
 
-        {PRIMARY_NAV.map(({ id, l, I: Ico }) => (
+        {C.PRIMARY_NAV.map(({ id, l, I: Ico }) => (
           <div
             key={id}
             className={`nnav ${view === id ? "active" : ""}`}
@@ -602,7 +594,7 @@ export const MobSidebar = ({
 
         <div className="nsect">Apps</div>
         <div style={{ flex: 1, overflowY: "auto" }}>
-          {APPS.map(app => (
+          {registry.APPS.map(app => (
             <div
               key={app.id}
               className={`nnav ${view === app.id ? "active" : ""}`}

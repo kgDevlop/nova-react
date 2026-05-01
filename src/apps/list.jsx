@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { I } from "../shared/icons";
-import { _elId } from "../shared/utils";
-
-// Tree depth cap (15 levels: root + 14 nested children).
-const MAX_DEPTH = 14;
-const INDENT_PX = 22;
+import { utils } from "../shared/_utils";
+import { list as C } from "../shared/_constants";
 
 const _newItem = (depth = 0, text = "") => ({
-  id: _elId(),
+  id: utils._elId(),
   text,
   done: false,
   depth,
@@ -25,10 +22,10 @@ const _subtreeEnd = (items, i) => {
 };
 
 const _normItem = (raw, fallbackDepth = 0) => ({
-  id: typeof raw?.id === "string" ? raw.id : _elId(),
+  id: typeof raw?.id === "string" ? raw.id : utils._elId(),
   text: typeof raw?.text === "string" ? raw.text : "",
   done: !!raw?.done,
-  depth: Math.max(0, Math.min(MAX_DEPTH, Number.isFinite(raw?.depth) ? raw.depth : fallbackDepth)),
+  depth: Math.max(0, Math.min(C.MAX_DEPTH, Number.isFinite(raw?.depth) ? raw.depth : fallbackDepth)),
 });
 
 const _parseContent = (content) => {
@@ -162,7 +159,7 @@ export const ListEditor = ({ appColor, doc, t: theme, onContentChange, registerA
     setItems(prev => {
       const item = prev[idx];
       const newDepth = item.depth + delta;
-      if (newDepth < 0 || newDepth > MAX_DEPTH) {
+      if (newDepth < 0 || newDepth > C.MAX_DEPTH) {
         return prev;
       }
       if (delta > 0) {
@@ -361,8 +358,8 @@ const ListItem = ({
         display: "flex",
         alignItems: "center",
         gap: 10,
-        paddingLeft: item.depth * INDENT_PX,
-        padding: `2px 0 2px ${item.depth * INDENT_PX}px`,
+        paddingLeft: item.depth * C.INDENT_PX,
+        padding: `2px 0 2px ${item.depth * C.INDENT_PX}px`,
       }}
     >
       <button

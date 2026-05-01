@@ -1,7 +1,7 @@
 import React from "react";
 import { I } from "./icons";
 import { useT } from "./theme";
-import { _app } from "../shell/registry";
+import { registry } from "./_utils";
 
 export const TabBar = ({
   tabs,
@@ -144,7 +144,7 @@ export const TabBar = ({
         }}
       >
         {tabs.map(doc => {
-          const def = _app(doc.type);
+          const def = registry._app(doc.type);
           const color = doc.appColor || getAppColor(activeWS.id, doc.type, def.dc);
           const isActive = doc.id === activeTabId;
           // Calendar is a singleton; its tab label always tracks the active

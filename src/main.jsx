@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './nova-base.jsx'
+import App from './nova_base.jsx'
 
 // On the prod host, the app only lives at the base URL — any subpath, query,
 // or hash is rewritten to "/" before render so deep links can't surface

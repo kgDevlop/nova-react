@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useContext, createContext } from "react";
 import { I } from "./icons";
 import { useT } from "./theme";
-import { _uid } from "./utils";
+import { utils } from "./_utils";
 
 // ── Notification context ──────────────────────────────────────────────────
 
@@ -100,7 +100,7 @@ export function NotifProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
   const notify = useCallback((type, msg, duration = 3500) => {
-    const id = _uid();
+    const id = utils._uid();
     setToasts(prev => [...prev, { id, type, msg }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(x => x.id !== id));

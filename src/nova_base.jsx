@@ -6,19 +6,17 @@ import { useStyles } from "./shared/styling";
 import { useDeviceCaps, useKbd } from "./shared/hooks/system";
 import { useWSStore, useTabs, useAppColors } from "./shared/hooks/store";
 import { NovaLogo } from "./shared/atoms";
-import { Sidebar, MobSidebar, MobTopBar } from "./shared/sidebar";
-import { TabBar } from "./shared/tabbar";
-import { NewDocModal } from "./shared/modals/newdoc";
+import { Sidebar, MobSidebar, MobTopBar } from "./shared/left_sidebar";
+import { TabBar } from "./shared/utils_bar";
+import { NewDocModal } from "./shared/modals/new_doc_popup";
 import { NewWSModal } from "./shared/modals/newws";
-import { SettingsPanel } from "./shared/modals/settings";
+import { SettingsPanel } from "./shared/modals/nova_settings";
 import { CommandPalette } from "./shared/modals/palette";
 import { ShortcutsModal } from "./shared/modals/shortcuts";
 import { AppShell } from "./shell/shell";
 import { HomeScreen, AppCatalogueScreen } from "./shell/home";
-import { _app } from "./shell/registry";
-
-// One week, used to bucket "recent" docs in stats and quota warnings.
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000; // eslint-disable-line no-unused-vars
+import { nova_base as C } from "./shared/_constants";
+import { registry } from "./shared/_utils";
 
 function NovaApp() {
   const { theme, t, setTheme } = useContext(TC);
@@ -43,7 +41,6 @@ function NovaApp() {
 
   // ── Page nav history (back / forward) ────────────────────────────────────
   // Tracks the last 50 "pages" — distinct {view, activeTabId} combinations.
-  const HIST_LIMIT = 50;
   const [navHist, setNavHist] = useState(() => ({
     stack: [{ view: "home", activeTabId: null }],
     idx: 0,
@@ -74,7 +71,7 @@ function NovaApp() {
       }
       const truncated = h.stack.slice(0, h.idx + 1);
       truncated.push(entry);
-      const trimmed = truncated.slice(-HIST_LIMIT);
+      const trimmed = truncated.slice(-C.HIST_LIMIT);
       return { stack: trimmed, idx: trimmed.length - 1 };
     });
   }, [view, tabs.activeTabId]);
@@ -136,7 +133,7 @@ function NovaApp() {
       tabs.openTab(existing);
       return;
     }
-    const c = ac.get(store.active.id, "calendar", _app("calendar").dc);
+    const c = ac.get(store.active.id, "calendar", registry._app("calendar").dc);
     const doc = store.createDoc("calendar", "Calendar", c);
     tabs.openTab(doc);
   }, [store, ac, tabs]);
@@ -147,10 +144,10 @@ function NovaApp() {
       return;
     }
     if (type) {
-      const c = ac.get(store.active.id, type, _app(type).dc);
+      const c = ac.get(store.active.id, type, registry._app(type).dc);
       const doc = store.createDoc(type, "", c);
       tabs.openTab(doc);
-      notify("success", `${_app(type).label} created`);
+      notify("success", `${registry._app(type).label} created`);
     } else {
       setNdType(null);
       setShowND(true);
@@ -160,7 +157,7 @@ function NovaApp() {
   const handleCreate = useCallback((type, title, color) => {
     const doc = store.createDoc(type, title, color);
     tabs.openTab(doc);
-    notify("success", `${_app(type).label} "${doc.title}" created`);
+    notify("success", `${registry._app(type).label} "${doc.title}" created`);
   }, [store, tabs, notify]);
 
   const handleOpenDoc = useCallback(doc => {

@@ -1,14 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { I } from "../shared/icons";
-
-// Layout constants — paper dimensions are derived from the rendered width
-// so the page stays at 8.5×11 proportions at any zoom level.
-const PAPER_MAX_WIDTH = 816;
-const PAPER_MIN_WIDTH = 320;
-const PAGE_HEIGHT_RATIO = 11 / 8.5;
-const MARGIN_TOP_RATIO = 0.83 / 8.5;
-const MARGIN_BOTTOM_RATIO = 0.625 / 8.5;
-const MARGIN_HORIZONTAL_RATIO = 0.875 / 8.5;
+import { writer as C } from "../shared/_constants";
 
 // One 8.5×11 paper sheet. The inner contentEditable is height-clipped to the
 // page's content area; the parent (WriterEditor) detects overflow on this
@@ -86,16 +78,16 @@ export const WriterEditor = ({ appColor, doc, t: theme, onContentChange, registe
   const [pageCount, setPageCount] = useState(1);
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
-  const [paperWidth, setPaperWidth] = useState(PAPER_MAX_WIDTH);
+  const [paperWidth, setPaperWidth] = useState(C.PAPER_MAX_WIDTH);
   const [linkModalOpen, setLinkModalOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const linkInputRef = useRef(null);
 
   // Derived dimensions — recomputed every render from paperWidth.
-  const pageHeight = paperWidth * PAGE_HEIGHT_RATIO;
-  const padTop = paperWidth * MARGIN_TOP_RATIO;
-  const padBottom = paperWidth * MARGIN_BOTTOM_RATIO;
-  const padHorizontal = paperWidth * MARGIN_HORIZONTAL_RATIO;
+  const pageHeight = paperWidth * C.PAGE_HEIGHT_RATIO;
+  const padTop = paperWidth * C.MARGIN_TOP_RATIO;
+  const padBottom = paperWidth * C.MARGIN_BOTTOM_RATIO;
+  const padHorizontal = paperWidth * C.MARGIN_HORIZONTAL_RATIO;
   const contentHeight = pageHeight - padTop - padBottom;
   const canvasBackground = theme.dk ? "#0C0C10" : "#E8E8E2";
   const paperBackground = theme.dk ? theme.el : "#fff";
@@ -267,7 +259,7 @@ export const WriterEditor = ({ appColor, doc, t: theme, onContentChange, registe
     const el = containerRef.current;
     const measure = () => {
       const target = el.clientWidth - 80;
-      const clamped = Math.max(PAPER_MIN_WIDTH, Math.min(PAPER_MAX_WIDTH, target));
+      const clamped = Math.max(C.PAPER_MIN_WIDTH, Math.min(C.PAPER_MAX_WIDTH, target));
       setPaperWidth(clamped);
     };
     measure();

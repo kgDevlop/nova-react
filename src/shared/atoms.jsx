@@ -1,6 +1,6 @@
 import React from "react";
 import { useT } from "./theme";
-import { _app } from "../shell/registry";
+import { registry } from "./_utils";
 
 // Card grid container. Pass `cols` for a fixed column count (paired with a
 // slider/control that drives it), or `min` for an auto-fill grid that floors
@@ -21,7 +21,7 @@ export const TileGrid = ({ children, cols, min = 196, gap = 9, gridRef, style })
         display: "grid",
         gridTemplateColumns: useTracks,
         gap,
-        transition: cols ? "grid-template-columns 0.35s ease" : undefined,
+        transition: cols ? "grid-template-columns 0.45s cubic-bezier(0.22, 1, 0.36, 1)" : undefined,
         ...style,
       }}
     >
@@ -32,7 +32,7 @@ export const TileGrid = ({ children, cols, min = 196, gap = 9, gridRef, style })
 
 export const AppChip = ({ appId, size = 36, colorOverride }) => {
   const theme = useT();
-  const def = _app(appId);
+  const def = registry._app(appId);
   const color = colorOverride || def.dc;
   // Tint background with a low-opacity overlay of the app color.
   const bgTint = color + (theme.dk ? "1A" : "22");

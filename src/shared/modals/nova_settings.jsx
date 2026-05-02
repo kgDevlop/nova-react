@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { I } from "../icons";
-import { useT } from "../theme";
+import { useT, useCustomSchemes } from "../theme";
 import { AppChip } from "../atoms";
 import { useDeviceCaps } from "../hooks/system";
-import { theme as themeC, registry } from "../_constants";
+import { theme as themeConst, registry as registryConst } from "../_constants";
+import { CustomSchemeModal } from "./custom_scheme";
 
 export const SettingsPanel = ({
   onClose,
@@ -11,6 +12,7 @@ export const SettingsPanel = ({
   setTheme,
   getAppColor,
   setAppColor,
+  delAppColor,
   activeWS,
   mobileDisabled,
   setMobileDisabled,
@@ -20,6 +22,11 @@ export const SettingsPanel = ({
   const device = useDeviceCaps();
   const isMobile = device.isMobile && !mobileDisabled;
   const [tab, setTab] = useState("appearance");
+  const { customSchemes, addCustomScheme, deleteCustomScheme } = useCustomSchemes();
+  const [showCustomModal, setShowCustomModal] = useState(false);
+
+  const activeSchemeId = theme.schemeId ?? "classic";
+  const activeIsCustom = customSchemes.some(s => s.id === activeSchemeId);
 
   const TABS = [
     { id: "appearance", l: "Appearance", I: I.Palette },
@@ -206,45 +213,62 @@ export const SettingsPanel = ({
                   marginBottom: 9,
                 }}
               >
-                Accent colour
+                Colour scheme
               </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 22 }}>
-                {themeC.ACCENT_PRESETS.map(p => {
-                  const active = theme.accentId === p.id;
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => setTheme(th => ({ ...th, accentId: p.id }))}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: 4,
-                        padding: "7px 9px",
-                        borderRadius: t.r10,
-                        cursor: "pointer",
-                        border: `1px solid ${active ? p.hex + "66" : t.bd}`,
-                        background: active ? p.soft : "transparent",
-                        transition: t.tr,
-                        fontFamily: t.fn,
-                        outline: "none",
-                      }}
-                    >
-                      <div style={{ width: 20, height: 20, borderRadius: t.rF, background: p.hex }} />
-                      <span
-                        style={{
-                          fontSize: 9,
-                          fontWeight: 600,
-                          color: active ? t.tx : t.ts,
-                          textTransform: "capitalize",
-                        }}
-                      >
-                        {p.id}
-                      </span>
-                    </button>
-                  );
-                })}
+              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                <select
+                  value={activeSchemeId}
+                  onChange={e => setTheme(p => ({ ...p, schemeId: e.target.value }))}
+                  style={{
+                    flex: 1,
+                    background: t.surface,
+                    border: `1px solid ${t.bd}`,
+                    color: t.tx,
+                    fontFamily: t.fn,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    borderRadius: t.r10,
+                    padding: "9px 16px 9px 11px",
+                    cursor: "pointer",
+                    outline: "none",
+                  }}
+                >
+                  <optgroup label="Built-in">
+                    {themeConst.COLOR_SCHEMES.map(s => (
+                      <option key={s.id} value={s.id}>{s.label}</option>
+                    ))}
+                  </optgroup>
+                  {customSchemes.length > 0 && (
+                    <optgroup label="Custom">
+                      {customSchemes.map(s => (
+                        <option key={s.id} value={s.id}>{s.label}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                {activeIsCustom && (
+                  <button
+                    title="Delete this custom theme"
+                    className="nb ni"
+                    onClick={() => deleteCustomScheme(activeSchemeId)}
+                    style={{ padding: "0 10px", flexShrink: 0 }}
+                  >
+                    <I.Trash size={13} />
+                  </button>
+                )}
+                <button
+                  title="Create a custom theme"
+                  className="nb ng"
+                  onClick={() => setShowCustomModal(true)}
+                  style={{ padding: "0 10px", flexShrink: 0, fontSize: 11 }}
+                >
+                  <I.Plus size={13} /> New
+                </button>
               </div>
+              <p style={{ fontSize: 10, color: t.tm, marginBottom: 22 }}>
+                <strong style={{ color: t.ts }}>Classic</strong> follows the mode above.
+                Other schemes override the full palette.
+              </p>
 
               <div
                 style={{
@@ -297,42 +321,43 @@ export const SettingsPanel = ({
                 Override the accent for each app in{" "}
                 <strong style={{ color: t.tx }}>{activeWS.name}</strong>
               </p>
-              {registry.APPS.map(app => {
-                const cur = getAppColor(activeWS.id, app.id, app.dc);
-                const isCustom = !themeC.APP_COLORS.includes(cur) && cur !== app.dc;
+              {registryConst.APPS.map(app => {
+                const def = t.appColorFor(app.id);
+                const cur = getAppColor(activeWS.id, app.id, def);
+                const isOverridden = getAppColor(activeWS.id, app.id, null) != null;
+                const isPreset = t.appColors.includes(cur);
+                const isCustom = isOverridden && !isPreset;
                 return (
                   <div
                     key={app.id}
                     style={{
                       display: "flex",
-                      flexDirection: isMobile ? "column" : "row",
-                      alignItems: isMobile ? "stretch" : "center",
-                      gap: isMobile ? 8 : 10,
-                      padding: "9px 0",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "8px 0",
                       borderBottom: `1px solid ${t.bd}`,
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                      <AppChip appId={app.id} size={32} colorOverride={cur} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: t.tx }}>{app.label}</div>
-                        <div style={{ fontSize: 10, color: t.tm }}>{app.desc}</div>
+                    <AppChip appId={app.id} size={28} colorOverride={cur} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: t.tx, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {app.label}
                       </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: isMobile ? 0 : "auto" }}>
-                    <div style={{ display: "flex", gap: 3, flexWrap: "wrap", maxWidth: isMobile ? "none" : 148 }}>
-                      {themeC.APP_COLORS.slice(0, 8).map(c => (
+                    <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+                      {t.appColors.slice(0, 8).map(c => (
                         <button
                           key={c}
                           onClick={() => setAppColor(activeWS.id, app.id, c)}
                           style={{
-                            width: 17,
-                            height: 17,
+                            width: 16,
+                            height: 16,
                             borderRadius: t.rF,
                             background: c,
                             cursor: "pointer",
                             border: `2px solid ${cur === c ? t.tx : "transparent"}`,
                             outline: "none",
+                            padding: 0,
                           }}
                         />
                       ))}
@@ -344,8 +369,8 @@ export const SettingsPanel = ({
                     >
                       <div
                         style={{
-                          width: 17,
-                          height: 17,
+                          width: 16,
+                          height: 16,
                           borderRadius: t.rF,
                           background: "conic-gradient(red,yellow,lime,cyan,blue,magenta,red)",
                           cursor: "pointer",
@@ -371,9 +396,9 @@ export const SettingsPanel = ({
                         }}
                       />
                     </label>
-                    {/* Reset to default */}
+                    {/* Reset → clear the override so the row falls back to the theme accent. */}
                     <button
-                      title="Reset to default"
+                      title="Reset to theme accent"
                       className="nb ni"
                       style={{
                         padding: 3,
@@ -381,14 +406,14 @@ export const SettingsPanel = ({
                         background: "transparent",
                         cursor: "pointer",
                         display: "flex",
-                        opacity: 0.5,
+                        opacity: isOverridden ? 0.7 : 0.25,
                         flexShrink: 0,
                       }}
-                      onClick={() => setAppColor(activeWS.id, app.id, app.dc)}
+                      onClick={() => delAppColor?.(activeWS.id, app.id)}
+                      disabled={!isOverridden}
                     >
                       <I.Refresh size={11} />
                     </button>
-                    </div>
                   </div>
                 );
               })}
@@ -434,6 +459,16 @@ export const SettingsPanel = ({
           </button>
         )}
       </div>
+
+      {showCustomModal && (
+        <CustomSchemeModal
+          onClose={() => setShowCustomModal(false)}
+          onSave={scheme => {
+            addCustomScheme(scheme);
+            setTheme(p => ({ ...p, schemeId: scheme.id }));
+          }}
+        />
+      )}
     </div>
   );
 };

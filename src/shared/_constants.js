@@ -6,8 +6,8 @@
 // they were originally defined). Each group is exported under the file's
 // basename so a consumer only ever imports one name per source group:
 //
-//     import { writer } from "../shared/_constants";
-//     ...writer.PAPER_MAX_WIDTH
+//     import { writer as writerConst } from "../shared/_constants";
+//     ...writerConst.PAPER_MAX_WIDTH
 //
 // When a consumer file uses constants from multiple groups, it imports each
 // group it needs (still one name per group).
@@ -41,7 +41,128 @@ export const theme = {
   ],
 
   // Default theme config.
-  DEFAULT_THEME: { mode: "dark", accentId: "gold" },
+  DEFAULT_THEME: { mode: "dark", accentId: "gold", schemeId: "classic" },
+
+  // Named colour schemes. "classic" is the sentinel — when active, the engine
+  // honours `mode` + `accentId` as normal. Any other scheme fully overrides the
+  // palette (mode/accent are preserved in state so users can flip back).
+  //
+  // Each scheme provides a complete TokenObject palette (everything in
+  // buildTokens except radii / typography / motion). Keep contrast usable.
+  COLOR_SCHEMES: [
+    { id: "classic", label: "Classic" }, // no override — uses mode + accent
+    {
+      id: "bloodforge",
+      label: "Bloodforge",
+      palette: {
+        bg: "#0A0202", surface: "#140505", sh: "#1A0808", sa: "#1F0A0A", el: "#25100F",
+        bd: "#2A0F0F", bs: "#4A1818",
+        ac: "#C8A253", as: "rgba(200,162,83,0.14)",
+        tx: "#F0E0D0", ts: "#B07060", tm: "#604040",
+        dk: true,
+      },
+      appColors: [
+        "#C8A253", "#B22030", "#8B1A1A", "#D4732B",
+        "#E8B860", "#7C2A1F", "#5C1810", "#A87060",
+      ],
+    },
+    {
+      id: "parchment",
+      label: "Old Parchment",
+      palette: {
+        bg: "#F2EDE0", surface: "#FFFFFF", sh: "#EDE8DC", sa: "#E5DFD0", el: "#FFFFFF",
+        bd: "#D9D3C2", bs: "#B8AE94",
+        ac: "#4A8FE8", as: "rgba(74,143,232,0.12)",
+        tx: "#2A2418", ts: "#6B5E40", tm: "#A89978",
+        dk: false,
+      },
+      appColors: [
+        "#4A8FE8", "#6B5E40", "#B8AE94", "#8B7355",
+        "#3BB580", "#5A8FB5", "#A89978", "#7B6F50",
+      ],
+    },
+    {
+      id: "gunmetal",
+      label: "Gunmetal",
+      palette: {
+        bg: "#050608", surface: "#0E1014", sh: "#14171C", sa: "#1A1E24", el: "#20242C",
+        bd: "#2A2E36", bs: "#3F4452",
+        ac: "#C0C8D0", as: "rgba(192,200,208,0.10)",
+        tx: "#E8ECF0", ts: "#8A92A0", tm: "#4E5460",
+        dk: true,
+      },
+      appColors: [
+        "#C0C8D0", "#8A92A0", "#5A6478", "#9BA5B8",
+        "#647288", "#3F4452", "#A8B0C0", "#7882A0",
+      ],
+    },
+    {
+      id: "terminal",
+      label: "Terminal",
+      palette: {
+        bg: "#000000", surface: "#050805", sh: "#080F08", sa: "#0C140C", el: "#101A10",
+        bd: "#143618", bs: "#2A6038",
+        ac: "#00FF66", as: "rgba(0,255,102,0.12)",
+        tx: "#B8FFC8", ts: "#5BC878", tm: "#2C6038",
+        dk: true,
+      },
+      appColors: [
+        "#00FF66", "#5BC878", "#2A6038", "#00B855",
+        "#7FE090", "#0F8A3A", "#3DAA50", "#88FF99",
+      ],
+    },
+    {
+      id: "retrograde",
+      label: "Retrograde",
+      palette: {
+        bg: "#0F0524", surface: "#1A0A38", sh: "#1F0E40", sa: "#25124A", el: "#2C1858",
+        bd: "#3A1E70", bs: "#5A2EAA",
+        ac: "#FF4FC2", as: "rgba(255,79,194,0.14)",
+        tx: "#F0E0FF", ts: "#00D5E5", tm: "#6A4090",
+        dk: true,
+      },
+      appColors: [
+        "#FF4FC2", "#00D5E5", "#5A2EAA", "#A040D0",
+        "#FF7AD0", "#3A1E70", "#8060FF", "#00A0C0",
+      ],
+    },
+    {
+      id: "nocturne",
+      label: "Nocturne",
+      palette: {
+        bg: "#060205", surface: "#100509", sh: "#15080D", sa: "#1A0A11", el: "#200E16",
+        bd: "#2A101B", bs: "#501830",
+        ac: "#B22030", as: "rgba(178,32,48,0.14)",
+        tx: "#E8DCDC", ts: "#B8B0B8", tm: "#58484E",
+        dk: true,
+      },
+      appColors: [
+        "#B22030", "#B8B0B8", "#8B1A1A", "#702030",
+        "#6F606A", "#A04030", "#8C7A82", "#5C1F2A",
+      ],
+    },
+    {
+      id: "goldleaf",
+      label: "Goldleaf",
+      palette: {
+        bg: "#0A0805", surface: "#14110A", sh: "#1A1610", sa: "#1F1A12", el: "#25201A",
+        bd: "#2C2618", bs: "#4F4426",
+        ac: "#FFB800", as: "rgba(255,184,0,0.14)",
+        tx: "#F8E8C0", ts: "#B89860", tm: "#5C4830",
+        dk: true,
+      },
+      appColors: [
+        "#FFB800", "#B89860", "#8B6F40", "#C0A060",
+        "#E8B100", "#F8E8C0", "#705028", "#FFD060",
+      ],
+    },
+  ],
+
+  // localStorage keys for persisting theme config + user-created schemes
+  // + per-app colour overrides.
+  THEME_KEY:          "nova:theme:v1",
+  CUSTOM_SCHEMES_KEY: "nova:custom-schemes:v1",
+  APP_COLORS_KEY:     "nova:app-colors:v1",
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -180,26 +301,7 @@ export const toolbar = {
       _SP(),
       _B("export", I.Upload, "Export SVG"),
     ],
-    list: [
-      _B("addItem", I.Plus, "Add item"),
-      _SP(),
-      _B("clearDone", I.Trash, "Clear all done"),
-    ],
-    calendar: [
-      _B("today", null, "Today"),
-      _S(),
-      _B("prev", I.ChevLeft, "Prev"),
-      _B("next", I.ChevRight, "Next"),
-      _S(),
-      _DD("view", "Month", [
-        { v: "day",   l: "Day" },
-        { v: "week",  l: "Week" },
-        { v: "month", l: "Month" },
-        { v: "year",  l: "Year" },
-      ]),
-      _SP(),
-      _B("new", I.Plus, "New event"),
-    ],
+    list: [],
   },
 };
 
@@ -264,16 +366,6 @@ export const newws = {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const shell = {
-  // Per-app status-bar hint shown in the bottom-left of the editor chrome.
-  LEFT_HINTS: {
-    writer: "Click to format · Toolbar above",
-    sheets: "Click a cell · Double-click to edit · = for formula",
-    slides: "Click element to select · Drag to move · Double-click to edit text",
-    draw: "Select (V) · Rect (R) · Ellipse (E) · Line (L) · Text (T) · Pen (P)",
-    calendar: "Click a day to add event · Click event to edit",
-    list: "Tab to indent · Enter to add · Click checkbox to mark done",
-  },
-
   // Editors that render their own right-side panel and should suppress the
   // default AppsSidebar (e.g. calendar shows My Calendars + mini-month).
   OWNS_SIDEBAR: new Set(["calendar", "writer"]),
@@ -292,7 +384,7 @@ export const home = {
   // Widths for fake content lines in the doc preview tile.
   CARD_PREVIEW_BAR_WIDTHS: [70, 88, 52, 76, 38],
   // Minimum pixel width per card in the doc grid.
-  GRID_MIN_CARD_PX: 150,
+  GRID_MIN_CARD_PX: 200,
   // localStorage key for the grid column-count preference.
   GRID_COLS_KEY: "nova.grid.docs.cols",
 };
@@ -307,8 +399,7 @@ export const utils = {
   VIEW_TITLES: {
     home: "Home",
     starred: "Starred",
-    all: "All documents",
-    catalogue: "App catalogue",
+    catalogue: "Catalogue",
     writer: "Writer",
     sheets: "Sheets",
     slides: "Slides",
@@ -335,8 +426,7 @@ export const left_sidebar = {
   PRIMARY_NAV: [
     { id: "home", l: "Home", I: I.Home },
     { id: "starred", l: "Starred", I: I.Star },
-    { id: "all", l: "All documents", I: I.Folder },
-    { id: "catalogue", l: "App catalogue", I: I.Layers },
+    { id: "catalogue", l: "Catalogue", I: I.Layers },
   ],
 };
 
@@ -475,12 +565,11 @@ export const draw = {
 export const calendar = {
   // Static calendar list — singleton calendar app, no add/remove.
   CALENDARS: [
-    { id: "work",   name: "Work",              color: "#4A8FE8" },
-    { id: "ent",    name: "Entertainment",     color: "#EF4444" },
-    { id: "agenda", name: "Agenda",            color: "#F59E0B" },
-    { id: "appts",  name: "Appointments",      color: "#3BB580" },
-    { id: "proj",   name: "Personal Projects", color: "#A87BE8" },
-    { id: "health", name: "Healthy",           color: "#FACC15" },
+    { id: "work",      name: "Work",      color: "#84CC16" },
+    { id: "lifestyle", name: "Lifestyle", color: "#2DD4BF" },
+    { id: "social",    name: "Social",    color: "#F87171" },
+    { id: "sleep",     name: "Sleep",     color: "#C084FC" },
+    { id: "personal",  name: "Personal",  color: "#60A5FA" },
   ],
 
   DAYS:      ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
@@ -490,7 +579,7 @@ export const calendar = {
     "July", "August", "September", "October", "November", "December",
   ],
   VIEWS:       ["day", "week", "month", "year"],
-  CELL_MIN_H:  90,
+  CELL_MIN_H:  113,
   TODAY_BADGE: 22,
 };
 

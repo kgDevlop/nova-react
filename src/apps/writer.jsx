@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { I } from "../shared/icons";
 import { AppsSidebar, DefaultSections, MobileToolbarPanel } from "../shared/apps_sidebar";
-import { writer as C } from "../shared/_constants";
+import { writer as writerConst } from "../shared/_constants";
 
 // One 8.5×11 paper sheet. The inner contentEditable is height-clipped to the
 // page's content area; the parent (WriterEditor) detects overflow on this
@@ -96,11 +96,11 @@ export const WriterEditor = ({
 
   // Fixed paper dimensions — the page never reflows to viewport width. The
   // canvas container has overflow:auto so narrow viewports get scrollbars.
-  const paperWidth = C.PAPER_MAX_WIDTH;
-  const pageHeight = paperWidth * C.PAGE_HEIGHT_RATIO;
-  const padTop = paperWidth * C.MARGIN_TOP_RATIO;
-  const padBottom = paperWidth * C.MARGIN_BOTTOM_RATIO;
-  const padHorizontal = paperWidth * C.MARGIN_HORIZONTAL_RATIO;
+  const paperWidth = writerConst.PAPER_MAX_WIDTH;
+  const pageHeight = paperWidth * writerConst.PAGE_HEIGHT_RATIO;
+  const padTop = paperWidth * writerConst.MARGIN_TOP_RATIO;
+  const padBottom = paperWidth * writerConst.MARGIN_BOTTOM_RATIO;
+  const padHorizontal = paperWidth * writerConst.MARGIN_HORIZONTAL_RATIO;
   const contentHeight = pageHeight - padTop - padBottom;
   const canvasBackground = theme.dk ? "#0C0C10" : "#E8E8E2";
   const paperBackground = theme.dk ? theme.el : "#fff";

@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from "react";
 import { I } from "../shared/icons";
 import { useT } from "../shared/theme";
 import { useAutoSave } from "../shared/hooks/store";
-import { AppTopBar, StatusBar } from "../shared/topbar";
+import { AppTopBar } from "../shared/topbar";
 import { ToolbarRow } from "../shared/toolbar";
 import { AppsSidebar } from "../shared/apps_sidebar";
 import { registry } from "../shared/_utils";
@@ -12,7 +12,7 @@ import { SlidesEditor } from "../apps/slides";
 import { DrawEditor } from "../apps/draw";
 import { CalendarEditor } from "../apps/calendar";
 import { ListEditor } from "../apps/list";
-import { shell as C } from "../shared/_constants";
+import { shell as shellConst } from "../shared/_constants";
 
 // ── Editor registry ─────────────────────────────────────────────────────────
 // Maps each app id to the React component that renders its main canvas.
@@ -102,7 +102,7 @@ const ErrBoundary = ({ children, onBack }) => {
 export const AppShell = ({ doc, onBack, getAppColor, activeWS, updateDoc, isMobile }) => {
   const theme = useT();
   const def = registry._app(doc.type);
-  const appColor = doc.appColor || getAppColor(activeWS.id, doc.type, def.dc);
+  const appColor = getAppColor(activeWS.id, doc.type, theme.appColorFor(doc.type));
 
   const [content, setContent] = useState(doc.content || "");
   const saveStatus = useAutoSave(doc.id, content, updateDoc);
@@ -112,10 +112,8 @@ export const AppShell = ({ doc, onBack, getAppColor, activeWS, updateDoc, isMobi
 
   const Canvas = CANVASES[doc.type];
   const isRealEditor = true; // all 14 apps are now real editors
-  const showZoom = doc.type === "draw";
-  const leftText = C.LEFT_HINTS[doc.type] || "";
-  const ownsSidebar = C.OWNS_SIDEBAR.has(doc.type);
-  const hideToolbar = isMobile && C.MOBILE_OWNS_TOOLBAR.has(doc.type);
+  const ownsSidebar = shellConst.OWNS_SIDEBAR.has(doc.type);
+  const hideToolbar = isMobile && shellConst.MOBILE_OWNS_TOOLBAR.has(doc.type);
 
   const handleAction = useCallback((id, val) => {
     actionsRef.current?.(id, val);
@@ -134,7 +132,6 @@ export const AppShell = ({ doc, onBack, getAppColor, activeWS, updateDoc, isMobi
       {!isMobile && (
         <AppTopBar
           doc={doc}
-          onBack={onBack}
           appColor={appColor}
           saveStatus={saveStatus}
           activeWS={activeWS}
@@ -181,11 +178,6 @@ export const AppShell = ({ doc, onBack, getAppColor, activeWS, updateDoc, isMobi
           />
         )}
       </div>
-      <StatusBar
-        leftText={leftText}
-        saveStatus={saveStatus}
-        showZoom={showZoom}
-      />
     </ErrBoundary>
   );
 };

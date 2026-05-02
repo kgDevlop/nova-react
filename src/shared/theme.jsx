@@ -15,8 +15,8 @@
  *   `useEffect` listener inside ThemeProvider, not here.
  */
 
-import React, { createContext, useContext, useMemo, useState } from "react";
-import { theme as C } from "./_constants";
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+import { theme as themeConst, registry as registryConst } from "./_constants";
 
 // ── Pure Token Builder ───────────────────────────────────────────────────────
 
@@ -25,9 +25,15 @@ import { theme as C } from "./_constants";
  * Pure function — safe to call outside React (e.g. in tests or SSR).
  *
  * @param {import('./modals/types').ThemeConfig} config
+ * @param {{
+ *   customSchemes?: any[],
+ *   previewPalette?: any | null,
+ * }} [opts]
  * @returns {import('./modals/types').TokenObject}
  */
-export function buildTokens(config) {
+export function buildTokens(config, opts = {}) {
+  const { customSchemes = [], previewPalette = null } = opts;
+
   // Resolve "system" against the current media query; otherwise honour the
   // explicit mode. SSR-safe: falls back to light when `window` is missing.
   let resolvedMode;
@@ -40,25 +46,61 @@ export function buildTokens(config) {
   }
 
   const dk = resolvedMode !== "light";
-  const ac = C.ACCENT_PRESETS.find(p => p.id === config.accentId) ?? C.ACCENT_PRESETS[0];
+  const ac = themeConst.ACCENT_PRESETS.find(p => p.id === config.accentId) ?? themeConst.ACCENT_PRESETS[0];
+
+  // A non-classic colour scheme replaces the entire palette. mode + accent
+  // remain in state so flipping back to "classic" restores them. Custom
+  // schemes are searched after built-ins so a user-saved id always wins
+  // its own lookup, and built-ins remain stable if a name collides.
+  // `previewPalette` is a transient override used by the custom-theme
+  // modal — when set, it bypasses any saved scheme so the user sees their
+  // edits immediately without persisting half-finished schemes.
+  const scheme =
+    themeConst.COLOR_SCHEMES.find(s => s.id === config.schemeId) ??
+    customSchemes.find(s => s.id === config.schemeId);
+  const sp = previewPalette ?? scheme?.palette;
+
+  // Per-app palette: scheme can supply 8 themed colours; fall back to the
+  // global APP_COLORS for Classic, or [accent×8] for custom/preview palettes
+  // that have no explicit list.
+  const accentColor = sp?.ac ?? ac.hex;
+  let appColors;
+  if (previewPalette) {
+    appColors = Array(8).fill(accentColor);
+  } else if (scheme?.appColors) {
+    appColors = scheme.appColors;
+  } else if (sp) {
+    appColors = Array(8).fill(accentColor);
+  } else {
+    appColors = themeConst.APP_COLORS.slice(0, 8);
+  }
+  // Resolve a default colour for a given app id by looking up its index in
+  // the registry. Falls back to the first slot for unknown ids.
+  const appColorFor = appId => {
+    const idx = registryConst.APPS.findIndex(a => a.id === appId);
+    return appColors[(idx < 0 ? 0 : idx) % appColors.length];
+  };
 
   return {
     // Backgrounds
-    bg:      dk ? "#09090C" : "#F4F4F0",
-    surface: dk ? "#0F0F14" : "#FFFFFF",
-    sh:      dk ? "#141419" : "#F8F8F5",
-    sa:      dk ? "#18181F" : "#EFEFEA",
-    el:      dk ? "#1D1D26" : "#FFFFFF",
+    bg:      sp?.bg      ?? (dk ? "#09090C" : "#F4F4F0"),
+    surface: sp?.surface ?? (dk ? "#0F0F14" : "#FFFFFF"),
+    sh:      sp?.sh      ?? (dk ? "#141419" : "#F8F8F5"),
+    sa:      sp?.sa      ?? (dk ? "#18181F" : "#EFEFEA"),
+    el:      sp?.el      ?? (dk ? "#1D1D26" : "#FFFFFF"),
     // Borders
-    bd:      dk ? "#1D1D28" : "#E4E4DC",
-    bs:      dk ? "#28283A" : "#CACACC",
+    bd:      sp?.bd      ?? (dk ? "#1D1D28" : "#E4E4DC"),
+    bs:      sp?.bs      ?? (dk ? "#28283A" : "#CACACC"),
     // Accent
-    ac:      ac.hex,
-    as:      ac.soft,
+    ac:      sp?.ac      ?? ac.hex,
+    as:      sp?.as      ?? ac.soft,
     // Text
-    tx:      dk ? "#EAEAF2" : "#111118",
-    ts:      dk ? "#7878A0" : "#6060A0",
-    tm:      dk ? "#3C3C52" : "#A8A8C0",
+    tx:      sp?.tx      ?? (dk ? "#EAEAF2" : "#111118"),
+    ts:      sp?.ts      ?? (dk ? "#7878A0" : "#6060A0"),
+    tm:      sp?.tm      ?? (dk ? "#3C3C52" : "#A8A8C0"),
+    // Per-app palette (theme-driven defaults for app accents)
+    appColors,
+    appColorFor,
     // Semantic
     er:      "#E85252",
     // Radii
@@ -72,7 +114,7 @@ export function buildTokens(config) {
     // Motion
     tr:  "0.18s cubic-bezier(0.4,0,0.2,1)",
     // Flag
-    dk,
+    dk:  sp?.dk ?? dk,
   };
 }
 
@@ -86,9 +128,14 @@ export function buildTokens(config) {
  */
 
 export const TC = createContext({
-  theme:    C.DEFAULT_THEME,
-  t:        buildTokens(C.DEFAULT_THEME),
-  setTheme: () => {},
+  theme:              themeConst.DEFAULT_THEME,
+  t:                  buildTokens(themeConst.DEFAULT_THEME),
+  setTheme:           () => {},
+  customSchemes:      [],
+  addCustomScheme:    () => {},
+  deleteCustomScheme: () => {},
+  previewPalette:     null,
+  setPreviewPalette:  () => {},
 });
 
 // ── Hooks ────────────────────────────────────────────────────────────────────
@@ -113,7 +160,54 @@ export const useTheme = () => {
   return [theme, setTheme];
 };
 
+/**
+ * Returns the user-created colour schemes plus mutation helpers. Used by the
+ * settings panel to render the "Create custom theme" UI.
+ */
+export const useCustomSchemes = () => {
+  const { customSchemes, addCustomScheme, deleteCustomScheme } = useContext(TC);
+  return { customSchemes, addCustomScheme, deleteCustomScheme };
+};
+
+/**
+ * Transient palette override — used by the custom-theme modal to drive live
+ * preview without persisting partial schemes. Setting `null` reverts to the
+ * underlying applied theme.
+ */
+export const usePreviewPalette = () => {
+  const { previewPalette, setPreviewPalette } = useContext(TC);
+  return { previewPalette, setPreviewPalette };
+};
+
 // ── Provider ─────────────────────────────────────────────────────────────────
+
+// localStorage round-trips. Wrapped so SSR / disabled-storage environments
+// degrade to defaults instead of crashing on first render.
+const _loadTheme = () => {
+  try {
+    const raw = localStorage.getItem(themeConst.THEME_KEY);
+    if (!raw) {
+      return themeConst.DEFAULT_THEME;
+    }
+    const parsed = JSON.parse(raw);
+    return { ...themeConst.DEFAULT_THEME, ...parsed };
+  } catch {
+    return themeConst.DEFAULT_THEME;
+  }
+};
+
+const _loadCustomSchemes = () => {
+  try {
+    const raw = localStorage.getItem(themeConst.CUSTOM_SCHEMES_KEY);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 
 /**
  * Wrap the app root exactly once.
@@ -122,14 +216,52 @@ export const useTheme = () => {
  * @param {{ children: React.ReactNode }} props
  */
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(C.DEFAULT_THEME);
+  const [theme, setTheme] = useState(_loadTheme);
+  const [customSchemes, setCustomSchemes] = useState(_loadCustomSchemes);
+  // Transient — never persisted.
+  const [previewPalette, setPreviewPalette] = useState(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(themeConst.THEME_KEY, JSON.stringify(theme));
+    } catch {
+      // Ignore quota / availability errors — the theme just won't persist.
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(themeConst.CUSTOM_SCHEMES_KEY, JSON.stringify(customSchemes));
+    } catch {
+      // Ignore — same as above.
+    }
+  }, [customSchemes]);
+
+  const addCustomScheme = useCallback(scheme => {
+    setCustomSchemes(p => [...p.filter(s => s.id !== scheme.id), scheme]);
+  }, []);
+
+  const deleteCustomScheme = useCallback(id => {
+    setCustomSchemes(p => p.filter(s => s.id !== id));
+    // If the deleted scheme was active, fall back to "classic" so the UI
+    // doesn't end up showing a vanished selection.
+    setTheme(p => (p.schemeId === id ? { ...p, schemeId: "classic" } : p));
+  }, []);
 
   /** @type {import('./modals/types').TokenObject} */
-  const t = useMemo(() => buildTokens(theme), [theme]);
-
-  return (
-    <TC.Provider value={{ theme, t, setTheme }}>
-      {children}
-    </TC.Provider>
+  const t = useMemo(
+    () => buildTokens(theme, { customSchemes, previewPalette }),
+    [theme, customSchemes, previewPalette],
   );
+
+  const value = useMemo(
+    () => ({
+      theme, t, setTheme,
+      customSchemes, addCustomScheme, deleteCustomScheme,
+      previewPalette, setPreviewPalette,
+    }),
+    [theme, t, customSchemes, addCustomScheme, deleteCustomScheme, previewPalette],
+  );
+
+  return <TC.Provider value={value}>{children}</TC.Provider>;
 }

@@ -3,7 +3,7 @@ import { I } from "./icons";
 import { useT } from "./theme";
 import { useOut } from "./hooks/system";
 import { NovaLogo } from "./atoms";
-import { left_sidebar as C, registry } from "./_constants";
+import { left_sidebar as left_sidebarConst, registry as registryConst } from "./_constants";
 
 // ── Delete workspace confirm ──────────────────────────────────────────────
 //
@@ -367,6 +367,7 @@ export const Sidebar = ({
   onRenameWS,
   onDeleteWS,
   onSettings,
+  getAppColor,
 }) => {
   const theme = useT();
   const width = collapsed ? 56 : 214;
@@ -437,7 +438,7 @@ export const Sidebar = ({
       </div>
 
       <div style={{ flex: 1, overflowY: "auto" }}>
-        {C.PRIMARY_NAV.map(({ id, l, I: Ico }) => (
+        {left_sidebarConst.PRIMARY_NAV.map(({ id, l, I: Ico }) => (
           <div
             key={id}
             className={`nnav ${view === id ? "active" : ""}`}
@@ -459,8 +460,10 @@ export const Sidebar = ({
           <div className="ndiv" style={{ margin: "8px 4px" }} />
         )}
 
-        {registry.APPS.map(app => {
+        {registryConst.APPS.map(app => {
           const isActive = view === app.id;
+          const def = theme.appColorFor(app.id);
+          const c = getAppColor?.(active.id, app.id, def) ?? def;
           return (
             <div
               key={app.id}
@@ -473,7 +476,7 @@ export const Sidebar = ({
               title={collapsed ? app.label : undefined}
               onClick={() => onNav(app.id)}
             >
-              <app.Icon size={14} color={isActive ? app.dc : undefined} />
+              <app.Icon size={14} color={isActive ? c : undefined} />
               {!collapsed && (
                 <span style={{ fontSize: 12, color: isActive ? theme.tx : undefined }}>
                   {app.label}
@@ -515,6 +518,7 @@ export const MobSidebar = ({
   onRenameWS,
   onDeleteWS,
   onSettings,
+  getAppColor,
 }) => {
   const theme = useT();
 
@@ -579,7 +583,7 @@ export const MobSidebar = ({
           <I.Plus size={13} /> New document
         </button>
 
-        {C.PRIMARY_NAV.map(({ id, l, I: Ico }) => (
+        {left_sidebarConst.PRIMARY_NAV.map(({ id, l, I: Ico }) => (
           <div
             key={id}
             className={`nnav ${view === id ? "active" : ""}`}
@@ -595,19 +599,23 @@ export const MobSidebar = ({
 
         <div className="nsect">Apps</div>
         <div style={{ flex: 1, overflowY: "auto" }}>
-          {registry.APPS.map(app => (
-            <div
-              key={app.id}
-              className={`nnav ${view === app.id ? "active" : ""}`}
-              onClick={() => {
-                onNav(app.id);
-                onClose();
-              }}
-            >
-              <app.Icon size={14} color={app.dc} />
-              <span style={{ fontSize: 12 }}>{app.label}</span>
-            </div>
-          ))}
+          {registryConst.APPS.map(app => {
+            const def = theme.appColorFor(app.id);
+            const c = getAppColor?.(active.id, app.id, def) ?? def;
+            return (
+              <div
+                key={app.id}
+                className={`nnav ${view === app.id ? "active" : ""}`}
+                onClick={() => {
+                  onNav(app.id);
+                  onClose();
+                }}
+              >
+                <app.Icon size={14} color={c} />
+                <span style={{ fontSize: 12 }}>{app.label}</span>
+              </div>
+            );
+          })}
         </div>
 
         <div style={{ borderTop: `1px solid ${theme.bd}`, paddingTop: 8 }}>

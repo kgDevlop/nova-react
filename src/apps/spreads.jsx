@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { I } from "../shared/icons";
 import { formulas } from "../shared/_utils";
-import { spreads as C } from "../shared/_constants";
+import { spreads as spreadsConst } from "../shared/_constants";
 
 export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registerActions }) => {
-  const COLS = Array.from({ length: C.VISIBLE_COLS }, (_, i) => formulas._colLetter(i));
+  const COLS = Array.from({ length: spreadsConst.VISIBLE_COLS }, (_, i) => formulas._colLetter(i));
 
   const [cells, setCells] = useState(() => {
     try {
@@ -84,8 +84,8 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
     if (!ref) {
       return;
     }
-    const nr = Math.max(0, Math.min(C.VISIBLE_ROWS - 1, ref.row + dr));
-    const nc = Math.max(0, Math.min(C.VISIBLE_COLS - 1, ref.col + dc));
+    const nr = Math.max(0, Math.min(spreadsConst.VISIBLE_ROWS - 1, ref.row + dr));
+    const nc = Math.max(0, Math.min(spreadsConst.VISIBLE_COLS - 1, ref.col + dc));
     setActiveKey(formulas._cellKey(nr, nc));
   };
 
@@ -125,11 +125,11 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
     }
     if (e.key === "Enter") {
       _commitEdit(editKey, editVal);
-      setActiveKey(formulas._cellKey(Math.min(ref.row + 1, C.VISIBLE_ROWS - 1), ref.col));
+      setActiveKey(formulas._cellKey(Math.min(ref.row + 1, spreadsConst.VISIBLE_ROWS - 1), ref.col));
       e.preventDefault();
     } else if (e.key === "Tab") {
       _commitEdit(editKey, editVal);
-      setActiveKey(formulas._cellKey(ref.row, Math.min(ref.col + 1, C.VISIBLE_COLS - 1)));
+      setActiveKey(formulas._cellKey(ref.row, Math.min(ref.col + 1, spreadsConst.VISIBLE_COLS - 1)));
       e.preventDefault();
     } else if (e.key === "Escape") {
       setEditKey(null);
@@ -248,7 +248,7 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
             <tr>
               <th
                 style={{
-                  width: C.ROW_HEADER_WIDTH,
+                  width: spreadsConst.ROW_HEADER_WIDTH,
                   background: theme.sa,
                   border: `1px solid ${theme.bd}`,
                   position: "sticky",
@@ -263,7 +263,7 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
                   <th
                     key={c}
                     style={{
-                      width: C.COL_WIDTH,
+                      width: spreadsConst.COL_WIDTH,
                       border: `1px solid ${theme.bd}`,
                       padding: "3px 0",
                       textAlign: "center",
@@ -284,7 +284,7 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
             </tr>
           </thead>
           <tbody>
-            {Array.from({ length: C.VISIBLE_ROWS }, (_, ri) => {
+            {Array.from({ length: spreadsConst.VISIBLE_ROWS }, (_, ri) => {
               const isActiveRow = activeRef.row === ri;
               return (
                 <tr key={ri}>
@@ -300,7 +300,7 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
                       position: "sticky",
                       left: 0,
                       zIndex: 1,
-                      width: C.ROW_HEADER_WIDTH,
+                      width: spreadsConst.ROW_HEADER_WIDTH,
                     }}
                   >
                     {ri + 1}
@@ -341,8 +341,8 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
                         onDoubleClick={() => startEdit(key)}
                         style={{
                           border: `1px solid ${isActive ? appColor : theme.bd}`,
-                          width: C.COL_WIDTH,
-                          height: C.ROW_HEIGHT,
+                          width: spreadsConst.COL_WIDTH,
+                          height: spreadsConst.ROW_HEIGHT,
                           padding: 0,
                           background: isActive ? appColor + "10" : "transparent",
                           outline: isActive ? `2px solid ${appColor}` : "none",

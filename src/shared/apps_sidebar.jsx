@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { I } from "./icons";
 import { useT } from "./theme";
 import { AppChip } from "./atoms";
-import { apps_sidebar as C, toolbar as TBC } from "./_constants";
+import { apps_sidebar as apps_sidebarConst, toolbar as toolbarConst } from "./_constants";
 
 export const AppsSidebarSection = ({ title, icon: Ico, children, defaultOpen = true }) => {
   const t = useT();
@@ -304,7 +304,7 @@ export const MobileToolbarPanel = ({
   items,
 }) => {
   const t = useT();
-  const cfg = items || TBC.TOOLBARS[appId] || [];
+  const cfg = items || toolbarConst.TOOLBARS[appId] || [];
 
   const groups = [];
   let cur = [];
@@ -340,7 +340,7 @@ export const MobileToolbarPanel = ({
             fontSize: 12,
             fontFamily: t.fn,
             borderRadius: t.r6,
-            padding: "6px 8px",
+            padding: "6px 13px 6px 8px",
             outline: "none",
           }}
         >
@@ -414,7 +414,7 @@ export const AppsSidebar = ({ doc, appColor, defaultOpen, children, mobile, onBa
     );
   }
 
-  const W = open ? C.OPEN_W : C.CLOSED_W;
+  const W = open ? apps_sidebarConst.OPEN_W : apps_sidebarConst.CLOSED_W;
 
   return (
     <div

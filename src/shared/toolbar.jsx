@@ -1,12 +1,14 @@
 import React from "react";
 import { useT } from "./theme";
-import { toolbar as C } from "./_constants";
+import { toolbar as toolbarConst } from "./_constants";
 
 // ── Renderer ──────────────────────────────────────────────────────────────
 
 export const ToolbarRow = ({ appId, onAction, appColor }) => {
   const theme = useT();
-  const cfg = C.TOOLBARS[appId] || [];
+  const cfg = toolbarConst.TOOLBARS[appId] || [];
+
+  if (cfg.length === 0) return null;
 
   return (
     <div
@@ -71,7 +73,7 @@ export const ToolbarRow = ({ appId, onAction, appColor }) => {
                 fontFamily: theme.fn,
                 fontSize: 11,
                 borderRadius: theme.r6,
-                padding: "2px 5px",
+                padding: "2px 10px 2px 5px",
                 cursor: "pointer",
                 outline: "none",
                 height: 26,

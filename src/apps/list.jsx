@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { I } from "../shared/icons";
 import { utils } from "../shared/_utils";
-import { list as C } from "../shared/_constants";
+import { list as listConst } from "../shared/_constants";
 
 const _newItem = (depth = 0, text = "") => ({
   id: utils._elId(),
@@ -25,7 +25,7 @@ const _normItem = (raw, fallbackDepth = 0) => ({
   id: typeof raw?.id === "string" ? raw.id : utils._elId(),
   text: typeof raw?.text === "string" ? raw.text : "",
   done: !!raw?.done,
-  depth: Math.max(0, Math.min(C.MAX_DEPTH, Number.isFinite(raw?.depth) ? raw.depth : fallbackDepth)),
+  depth: Math.max(0, Math.min(listConst.MAX_DEPTH, Number.isFinite(raw?.depth) ? raw.depth : fallbackDepth)),
 });
 
 const _parseContent = (content) => {
@@ -45,7 +45,7 @@ const _parseContent = (content) => {
   }
 };
 
-export const ListEditor = ({ appColor, doc, t: theme, onContentChange, registerActions, onTitleChange }) => {
+export const ListEditor = ({ appColor, doc, t: theme, onContentChange, onTitleChange }) => {
   const [view, setView] = useState("todo");
   const [todo, setTodo] = useState(() => _parseContent(doc.content).todo);
   const [done, setDone] = useState(() => _parseContent(doc.content).done);
@@ -116,24 +116,6 @@ export const ListEditor = ({ appColor, doc, t: theme, onContentChange, registerA
     }
   }, [focusId]);
 
-  // Toolbar wiring. Re-register on every state change so the closure sees
-  // the latest `view`/`todo`/`done` when toolbar buttons fire.
-  useEffect(() => {
-    registerActions((id) => {
-      if (id === "addItem") {
-        const items = view === "todo" ? todo : done;
-        const setItems = view === "todo" ? setTodo : setDone;
-        const newItem = _newItem(0);
-        setItems([...items, newItem]);
-        setFocusId(newItem.id);
-      } else if (id === "clearDone") {
-        if (done.length > 0) {
-          setDone([]);
-        }
-      }
-    });
-  }, [view, todo, done]); // eslint-disable-line
-
   const items = view === "todo" ? todo : done;
   const setItems = view === "todo" ? setTodo : setDone;
 
@@ -188,7 +170,7 @@ export const ListEditor = ({ appColor, doc, t: theme, onContentChange, registerA
     setItems(prev => {
       const item = prev[idx];
       const newDepth = item.depth + delta;
-      if (newDepth < 0 || newDepth > C.MAX_DEPTH) {
+      if (newDepth < 0 || newDepth > listConst.MAX_DEPTH) {
         return prev;
       }
       if (delta > 0) {
@@ -379,6 +361,7 @@ export const ListEditor = ({ appColor, doc, t: theme, onContentChange, registerA
                 onIndent={delta => shiftDepth(idx, delta)}
                 onEnter={() => addSiblingAfter(idx)}
                 onBackspaceEmpty={() => removeItem(idx)}
+                onDelete={() => removeItem(idx)}
               />
             ))}
           </div>
@@ -431,15 +414,19 @@ const ListItem = ({
   onIndent,
   onEnter,
   onBackspaceEmpty,
+  onDelete,
 }) => {
+  const [hover, setHover] = useState(false);
   return (
     <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       style={{
         display: "flex",
         alignItems: "center",
         gap: 10,
-        paddingLeft: item.depth * C.INDENT_PX,
-        padding: `2px 0 2px ${item.depth * C.INDENT_PX}px`,
+        paddingLeft: item.depth * listConst.INDENT_PX,
+        padding: `2px 0 2px ${item.depth * listConst.INDENT_PX}px`,
       }}
     >
       <button
@@ -492,6 +479,35 @@ const ListItem = ({
           minWidth: 0,
         }}
       />
+      <button
+        onClick={onDelete}
+        title="Delete item"
+        onMouseEnter={e => {
+          e.currentTarget.style.color = appColor;
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.color = theme.tm;
+        }}
+        style={{
+          width: 24,
+          height: 24,
+          background: "transparent",
+          border: "none",
+          borderRadius: 5,
+          color: theme.tm,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          padding: 0,
+          opacity: hover ? 1 : 0,
+          pointerEvents: hover ? "auto" : "none",
+          transition: theme.tr,
+        }}
+      >
+        <I.Trash size={13} />
+      </button>
     </div>
   );
 };

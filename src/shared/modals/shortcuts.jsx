@@ -1,7 +1,7 @@
 import React from "react";
 import { I } from "../icons";
 import { useT } from "../theme";
-import { shortcuts as C } from "../_constants";
+import { shortcuts as shortcutsConst } from "../_constants";
 
 export const ShortcutsModal = ({ onClose }) => {
   const theme = useT();
@@ -26,7 +26,7 @@ export const ShortcutsModal = ({ onClose }) => {
 
         {/* ── Shortcut grid ── */}
         <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "1px 0", rowGap: 0 }}>
-          {C.SHORTCUTS.map(([key, desc]) => (
+          {shortcutsConst.SHORTCUTS.map(([key, desc]) => (
             <React.Fragment key={key}>
               <div
                 style={{

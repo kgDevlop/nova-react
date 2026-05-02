@@ -31,7 +31,7 @@ tab navigation, command-palette search, and the modal stack.
 - [`obsidian/download.md`](./obsidian/download.md) — export-to-zip flow
 - [`obsidian/text_editor.md`](./obsidian/text_editor.md) — toolbar formatting matrix
 
-### App catalogue
+### Catalogue
 
 Six live editors backed by a single registry. Each one renders inside
 [`AppShell`](./src/shell/shell.jsx) and saves its own content via the shared

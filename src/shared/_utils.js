@@ -13,9 +13,9 @@
 // group it needs (still one name per group).
 
 import {
-  utils as utils_C,
-  registry as registry_C,
-  canvas_utils as canvas_utils_C,
+  utils as utilsConst,
+  registry as registryConst,
+  canvas_utils as canvas_utilsConst,
 } from "./_constants";
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -32,7 +32,7 @@ import {
  * @param {string} id - The app id (e.g. "writer", "sheets").
  * @returns {object} The matching app definition from the registry.
  */
-const _app = (id) => registry_C.APPS.find(a => a.id === id) || registry_C.APPS[0];
+const _app = (id) => registryConst.APPS.find(a => a.id === id) || registryConst.APPS[0];
 
 export const registry = { _app };
 
@@ -110,7 +110,7 @@ const _filterQ = (docs, q) => {
  */
 const _filterV = (docs, v) => {
   const browseable = docs.filter(d => d.type !== "calendar");
-  if (registry_C.APPS.map(a => a.id).includes(v)) {
+  if (registryConst.APPS.map(a => a.id).includes(v)) {
     return browseable.filter(d => d.type === v);
   }
   if (v === "starred") {
@@ -142,7 +142,7 @@ const _sortD = (docs, by) => {
  * @param {string} v - View id.
  * @returns {string} Display title.
  */
-const _vtitle = (v) => utils_C.VIEW_TITLES[v] ?? "Home";
+const _vtitle = (v) => utilsConst.VIEW_TITLES[v] ?? "Home";
 
 /**
  * Build full doc records from partial defs, filling in id / starred / content.
@@ -399,7 +399,7 @@ export const formulas = {
  * @param {object} [theme] - Slide theme; defaults to the first SLIDE_THEMES preset.
  * @returns {object} Slide record `{ id, layout, bg, elements }`.
  */
-const _mkSlide = (layout = "blank", theme = canvas_utils_C.SLIDE_THEMES[0]) => {
+const _mkSlide = (layout = "blank", theme = canvas_utilsConst.SLIDE_THEMES[0]) => {
   const id = _elId();
 
   if (layout === "title") {

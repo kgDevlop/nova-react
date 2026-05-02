@@ -33,7 +33,9 @@ export const TileGrid = ({ children, cols, min = 196, gap = 9, gridRef, style })
 export const AppChip = ({ appId, size = 36, colorOverride }) => {
   const theme = useT();
   const def = registry._app(appId);
-  const color = colorOverride || def.dc;
+  // Fall back to the per-app theme colour so chips track the active scheme
+  // when no explicit override is passed.
+  const color = colorOverride || theme.appColorFor(appId);
   // Tint background with a low-opacity overlay of the app color.
   const bgTint = color + (theme.dk ? "1A" : "22");
 

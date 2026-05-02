@@ -3,7 +3,7 @@ import { I } from "../icons";
 import { useT } from "../theme";
 import { useDeviceCaps } from "../hooks/system";
 import { AppChip } from "../atoms";
-import { registry } from "../_constants";
+import { registry as registryConst } from "../_constants";
 import { utils, registry as registryU } from "../_utils";
 
 export const CommandPalette = ({
@@ -48,7 +48,7 @@ export const CommandPalette = ({
 
   // ── Command sources ───────────────────────────────────────────────────────
 
-  const APP_CMDS = registry.APPS.map(a => {
+  const APP_CMDS = registryConst.APPS.map(a => {
     // Calendar is a workspace-wide singleton — phrase the entry as Open, not New.
     const isSingleton = a.id === "calendar";
     return {
@@ -83,16 +83,9 @@ export const CommandPalette = ({
     },
     {
       type: "nav",
-      id: "na",
-      label: "All documents",
-      sub: "Browse every document",
-      action: () => { onNav("all"); onClose(); },
-    },
-    {
-      type: "nav",
       id: "nc",
-      label: "App catalogue",
-      sub: `See all ${registry.APPS.length} Nova apps`,
+      label: "Catalogue",
+      sub: `See all ${registryConst.APPS.length} Nova apps`,
       action: () => { onNav("catalogue"); onClose(); },
     },
     {

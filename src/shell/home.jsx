@@ -3,7 +3,7 @@ import { I } from "../shared/icons";
 import { useT } from "../shared/theme";
 import { useKbd, useOut } from "../shared/hooks/system";
 import { AppChip, TileGrid } from "../shared/atoms";
-import { home as C, registry } from "../shared/_constants";
+import { home as homeConst, registry as registryConst } from "../shared/_constants";
 import { utils, registry as registryU } from "../shared/_utils";
 
 // ── Doc tile (grid view) ────────────────────────────────────────────────────
@@ -11,7 +11,9 @@ import { utils, registry as registryU } from "../shared/_utils";
 const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeWS }) => {
   const theme = useT();
   const def = registryU._app(doc.type);
-  const c = doc.appColor || getAppColor(activeWS.id, doc.type, def.dc);
+  // Always resolve dynamically so theme/scheme changes flow through to old
+  // docs too. Pre-existing `doc.appColor` values from older builds are ignored.
+  const c = getAppColor(activeWS.id, doc.type, theme.appColorFor(doc.type));
   const soft = c + (theme.dk ? "1A" : "22");
 
   const [menu, setMenu] = useState(false);
@@ -80,7 +82,7 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
             gap: 4,
           }}
         >
-          {C.CARD_PREVIEW_BAR_WIDTHS.map((w, i) => (
+          {homeConst.CARD_PREVIEW_BAR_WIDTHS.map((w, i) => (
             <div
               key={i}
               style={{
@@ -244,7 +246,7 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
 const DocRow = ({ doc, onOpen, onStar, onDelete, getAppColor, activeWS }) => {
   const theme = useT();
   const def = registryU._app(doc.type);
-  const c = doc.appColor || getAppColor(activeWS.id, doc.type, def.dc);
+  const c = getAppColor(activeWS.id, doc.type, theme.appColorFor(doc.type));
   const soft = c + (theme.dk ? "1A" : "22");
 
   return (
@@ -349,7 +351,7 @@ export const HomeScreen = ({
 
   // Grid sizing: slider picks a column count, snapped to ticks. Max columns is
   // recomputed from the grid's measured width so the upper bound matches what
-  // can actually fit on screen at C.GRID_MIN_CARD_PX per card.
+  // can actually fit on screen at homeConst.GRID_MIN_CARD_PX per card.
   const gridRef = useRef(null);
   const [maxCols, setMaxCols] = useState(6);
   useEffect(() => {
@@ -357,7 +359,7 @@ export const HomeScreen = ({
     if (!el || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(([entry]) => {
       const w = entry.contentRect.width;
-      setMaxCols(Math.max(2, Math.min(8, Math.floor((w + 9) / (C.GRID_MIN_CARD_PX + 9)))));
+      setMaxCols(Math.max(2, Math.min(8, Math.floor((w + 9) / (homeConst.GRID_MIN_CARD_PX + 9)))));
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -365,7 +367,7 @@ export const HomeScreen = ({
 
   const [savedCols, setSavedCols] = useState(() => {
     if (typeof window === "undefined") return 0;
-    const v = Number(window.localStorage.getItem(C.GRID_COLS_KEY));
+    const v = Number(window.localStorage.getItem(homeConst.GRID_COLS_KEY));
     return Number.isFinite(v) && v >= 2 ? v : 0;
   });
   const defaultCols = Math.max(2, Math.round((2 + maxCols) / 2));
@@ -385,8 +387,8 @@ export const HomeScreen = ({
   // Calendar is a singleton and lives outside the doc-creation flow.
   let qt;
   if (view === "home") {
-    qt = registry.APPS.filter(a => a.id !== "calendar").map(a => a.id);
-  } else if (registry.APPS.map(a => a.id).includes(view)) {
+    qt = registryConst.APPS.filter(a => a.id !== "calendar").map(a => a.id);
+  } else if (registryConst.APPS.map(a => a.id).includes(view)) {
     qt = [view];
   } else {
     qt = null;
@@ -397,10 +399,8 @@ export const HomeScreen = ({
       style={{
         flex: 1,
         overflowY: "auto",
+        overflowX: "hidden",
         padding: "26px 22px 48px",
-        maxWidth: 1200,
-        width: "100%",
-        margin: "0 auto",
       }}
     >
       {view !== "home" && (
@@ -445,7 +445,7 @@ export const HomeScreen = ({
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
             {qt.map(type => {
               const def = registryU._app(type);
-              const c = getAppColor(activeWS.id, type, def.dc);
+              const c = getAppColor(activeWS.id, type, theme.appColorFor(type));
               return (
                 <button
                   key={type}
@@ -525,66 +525,55 @@ export const HomeScreen = ({
                 const snapped = Math.min(Math.max(Math.round(v), 2), maxCols);
                 setSavedCols(snapped);
                 if (typeof window !== "undefined") {
-                  window.localStorage.setItem(C.GRID_COLS_KEY, String(snapped));
+                  window.localStorage.setItem(homeConst.GRID_COLS_KEY, String(snapped));
                 }
               }}
               style={{ width: 115, accentColor: theme.ac, cursor: "pointer" }}
             />
           </div>
         )}
-        <button
-          className="nb"
-          title={favOnly ? "Show all" : "Show favorites only"}
-          aria-pressed={favOnly}
-          onClick={() => setFavOnly(v => !v)}
-          style={{
-            padding: "6px 10px",
-            fontSize: 11,
-            fontWeight: 600,
-            background: favOnly ? theme.ac + "1F" : theme.surface,
-            color: favOnly ? theme.ac : theme.ts,
-            border: `1px solid ${favOnly ? theme.ac + "55" : theme.bd}`,
-            borderRadius: theme.r10,
-          }}
-        >
-          <I.Star size={11} fill={favOnly ? theme.ac : "none"} color={favOnly ? theme.ac : theme.ts} />
-          Favorites
-        </button>
-        <select
-          value={sort}
-          onChange={e => setSort(e.target.value)}
-          style={{
-            background: theme.surface,
-            border: `1px solid ${theme.bd}`,
-            color: theme.ts,
-            fontFamily: theme.fn,
-            fontSize: 11,
-            borderRadius: theme.r10,
-            padding: "6px 9px",
-            cursor: "pointer",
-            outline: "none",
-          }}
-        >
-          <option value="modified">Last modified</option>
-          <option value="name">Name A→Z</option>
-          <option value="type">App type</option>
-        </select>
-        {isMobile && !searchOpen ? (
-          <button
-            className="nb ni"
-            onClick={() => setSearchOpen(true)}
-            title="Search"
-            style={{
-              marginLeft: "auto",
-              padding: 7,
-              border: `1px solid ${theme.bd}`,
-              borderRadius: theme.r10,
-              background: theme.surface,
-            }}
-          >
-            <I.Search size={13} />
-          </button>
-        ) : (
+        {!isMobile && (
+          <>
+            <button
+              className="nb"
+              title={favOnly ? "Show all" : "Show favorites only"}
+              aria-pressed={favOnly}
+              onClick={() => setFavOnly(v => !v)}
+              style={{
+                padding: "6px 10px",
+                fontSize: 11,
+                fontWeight: 600,
+                background: favOnly ? theme.ac + "1F" : theme.surface,
+                color: favOnly ? theme.ac : theme.ts,
+                border: `1px solid ${favOnly ? theme.ac + "55" : theme.bd}`,
+                borderRadius: theme.r10,
+              }}
+            >
+              <I.Star size={11} fill={favOnly ? theme.ac : "none"} color={favOnly ? theme.ac : theme.ts} />
+              Favorites
+            </button>
+            <select
+              value={sort}
+              onChange={e => setSort(e.target.value)}
+              style={{
+                background: theme.surface,
+                border: `1px solid ${theme.bd}`,
+                color: theme.ts,
+                fontFamily: theme.fn,
+                fontSize: 11,
+                borderRadius: theme.r10,
+                padding: "6px 23px 6px 9px",
+                cursor: "pointer",
+                outline: "none",
+              }}
+            >
+              <option value="modified">Last modified</option>
+              <option value="name">Name A→Z</option>
+              <option value="type">App type</option>
+            </select>
+          </>
+        )}
+        {isMobile && !searchOpen ? null : (
           <div style={{ position: "relative", flex: 1, marginLeft: "auto", minWidth: 150, maxWidth: isMobile ? undefined : 300 }}>
             <div
               style={{
@@ -637,6 +626,75 @@ export const HomeScreen = ({
             )}
           </div>
         )}
+        {isMobile && (
+          <div style={{ display: "flex", gap: 6, marginLeft: searchOpen ? 0 : "auto" }}>
+            <button
+              className="nb ni"
+              title={favOnly ? "Show all" : "Show favorites only"}
+              aria-pressed={favOnly}
+              onClick={() => setFavOnly(v => !v)}
+              style={{
+                padding: 7,
+                background: favOnly ? theme.ac + "1F" : theme.surface,
+                color: favOnly ? theme.ac : theme.ts,
+                border: `1px solid ${favOnly ? theme.ac + "55" : theme.bd}`,
+                borderRadius: theme.r10,
+              }}
+            >
+              <I.Star size={13} fill={favOnly ? theme.ac : "none"} color={favOnly ? theme.ac : theme.ts} />
+            </button>
+            <div style={{ position: "relative", display: "flex" }}>
+              <button
+                className="nb ni"
+                title={`Sort: ${sort === "modified" ? "Last modified" : sort === "name" ? "Name A→Z" : "App type"}`}
+                style={{
+                  padding: 7,
+                  background: theme.surface,
+                  color: theme.ts,
+                  border: `1px solid ${theme.bd}`,
+                  borderRadius: theme.r10,
+                  pointerEvents: "none",
+                }}
+                tabIndex={-1}
+              >
+                <I.SortAsc size={13} color={theme.ts} />
+              </button>
+              <select
+                value={sort}
+                onChange={e => setSort(e.target.value)}
+                aria-label="Sort"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  opacity: 0,
+                  cursor: "pointer",
+                  fontFamily: theme.fn,
+                }}
+              >
+                <option value="modified">Last modified</option>
+                <option value="name">Name A→Z</option>
+                <option value="type">App type</option>
+              </select>
+            </div>
+            {!searchOpen && (
+              <button
+                className="nb ni"
+                onClick={() => setSearchOpen(true)}
+                title="Search"
+                style={{
+                  padding: 7,
+                  border: `1px solid ${theme.bd}`,
+                  borderRadius: theme.r10,
+                  background: theme.surface,
+                }}
+              >
+                <I.Search size={13} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {visible.length === 0 && (
@@ -670,7 +728,7 @@ export const HomeScreen = ({
           {!q && (
             <button
               className="nb np"
-              onClick={() => onNewDoc(registry.APPS.some(a => a.id === view) ? view : undefined)}
+              onClick={() => onNewDoc(registryConst.APPS.some(a => a.id === view) ? view : undefined)}
             >
               <I.Plus size={13} /> New document
             </button>
@@ -682,7 +740,7 @@ export const HomeScreen = ({
         <TileGrid
           gridRef={gridRef}
           cols={isMobile ? undefined : cols}
-          min={C.GRID_MIN_CARD_PX}
+          min={homeConst.GRID_MIN_CARD_PX}
           style={{ animation: "fadeUp 0.3s ease 0.12s both" }}
         >
           {visible.map(doc => (
@@ -726,14 +784,14 @@ export const HomeScreen = ({
   );
 };
 
-// ── App catalogue screen ────────────────────────────────────────────────────
+// ── Catalogue screen ────────────────────────────────────────────────────
 
 export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS }) => {
   const theme = useT();
-  const cats = [...new Set(registry.APPS.map(a => a.cat))];
+  const cats = [...new Set(registryConst.APPS.map(a => a.cat))];
 
   return (
-    <div style={{ flex: 1, overflowY: "auto", padding: "26px 22px 48px" }}>
+    <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "26px 22px 48px" }}>
       <div style={{ marginBottom: 24, animation: "fadeUp 0.3s ease both" }}>
         <h1
           style={{
@@ -744,7 +802,7 @@ export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS }) => {
             marginBottom: 4,
           }}
         >
-          App catalogue
+          Catalogue
         </h1>
         <p style={{ fontSize: 12, color: theme.ts }}>
           Click any tile to create a new document instantly.
@@ -772,8 +830,8 @@ export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS }) => {
             {cat}
           </div>
           <TileGrid min={210}>
-            {registry.APPS.filter(a => a.cat === cat).map(app => {
-              const c = getAppColor(activeWS.id, app.id, app.dc);
+            {registryConst.APPS.filter(a => a.cat === cat).map(app => {
+              const c = getAppColor(activeWS.id, app.id, theme.appColorFor(app.id));
               const soft = c + (theme.dk ? "1A" : "22");
               return (
                 <div

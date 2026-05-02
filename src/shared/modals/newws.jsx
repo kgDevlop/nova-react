@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { I } from "../icons";
 import { useT } from "../theme";
-import { newws, theme } from "../_constants";
+import { newws as newwsConst, theme as themeConst } from "../_constants";
 
 export const NewWSModal = ({ onClose, onCreate }) => {
   const theme = useT();
@@ -87,7 +87,7 @@ export const NewWSModal = ({ onClose, onCreate }) => {
           >
             <I.X size={11} color={theme.tm} />
           </button>
-          {newws.EMOJIS.map(em => (
+          {newwsConst.EMOJIS.map(em => (
             <button
               key={em}
               onClick={() => setEmoji(em)}

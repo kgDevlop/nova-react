@@ -145,7 +145,7 @@ export const TabBar = ({
       >
         {tabs.map(doc => {
           const def = registry._app(doc.type);
-          const color = doc.appColor || getAppColor(activeWS.id, doc.type, def.dc);
+          const color = getAppColor(activeWS.id, doc.type, theme.appColorFor(doc.type));
           const isActive = doc.id === activeTabId;
           // Calendar is a singleton; its tab label always tracks the active
           // workspace name rather than the doc's stored title.

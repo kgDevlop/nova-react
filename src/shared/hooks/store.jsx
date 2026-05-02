@@ -1,19 +1,19 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { utils } from "../_utils";
-import { store as C } from "../_constants";
+import { store as storeConst } from "../_constants";
 
 // ── Persistence ───────────────────────────────────────────────────────────
 //
 // localStorage round-trip. Dates serialise to strings, so revive them on load.
 const _load = () => {
   try {
-    const raw = localStorage.getItem(C.STORAGE_KEY);
+    const raw = localStorage.getItem(storeConst.STORAGE_KEY);
     if (!raw) {
-      return C.WS_SEEDS;
+      return storeConst.WS_SEEDS;
     }
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || !parsed.length) {
-      return C.WS_SEEDS;
+      return storeConst.WS_SEEDS;
     }
     return parsed.map(w => ({
       ...w,
@@ -23,13 +23,13 @@ const _load = () => {
       })),
     }));
   } catch {
-    return C.WS_SEEDS;
+    return storeConst.WS_SEEDS;
   }
 };
 
 const _save = ws => {
   try {
-    localStorage.setItem(C.STORAGE_KEY, JSON.stringify(ws));
+    localStorage.setItem(storeConst.STORAGE_KEY, JSON.stringify(ws));
     return true;
   } catch {
     return false;
@@ -38,7 +38,7 @@ const _save = ws => {
 
 const _loadActive = ws => {
   try {
-    const id = localStorage.getItem(C.ACTIVE_KEY);
+    const id = localStorage.getItem(storeConst.ACTIVE_KEY);
     if (id && ws.some(w => w.id === id)) {
       return id;
     }
@@ -60,7 +60,7 @@ export const useWSStore = () => {
 
   useEffect(() => {
     try {
-      localStorage.setItem(C.ACTIVE_KEY, activeId || "");
+      localStorage.setItem(storeConst.ACTIVE_KEY, activeId || "");
     } catch {
       // Ignore quota/availability errors — active id will just not persist.
     }
@@ -227,8 +227,33 @@ export const useAutoSave = (docId, content, updateDoc) => {
 };
 
 // ── App color overrides ───────────────────────────────────────────────────
+//
+// Stored as a flat `{ "<wsId>:<appId>": "#hex" }` map. Persisted across
+// sessions so per-app picks survive a reload.
+const _loadAppColors = () => {
+  try {
+    const raw = localStorage.getItem(storeConst.APP_COLORS_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
 export const useAppColors = () => {
-  const [ov, set] = useState({});
+  const [ov, set] = useState(_loadAppColors);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(storeConst.APP_COLORS_KEY, JSON.stringify(ov));
+    } catch {
+      // Ignore quota / availability — overrides just won't persist.
+    }
+  }, [ov]);
+
   const get = useCallback(
     (wsId, appId, def) => ov[`${wsId}:${appId}`] || def,
     [ov],
@@ -237,7 +262,14 @@ export const useAppColors = () => {
     (wsId, appId, c) => set(p => ({ ...p, [`${wsId}:${appId}`]: c })),
     [],
   );
-  return { get, put };
+  // Clear the override so callers fall back to whatever default they pass
+  // to `get` (the theme accent in display contexts).
+  const del = useCallback((wsId, appId) => set(p => {
+    const next = { ...p };
+    delete next[`${wsId}:${appId}`];
+    return next;
+  }), []);
+  return { get, put, del };
 };
 
 // ── Tab management ────────────────────────────────────────────────────────

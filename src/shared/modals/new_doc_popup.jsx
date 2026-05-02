@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { I } from "../icons";
 import { useT } from "../theme";
 import { AppChip } from "../atoms";
-import { new_doc_popup as C } from "../_constants";
+import { new_doc_popup as new_doc_popupConst } from "../_constants";
 import { utils, registry } from "../_utils";
 
 export const NewDocModal = ({ onClose, onCreate, initType, getAppColor, activeWS }) => {
@@ -24,8 +24,8 @@ export const NewDocModal = ({ onClose, onCreate, initType, getAppColor, activeWS
     }
     setCreating(true);
     try {
-      const color = getAppColor(activeWS.id, type, registry._app(type).dc);
-      onCreate(type, title, color);
+      // Skip per-doc colour — tiles resolve from the theme accent dynamically.
+      onCreate(type, title);
     } catch (err) {
       console.error("Nova: doc create failed", err);
     } finally {
@@ -34,7 +34,7 @@ export const NewDocModal = ({ onClose, onCreate, initType, getAppColor, activeWS
   };
 
   const def = registry._app(type);
-  const currentColor = getAppColor(activeWS.id, type, def.dc);
+  const currentColor = getAppColor(activeWS.id, type, theme.appColorFor(type));
   const autoPreview = utils._autoName(type);
 
   return (
@@ -99,9 +99,9 @@ export const NewDocModal = ({ onClose, onCreate, initType, getAppColor, activeWS
             flexShrink: 0,
           }}
         >
-          {C.CREATABLE_APPS.map(app => {
+          {new_doc_popupConst.CREATABLE_APPS.map(app => {
             const selected = type === app.id;
-            const color = getAppColor(activeWS.id, app.id, app.dc);
+            const color = getAppColor(activeWS.id, app.id, theme.appColorFor(app.id));
             return (
               <div
                 key={app.id}

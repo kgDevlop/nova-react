@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useContext, useRef } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 import { I } from "./shared/icons";
 import { TC, ThemeProvider } from "./shared/theme";
 import { NotifProvider, useNotify } from "./shared/notifications";
 import { useStyles } from "./shared/styling";
 import { useDeviceCaps, useKbd } from "./shared/hooks/system";
 import { useWSStore, useTabs, useAppColors } from "./shared/hooks/store";
+import { useNavHistory } from "./shared/hooks/nav";
 import { NovaLogo } from "./shared/atoms";
 import { Sidebar, MobSidebar, MobTopBar } from "./shared/left_sidebar";
 import { TabBar } from "./shared/utils_bar";
@@ -15,7 +16,7 @@ import { CommandPalette } from "./shared/modals/palette";
 import { ShortcutsModal } from "./shared/modals/shortcuts";
 import { AppShell } from "./shell/shell";
 import { HomeScreen, AppCatalogueScreen } from "./shell/home";
-import { nova_base as C } from "./shared/_constants";
+import { nova_base as nova_baseConst } from "./shared/_constants";
 import { registry } from "./shared/_utils";
 
 function NovaApp() {
@@ -38,117 +39,46 @@ function NovaApp() {
   const [showPalette, setShowPalette] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [mobileDisabled, setMobileDisabled] = useState(() => {
-    return localStorage.getItem(C.MOBILE_DISABLED_KEY) === "1";
+    return localStorage.getItem(nova_baseConst.MOBILE_DISABLED_KEY) === "1";
   });
 
   useEffect(() => {
-    localStorage.setItem(C.MOBILE_DISABLED_KEY, mobileDisabled ? "1" : "0");
+    localStorage.setItem(nova_baseConst.MOBILE_DISABLED_KEY, mobileDisabled ? "1" : "0");
   }, [mobileDisabled]);
 
   const isMobile = device.isMobile && !mobileDisabled;
 
   // ── Page nav history (back / forward) ────────────────────────────────────
   //
-  // Each entry is a single string identifying a "page":
-  //   - "home" / "starred" / "all" / "catalogue"      — top-level views
-  //   - "<app-id>" (e.g. "writer")                    — app-filtered list
-  //   - "doc:<doc-id>"                                — an opened document
-  //
-  // The list + index are the source of truth. Two effects keep things in sync:
-  //   1. pageId effect — when the visible page differs from the entry at idx,
-  //      append a new entry (forward navigation) and tag the op as "push".
-  //   2. navHist effect — when navHist changes, push browser history if the op
-  //      was "push", and otherwise restore the active tab/view to match the
-  //      entry at idx (back/forward).
-  const pageId = tabs.activeTabId ? `doc:${tabs.activeTabId}` : view;
-
-  const [navHist, setNavHist] = useState(() => ({
-    entries: [pageId],
-    idx: 0,
-  }));
-  const navOpRef = useRef("init");
-
-  useEffect(() => {
-    setNavHist(h => {
-      if (h.entries[h.idx] === pageId) {
-        return h;
-      }
-      navOpRef.current = "push";
-      const truncated = h.entries.slice(0, h.idx + 1);
-      truncated.push(pageId);
-      const trimmed = truncated.slice(-C.HIST_LIMIT);
-      return { entries: trimmed, idx: trimmed.length - 1 };
-    });
-  }, [pageId]);
-
-  const canBack = navHist.idx > 0;
-  const canForward = navHist.idx < navHist.entries.length - 1;
-
-  const goBack = useCallback(() => {
-    setNavHist(h => (h.idx <= 0 ? h : { ...h, idx: h.idx - 1 }));
-  }, []);
-
-  const goForward = useCallback(() => {
-    setNavHist(h => (h.idx >= h.entries.length - 1 ? h : { ...h, idx: h.idx + 1 }));
-  }, []);
-
-  // Mirror internal navHist onto window.history (so smartphone back gestures
-  // traverse our stack) and route the visible view to match the active entry.
-  useEffect(() => {
-    const op = navOpRef.current;
-    navOpRef.current = "idle";
-
-    if (op === "push") {
-      window.history.pushState({ appIdx: navHist.idx }, "");
-    }
-
-    const target = navHist.entries[navHist.idx];
-    if (target === pageId) {
-      return;
-    }
-    // Restoring an entry (back/forward) — switch view/tab to match.
-    if (target.startsWith("doc:")) {
-      const id = target.slice(4);
-      const doc = store.active.docs.find(d => d.id === id);
+  // The hook owns a linear stack of pages and mirrors it to window.history.
+  // We push entries explicitly at every navigation point (sidebar nav, doc
+  // open, doc create); back/forward delegate to the browser, and the hook's
+  // popstate handler invokes `applyEntry` to restore the corresponding tab
+  // or view.
+  const applyEntry = useCallback(entry => {
+    if (entry.kind === "doc") {
+      const doc = store.active.docs.find(d => d.id === entry.id);
       if (doc) {
         tabs.openTab(doc);
         return;
       }
+      // Doc was deleted between push and restore — drop back to home.
       tabs.setActiveTabId(null);
       setView("home");
       return;
     }
     tabs.setActiveTabId(null);
-    setView(target);
-  }, [navHist]); // eslint-disable-line react-hooks/exhaustive-deps
+    setView(entry.id);
+  }, [store, tabs]);
 
-  // Tag the current browser entry with our index on first mount, so popstate
-  // can later identify it.
-  useEffect(() => {
-    if (window.history.state?.appIdx === undefined) {
-      window.history.replaceState({ appIdx: navHist.idx }, "");
+  const isEntryValid = useCallback(entry => {
+    if (entry.kind === "doc") {
+      return store.active.docs.some(d => d.id === entry.id);
     }
-  }, []); // eslint-disable-line
+    return true;
+  }, [store]);
 
-  // Listen for back/forward (in-app buttons trigger window.history.back/forward
-  // too, so this handles all sources uniformly).
-  useEffect(() => {
-    const handler = e => {
-      const target = e.state?.appIdx;
-      if (typeof target !== "number") {
-        return;
-      }
-      setNavHist(h => {
-        if (target === h.idx) return h;
-        const clamped = Math.max(0, Math.min(h.entries.length - 1, target));
-        return { ...h, idx: clamped };
-      });
-    };
-    window.addEventListener("popstate", handler);
-    return () => {
-      window.removeEventListener("popstate", handler);
-    };
-  }, []);
+  const nav = useNavHistory({ apply: applyEntry, isValid: isEntryValid });
 
   // ── Global shortcuts ──────────────────────────────────────────────────────
   // ⌘N → new doc, ⌘K → command palette
@@ -169,19 +99,32 @@ function NovaApp() {
 
   // ── Doc lifecycle handlers ────────────────────────────────────────────────
 
+  // Open a doc by id and record the navigation. Single funnel for every
+  // "user opened this doc" path so the history stack never misses an entry.
+  const openDocById = useCallback(docId => {
+    const doc = store.active.docs.find(d => d.id === docId);
+    if (!doc) {
+      return;
+    }
+    tabs.openTab(doc);
+    nav.push({ kind: "doc", id: doc.id });
+  }, [store, tabs, nav]);
+
   // Calendar is a singleton per workspace: the first time it's opened we
   // create the underlying doc, every subsequent open reuses it. The user can
   // never make a second calendar doc via any UI surface.
   const openCalendarSingleton = useCallback(() => {
     const existing = store.active.docs.find(d => d.type === "calendar");
     if (existing) {
-      tabs.openTab(existing);
+      openDocById(existing.id);
       return;
     }
-    const c = ac.get(store.active.id, "calendar", registry._app("calendar").dc);
-    const doc = store.createDoc("calendar", "Calendar", c);
+    // Don't freeze a per-doc colour — tiles resolve via the theme accent so
+    // they update when the user switches schemes.
+    const doc = store.createDoc("calendar", "Calendar");
     tabs.openTab(doc);
-  }, [store, ac, tabs]);
+    nav.push({ kind: "doc", id: doc.id });
+  }, [store, tabs, nav, openDocById]);
 
   const openNewDoc = useCallback((type = null) => {
     if (type === "calendar") {
@@ -189,28 +132,26 @@ function NovaApp() {
       return;
     }
     if (type) {
-      const c = ac.get(store.active.id, type, registry._app(type).dc);
-      const doc = store.createDoc(type, "", c);
+      const doc = store.createDoc(type, "");
       tabs.openTab(doc);
+      nav.push({ kind: "doc", id: doc.id });
       notify("success", `${registry._app(type).label} created`);
     } else {
       setNdType(null);
       setShowND(true);
     }
-  }, [store, ac, tabs, notify, openCalendarSingleton]);
+  }, [store, tabs, nav, notify, openCalendarSingleton]);
 
   const handleCreate = useCallback((type, title, color) => {
     const doc = store.createDoc(type, title, color);
     tabs.openTab(doc);
+    nav.push({ kind: "doc", id: doc.id });
     notify("success", `${registry._app(type).label} "${doc.title}" created`);
-  }, [store, tabs, notify]);
+  }, [store, tabs, nav, notify]);
 
   const handleOpenDoc = useCallback(doc => {
-    // Always pull the freshest copy from the store — `doc` may be stale if
-    // it came from a memoised list rendered before the latest update.
-    const fresh = store.active.docs.find(d => d.id === doc.id) || doc;
-    tabs.openTab(fresh);
-  }, [store, tabs]);
+    openDocById(doc.id);
+  }, [openDocById]);
 
   const handleNav = useCallback(v => {
     if (v === "calendar") {
@@ -221,7 +162,18 @@ function NovaApp() {
     }
     setView(v);
     tabs.setActiveTabId(null);
-  }, [tabs, openCalendarSingleton]);
+    nav.push({ kind: "view", id: v });
+  }, [tabs, nav, openCalendarSingleton]);
+
+  // Switching tabs is a navigation event — clicking a tab strip entry should
+  // record an open just like opening the doc fresh from a list view.
+  const handleTabSelect = useCallback(id => {
+    if (id === tabs.activeTabId) {
+      return;
+    }
+    tabs.setActiveTabId(id);
+    nav.push({ kind: "doc", id });
+  }, [tabs, nav]);
 
   const handleRename = useCallback((id, title) => {
     const resolved = store.updateDoc(id, { title });
@@ -277,6 +229,7 @@ function NovaApp() {
             onRenameWS={store.renameWS}
             onDeleteWS={store.deleteWS}
             onSettings={() => setShowSettings(true)}
+            getAppColor={ac.get}
           />
         )}
         {isMobile && showMobSB && (
@@ -292,6 +245,7 @@ function NovaApp() {
             onRenameWS={store.renameWS}
             onDeleteWS={store.deleteWS}
             onSettings={() => setShowSettings(true)}
+            getAppColor={ac.get}
           />
         )}
 
@@ -340,10 +294,10 @@ function NovaApp() {
             <MobTopBar
               onOpen={() => setShowMobSB(true)}
               onSearchClick={() => setShowPalette(true)}
-              onBack={() => window.history.back()}
-              onForward={() => window.history.forward()}
-              canBack={canBack}
-              canForward={canForward}
+              onBack={nav.goBack}
+              onForward={nav.goForward}
+              canBack={nav.canBack}
+              canForward={nav.canForward}
               workspace={store.active}
             />
           )}
@@ -352,22 +306,22 @@ function NovaApp() {
             <TabBar
               tabs={tabs.tabs}
               activeTabId={tabs.activeTabId}
-              onSelect={tabs.setActiveTabId}
+              onSelect={handleTabSelect}
               onClose={tabs.closeTab}
               getAppColor={ac.get}
               activeWS={store.active}
               onSearchClick={() => setShowPalette(true)}
-              onBack={() => window.history.back()}
-              onForward={() => window.history.forward()}
-              canBack={canBack}
-              canForward={canForward}
+              onBack={nav.goBack}
+              onForward={nav.goForward}
+              canBack={nav.canBack}
+              canForward={nav.canForward}
             />
           )}
 
           {tabs.activeDoc ? (
             <AppShell
               doc={tabs.activeDoc}
-              onBack={() => tabs.closeTab(tabs.activeTabId)}
+              onBack={nav.goBack}
               getAppColor={ac.get}
               activeWS={store.active}
               updateDoc={handleUpdateDoc}
@@ -417,6 +371,7 @@ function NovaApp() {
           setTheme={setTheme}
           getAppColor={ac.get}
           setAppColor={ac.put}
+          delAppColor={ac.del}
           activeWS={store.active}
           mobileDisabled={mobileDisabled}
           setMobileDisabled={setMobileDisabled}

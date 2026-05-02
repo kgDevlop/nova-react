@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { I } from "../icons";
-import { useT, ACCENT_PRESETS, APP_COLORS } from "../theme";
+import { useT } from "../theme";
 import { AppChip } from "../atoms";
-import { APPS } from "../../shell/registry";
+import { theme, registry } from "../_constants";
 
 export const SettingsPanel = ({
   onClose,
@@ -139,7 +139,7 @@ export const SettingsPanel = ({
                 Accent colour
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 22 }}>
-                {ACCENT_PRESETS.map(p => {
+                {theme.ACCENT_PRESETS.map(p => {
                   const active = theme.accentId === p.id;
                   return (
                     <button
@@ -187,9 +187,9 @@ export const SettingsPanel = ({
                 Override the accent for each app in{" "}
                 <strong style={{ color: t.tx }}>{activeWS.name}</strong>
               </p>
-              {APPS.map(app => {
+              {registry.APPS.map(app => {
                 const cur = getAppColor(activeWS.id, app.id, app.dc);
-                const isCustom = !APP_COLORS.includes(cur) && cur !== app.dc;
+                const isCustom = !theme.APP_COLORS.includes(cur) && cur !== app.dc;
                 return (
                   <div
                     key={app.id}
@@ -207,7 +207,7 @@ export const SettingsPanel = ({
                       <div style={{ fontSize: 10, color: t.tm }}>{app.desc}</div>
                     </div>
                     <div style={{ display: "flex", gap: 3, flexWrap: "wrap", maxWidth: 148 }}>
-                      {APP_COLORS.slice(0, 8).map(c => (
+                      {theme.APP_COLORS.slice(0, 8).map(c => (
                         <button
                           key={c}
                           onClick={() => setAppColor(activeWS.id, app.id, c)}

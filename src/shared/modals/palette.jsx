@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { I } from "../icons";
 import { useT } from "../theme";
 import { AppChip } from "../atoms";
-import { _rel } from "../utils";
-import { APPS, _app } from "../../shell/registry";
+import { registry } from "../_constants";
+import { utils, registry as registryU } from "../_utils";
 
 export const CommandPalette = ({
   onClose,
@@ -46,7 +46,7 @@ export const CommandPalette = ({
 
   // ── Command sources ───────────────────────────────────────────────────────
 
-  const APP_CMDS = APPS.map(a => {
+  const APP_CMDS = registry.APPS.map(a => {
     // Calendar is a workspace-wide singleton — phrase the entry as Open, not New.
     const isSingleton = a.id === "calendar";
     return {
@@ -90,7 +90,7 @@ export const CommandPalette = ({
       type: "nav",
       id: "nc",
       label: "App catalogue",
-      sub: `See all ${APPS.length} Nova apps`,
+      sub: `See all ${registry.APPS.length} Nova apps`,
       action: () => { onNav("catalogue"); onClose(); },
     },
     {
@@ -113,7 +113,7 @@ export const CommandPalette = ({
     type: "doc",
     id: `doc:${d.id}`,
     label: d.title,
-    sub: `${_app(d.type).label} · ${_rel(d.modified)}`,
+    sub: `${registryU._app(d.type).label} · ${utils._rel(d.modified)}`,
     appId: d.type,
     action: () => {
       onOpenDoc(d);

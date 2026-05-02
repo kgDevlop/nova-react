@@ -7,8 +7,8 @@
  * - `_buildT`   is a pure function: (ThemeConfig) → TokenObject. No side effects.
  * - `TC`        is the React context. Consumers call `useT()` — never read TC directly.
  * - `ThemeProvider` is the single place state lives. Wrap the app root once.
- * - `ACCENT_PRESETS` and `APP_COLORS` are read-only constant arrays exported for
- *   use in SettingsPanel and anywhere else that needs the palette.
+ * - `ACCENT_PRESETS` and `APP_COLORS` are sourced from `_constants.js` and used
+ *   in SettingsPanel and anywhere else that needs the palette.
  * - "system" mode reads `prefers-color-scheme` at build time (on first render).
  *   A media-query listener is intentionally NOT added here — keeping the engine
  *   stateless keeps it testable. If live system-mode switching is needed, add a
@@ -16,38 +16,7 @@
  */
 
 import React, { createContext, useContext, useMemo, useState } from "react";
-
-
-// ── Constants ────────────────────────────────────────────────────────────────
-
-/**
- * All available accent presets.
- * @type {import('./modals/types').AccentPreset[]}
- */
-export const ACCENT_PRESETS = [
-  { id: "gold",    hex: "#C8A253", soft: "rgba(200,162,83,0.12)"   },
-  { id: "violet",  hex: "#8B5CF6", soft: "rgba(139,92,246,0.12)"   },
-  { id: "teal",    hex: "#14B8A6", soft: "rgba(20,184,166,0.12)"   },
-  { id: "coral",   hex: "#F97316", soft: "rgba(249,115,22,0.12)"   },
-  { id: "rose",    hex: "#FB7185", soft: "rgba(251,113,133,0.12)"  },
-  { id: "sky",     hex: "#38BDF8", soft: "rgba(56,189,248,0.12)"   },
-  { id: "lime",    hex: "#84CC16", soft: "rgba(132,204,22,0.12)"   },
-  { id: "crimson", hex: "#EF4444", soft: "rgba(239,68,68,0.12)"    },
-];
-
-/**
- * Generic color palette used for app-color overrides and workspace colors.
- * @type {string[]}
- */
-export const APP_COLORS = [
-  "#4A8FE8", "#3BB580", "#E87B3A", "#A87BE8",
-  "#F97316", "#14B8A6", "#FB7185", "#38BDF8",
-  "#8B5CF6", "#EF4444", "#84CC16", "#F59E0B",
-];
-
-type ThemeConfig = { mode: "dark" | "light" | "system"; accentId: string };
-
-const DEFAULT_THEME: ThemeConfig = { mode: "dark", accentId: "gold" };
+import { theme as C } from "./_constants";
 
 // ── Pure Token Builder ───────────────────────────────────────────────────────
 
@@ -58,7 +27,7 @@ const DEFAULT_THEME: ThemeConfig = { mode: "dark", accentId: "gold" };
  * @param {import('./modals/types').ThemeConfig} config
  * @returns {import('./modals/types').TokenObject}
  */
-export function buildTokens(config: ThemeConfig) {
+export function buildTokens(config) {
   // Resolve "system" against the current media query; otherwise honour the
   // explicit mode. SSR-safe: falls back to light when `window` is missing.
   let resolvedMode;
@@ -71,7 +40,7 @@ export function buildTokens(config: ThemeConfig) {
   }
 
   const dk = resolvedMode !== "light";
-  const ac = ACCENT_PRESETS.find(p => p.id === config.accentId) ?? ACCENT_PRESETS[0];
+  const ac = C.ACCENT_PRESETS.find(p => p.id === config.accentId) ?? C.ACCENT_PRESETS[0];
 
   return {
     // Backgrounds
@@ -116,16 +85,9 @@ export function buildTokens(config: ThemeConfig) {
  * @property {React.Dispatch<React.SetStateAction<import('./modals/types').ThemeConfig>>} setTheme
  */
 
-type TokenObject = ReturnType<typeof buildTokens>;
-type ThemeContextValue = {
-  theme: ThemeConfig;
-  t: TokenObject;
-  setTheme: React.Dispatch<React.SetStateAction<ThemeConfig>>;
-};
-
-export const TC = createContext<ThemeContextValue>({
-  theme:    DEFAULT_THEME,
-  t:        buildTokens(DEFAULT_THEME),
+export const TC = createContext({
+  theme:    C.DEFAULT_THEME,
+  t:        buildTokens(C.DEFAULT_THEME),
   setTheme: () => {},
 });
 
@@ -146,7 +108,7 @@ export const useT = () => useContext(TC).t;
  * @returns {[import('./modals/types').ThemeConfig,
  *            React.Dispatch<React.SetStateAction<import('./modals/types').ThemeConfig>>]}
  */
-export const useTheme = (): [ThemeConfig, React.Dispatch<React.SetStateAction<ThemeConfig>>] => {
+export const useTheme = () => {
   const { theme, setTheme } = useContext(TC);
   return [theme, setTheme];
 };
@@ -159,8 +121,8 @@ export const useTheme = (): [ThemeConfig, React.Dispatch<React.SetStateAction<Th
  *
  * @param {{ children: React.ReactNode }} props
  */
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<ThemeConfig>(DEFAULT_THEME);
+export function ThemeProvider({ children }) {
+  const [theme, setTheme] = useState(C.DEFAULT_THEME);
 
   /** @type {import('./modals/types').TokenObject} */
   const t = useMemo(() => buildTokens(theme), [theme]);

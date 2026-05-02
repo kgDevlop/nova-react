@@ -1,9 +1,7 @@
 import React, { useState } from "react";
 import { I } from "./icons";
 import { useT } from "./theme";
-
-const OPEN_W = 248;
-const CLOSED_W = 36;
+import { apps_sidebar as C } from "./_constants";
 
 export const AppsSidebarSection = ({ title, icon: Ico, children, defaultOpen = true }) => {
   const t = useT();
@@ -71,7 +69,7 @@ export const DefaultSections = ({ doc, defaultOpen = true }) => {
 export const AppsSidebar = ({ doc, appColor, defaultOpen, children }) => {
   const t = useT();
   const [open, setOpen] = useState(defaultOpen ?? Boolean(children));
-  const W = open ? OPEN_W : CLOSED_W;
+  const W = open ? C.OPEN_W : C.CLOSED_W;
 
   return (
     <div

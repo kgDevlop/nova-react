@@ -2,50 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { I } from "../shared/icons";
 import { useCanvasHistory } from "../shared/hooks/system";
 import { SelectionHandles } from "../shared/canvas_utils";
-import { _elId as generateElementId } from "../shared/utils";
-
-// Canvas dimensions — fixed virtual coordinate space; the rendered SVG is
-// scaled via CSS transform for zoom, so element coordinates remain stable.
-const CANVAS_WIDTH = 1440;
-const CANVAS_HEIGHT = 900;
-
-// Minimum drag distance (in canvas units) before a shape is committed —
-// prevents accidental tiny shapes from a click without drag.
-const MIN_SHAPE_SIZE = 4;
-
-// Zoom step + bounds for the +/− buttons.
-const ZOOM_STEP = 0.25;
-const ZOOM_MIN = 0.25;
-const ZOOM_MAX = 3;
-
-// Default text-element dimensions when the user clicks the text tool.
-const DEFAULT_TEXT_WIDTH = 200;
-const DEFAULT_TEXT_HEIGHT = 60;
-const DEFAULT_TEXT_FONT_SIZE = 18;
-
-// Selection outline padding (canvas units around the bounding box).
-const SELECTION_PAD = 3;
-const TEXT_SELECTION_PAD = 2;
-
-// §14c  Draw tool definitions
-const DRAW_TOOLS = [
-  { id: "select",  label: "Select",  Icon: I.ArrowR,  key: "V" },
-  { id: "rect",    label: "Rect",    Icon: I.Square,  key: "R" },
-  { id: "ellipse", label: "Ellipse", Icon: I.Globe,   key: "E" },
-  { id: "line",    label: "Line",    Icon: I.ArrowR,  key: "L" },
-  { id: "text",    label: "Text",    Icon: I.TypeT,   key: "T" },
-  { id: "pen",     label: "Pen",     Icon: I.PenTool, key: "P" },
-];
-
-// Cursor shown over the canvas background for each tool.
-const CURSOR_BY_TOOL = {
-  select: "default",
-  rect: "crosshair",
-  ellipse: "crosshair",
-  line: "crosshair",
-  text: "text",
-  pen: "crosshair",
-};
+import { draw as C } from "../shared/_constants";
+import { utils } from "../shared/_utils";
 
 export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerActions }) => {
   // ── Initial element load ──────────────────────────────────────────────────
@@ -101,7 +59,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
       if (e.target.tagName === "INPUT" || e.target.contentEditable === "true") {
         return;
       }
-      DRAW_TOOLS.forEach(dt => {
+      C.DRAW_TOOLS.forEach(dt => {
         if (e.key.toUpperCase() === dt.key) {
           setTool(dt.id);
           setSelId(null);
@@ -125,7 +83,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
 
   useEffect(() => {
     registerActions((id, val) => {
-      DRAW_TOOLS.forEach(dt => {
+      C.DRAW_TOOLS.forEach(dt => {
         if (dt.id === id) {
           setTool(id);
         }
@@ -158,8 +116,8 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
       return { x: 0, y: 0 };
     }
     return {
-      x: (e.clientX - rect.left) / zoom / rect.width * CANVAS_WIDTH,
-      y: (e.clientY - rect.top) / zoom / rect.height * CANVAS_HEIGHT,
+      x: (e.clientX - rect.left) / zoom / rect.width * C.CANVAS_WIDTH,
+      y: (e.clientY - rect.top) / zoom / rect.height * C.CANVAS_HEIGHT,
     };
   };
 
@@ -247,9 +205,9 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
 
     // Build the persistent element from the in-progress drawing, but only
     // if the user actually dragged enough to make a meaningful shape.
-    if (type === "rect" && Math.abs(x2 - x1) > MIN_SHAPE_SIZE && Math.abs(y2 - y1) > MIN_SHAPE_SIZE) {
+    if (type === "rect" && Math.abs(x2 - x1) > C.MIN_SHAPE_SIZE && Math.abs(y2 - y1) > C.MIN_SHAPE_SIZE) {
       el = {
-        id: generateElementId(),
+        id: utils._elId(),
         type: "rect",
         x: Math.min(x1, x2),
         y: Math.min(y1, y2),
@@ -260,9 +218,9 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
         strokeW,
         rx: 0,
       };
-    } else if (type === "ellipse" && Math.abs(x2 - x1) > MIN_SHAPE_SIZE && Math.abs(y2 - y1) > MIN_SHAPE_SIZE) {
+    } else if (type === "ellipse" && Math.abs(x2 - x1) > C.MIN_SHAPE_SIZE && Math.abs(y2 - y1) > C.MIN_SHAPE_SIZE) {
       el = {
-        id: generateElementId(),
+        id: utils._elId(),
         type: "ellipse",
         x: Math.min(x1, x2),
         y: Math.min(y1, y2),
@@ -272,9 +230,9 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
         stroke,
         strokeW,
       };
-    } else if (type === "line" && (Math.abs(x2 - x1) > MIN_SHAPE_SIZE || Math.abs(y2 - y1) > MIN_SHAPE_SIZE)) {
+    } else if (type === "line" && (Math.abs(x2 - x1) > C.MIN_SHAPE_SIZE || Math.abs(y2 - y1) > C.MIN_SHAPE_SIZE)) {
       el = {
-        id: generateElementId(),
+        id: utils._elId(),
         type: "line",
         x1,
         y1,
@@ -286,21 +244,21 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
     } else if (type === "text") {
       // Text accepts a click without drag — drop a default-sized box.
       el = {
-        id: generateElementId(),
+        id: utils._elId(),
         type: "text",
         x: x1,
         y: y1,
-        w: DEFAULT_TEXT_WIDTH,
-        h: DEFAULT_TEXT_HEIGHT,
+        w: C.DEFAULT_TEXT_WIDTH,
+        h: C.DEFAULT_TEXT_HEIGHT,
         text: "Text",
-        fontSize: DEFAULT_TEXT_FONT_SIZE,
+        fontSize: C.DEFAULT_TEXT_FONT_SIZE,
         bold: false,
         color: stroke,
         align: "left",
       };
     } else if (type === "pen" && pts && pts.length > 2) {
       el = {
-        id: generateElementId(),
+        id: utils._elId(),
         type: "pen",
         pts,
         stroke,
@@ -465,10 +423,10 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
           />
           {isSel && (
             <rect
-              x={el.x - SELECTION_PAD}
-              y={el.y - SELECTION_PAD}
-              width={el.w + SELECTION_PAD * 2}
-              height={el.h + SELECTION_PAD * 2}
+              x={el.x - C.SELECTION_PAD}
+              y={el.y - C.SELECTION_PAD}
+              width={el.w + C.SELECTION_PAD * 2}
+              height={el.h + C.SELECTION_PAD * 2}
               fill="none"
               stroke="#4A8FE8"
               strokeWidth={1.5}
@@ -500,10 +458,10 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
           />
           {isSel && (
             <rect
-              x={el.x - SELECTION_PAD}
-              y={el.y - SELECTION_PAD}
-              width={el.w + SELECTION_PAD * 2}
-              height={el.h + SELECTION_PAD * 2}
+              x={el.x - C.SELECTION_PAD}
+              y={el.y - C.SELECTION_PAD}
+              width={el.w + C.SELECTION_PAD * 2}
+              height={el.h + C.SELECTION_PAD * 2}
               fill="none"
               stroke="#4A8FE8"
               strokeWidth={1.5}
@@ -616,10 +574,10 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
           </foreignObject>
           {isSel && (
             <rect
-              x={el.x - TEXT_SELECTION_PAD}
-              y={el.y - TEXT_SELECTION_PAD}
-              width={el.w + TEXT_SELECTION_PAD * 2}
-              height={boxHeight + TEXT_SELECTION_PAD * 2}
+              x={el.x - C.TEXT_SELECTION_PAD}
+              y={el.y - C.TEXT_SELECTION_PAD}
+              width={el.w + C.TEXT_SELECTION_PAD * 2}
+              height={boxHeight + C.TEXT_SELECTION_PAD * 2}
               fill="none"
               stroke="#4A8FE8"
               strokeWidth={1.5}
@@ -654,7 +612,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
           flexShrink: 0,
         }}
       >
-        {DRAW_TOOLS.map(dt => (
+        {C.DRAW_TOOLS.map(dt => (
           <button
             key={dt.id}
             title={`${dt.label} (${dt.key})`}
@@ -681,14 +639,14 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
         ))}
         <div style={{ flex: 1 }} />
         <button
-          onClick={() => setZoom(z => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)))}
+          onClick={() => setZoom(z => Math.min(C.ZOOM_MAX, +(z + C.ZOOM_STEP).toFixed(2)))}
           className="ni"
           style={{ padding: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex" }}
         >
           <I.ZoomIn size={13} />
         </button>
         <button
-          onClick={() => setZoom(z => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)))}
+          onClick={() => setZoom(z => Math.max(C.ZOOM_MIN, +(z - C.ZOOM_STEP).toFixed(2)))}
           className="ni"
           style={{ padding: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex" }}
         >
@@ -717,14 +675,14 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
         <div style={{ transform: `scale(${zoom})`, transformOrigin: "center center" }}>
           <svg
             ref={svgRef}
-            viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
-            width={CANVAS_WIDTH}
-            height={CANVAS_HEIGHT}
+            viewBox={`0 0 ${C.CANVAS_WIDTH} ${C.CANVAS_HEIGHT}`}
+            width={C.CANVAS_WIDTH}
+            height={C.CANVAS_HEIGHT}
             style={{
               background: "#FFFFFF",
               boxShadow: "0 2px 20px rgba(0,0,0,0.2)",
               display: "block",
-              cursor: CURSOR_BY_TOOL[tool] || "default",
+              cursor: C.CURSOR_BY_TOOL[tool] || "default",
             }}
             onMouseDown={onSVGMouseDown}
           >
@@ -734,7 +692,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
                 <circle cx="10" cy="10" r="0.8" fill="rgba(0,0,0,0.1)" />
               </pattern>
             </defs>
-            <rect width={CANVAS_WIDTH} height={CANVAS_HEIGHT} fill="url(#dotgrid)" />
+            <rect width={C.CANVAS_WIDTH} height={C.CANVAS_HEIGHT} fill="url(#dotgrid)" />
             {elementsView.map(renderElement)}
             {renderPreview()}
           </svg>

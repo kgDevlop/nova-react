@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { I } from "../icons";
-import { useT, APP_COLORS } from "../theme";
-
-const EMOJIS = ["🏢", "⚡", "🎨", "🚀", "🌿", "🔬", "🎯", "📚", "🛠", "💡", "🌊", "🔥", "🎵", "🏆", "🐉", "🦋"];
+import { useT } from "../theme";
+import { newws, theme } from "../_constants";
 
 export const NewWSModal = ({ onClose, onCreate }) => {
   const theme = useT();
@@ -88,7 +87,7 @@ export const NewWSModal = ({ onClose, onCreate }) => {
           >
             <I.X size={11} color={theme.tm} />
           </button>
-          {EMOJIS.map(em => (
+          {newws.EMOJIS.map(em => (
             <button
               key={em}
               onClick={() => setEmoji(em)}
@@ -156,7 +155,7 @@ export const NewWSModal = ({ onClose, onCreate }) => {
           Colour
         </label>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 22 }}>
-          {APP_COLORS.map(c => (
+          {theme.APP_COLORS.map(c => (
             <button
               key={c}
               onClick={() => setColor(c)}

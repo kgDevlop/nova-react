@@ -1,26 +1,19 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { _uid, _autoName, _uniqueTitle } from "../utils";
-
-const STORAGE_KEY = "nova:workspaces:v1";
-const ACTIVE_KEY = "nova:active-ws:v1";
-
-// Default workspace — a single empty workspace shown on first load.
-const WS_SEEDS = [
-  { id: "ws-default", name: "Nova", emoji: "💥", color: "#C8A253", docs: [] },
-];
+import { utils } from "../_utils";
+import { store as C } from "../_constants";
 
 // ── Persistence ───────────────────────────────────────────────────────────
 //
 // localStorage round-trip. Dates serialise to strings, so revive them on load.
 const _load = () => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(C.STORAGE_KEY);
     if (!raw) {
-      return WS_SEEDS;
+      return C.WS_SEEDS;
     }
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || !parsed.length) {
-      return WS_SEEDS;
+      return C.WS_SEEDS;
     }
     return parsed.map(w => ({
       ...w,
@@ -30,13 +23,13 @@ const _load = () => {
       })),
     }));
   } catch {
-    return WS_SEEDS;
+    return C.WS_SEEDS;
   }
 };
 
 const _save = ws => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ws));
+    localStorage.setItem(C.STORAGE_KEY, JSON.stringify(ws));
     return true;
   } catch {
     return false;
@@ -45,7 +38,7 @@ const _save = ws => {
 
 const _loadActive = ws => {
   try {
-    const id = localStorage.getItem(ACTIVE_KEY);
+    const id = localStorage.getItem(C.ACTIVE_KEY);
     if (id && ws.some(w => w.id === id)) {
       return id;
     }
@@ -67,7 +60,7 @@ export const useWSStore = () => {
 
   useEffect(() => {
     try {
-      localStorage.setItem(ACTIVE_KEY, activeId || "");
+      localStorage.setItem(C.ACTIVE_KEY, activeId || "");
     } catch {
       // Ignore quota/availability errors — active id will just not persist.
     }
@@ -75,7 +68,7 @@ export const useWSStore = () => {
 
   const createWS = useCallback((name, emoji, color) => {
     const w = {
-      id: _uid(),
+      id: utils._uid(),
       name,
       emoji: emoji || "",
       color: color || "#C8A253",
@@ -119,8 +112,8 @@ export const useWSStore = () => {
     // `active` selector so we never silently no-op on a stale id.
     const target = ws.find(w => w.id === activeId) || ws[0];
     const doc = {
-      id: _uid(),
-      title: _uniqueTitle(target.docs, type, title || _autoName(type)),
+      id: utils._uid(),
+      title: utils._uniqueTitle(target.docs, type, title || utils._autoName(type)),
       type,
       modified: new Date(),
       starred: false,
@@ -151,7 +144,7 @@ export const useWSStore = () => {
           const next = { ...d, ...ch, modified: new Date() };
           // Title changes need uniqueness enforcement against siblings.
           if (ch.title !== undefined && ch.title !== d.title) {
-            next.title = _uniqueTitle(w.docs, d.type, ch.title, id);
+            next.title = utils._uniqueTitle(w.docs, d.type, ch.title, id);
             resolved = { ...ch, title: next.title };
           }
           return next;

@@ -1,18 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { I } from "../shared/icons";
-import { _colLetter, _cellKey, _parseRef, _evalFormula } from "../shared/formulas";
-
-// Visible viewport — the grid is fixed size; we don't virtualize beyond this.
-const VISIBLE_COLS = 16;
-const VISIBLE_ROWS = 60;
-
-// Layout constants for the grid chrome.
-const ROW_HEADER_WIDTH = 44;
-const COL_WIDTH = 96;
-const ROW_HEIGHT = 24;
+import { formulas } from "../shared/_utils";
+import { spreads as C } from "../shared/_constants";
 
 export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registerActions }) => {
-  const COLS = Array.from({ length: VISIBLE_COLS }, (_, i) => _colLetter(i));
+  const COLS = Array.from({ length: C.VISIBLE_COLS }, (_, i) => formulas._colLetter(i));
 
   const [cells, setCells] = useState(() => {
     try {
@@ -42,7 +34,7 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
       return "";
     }
     const raw = cell.raw.toString();
-    const val = raw.startsWith("=") ? _evalFormula(cell.raw, cells) : cell.raw;
+    const val = raw.startsWith("=") ? formulas._evalFormula(cell.raw, cells) : cell.raw;
     if (typeof val === "number") {
       if (cell.fmt === "pct") {
         return (val * 100).toFixed(1) + "%";
@@ -88,13 +80,13 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
   // ── Navigation + key handling ─────────────────────────────────────────────
 
   const _navigate = (dr, dc) => {
-    const ref = _parseRef(activeKey);
+    const ref = formulas._parseRef(activeKey);
     if (!ref) {
       return;
     }
-    const nr = Math.max(0, Math.min(VISIBLE_ROWS - 1, ref.row + dr));
-    const nc = Math.max(0, Math.min(VISIBLE_COLS - 1, ref.col + dc));
-    setActiveKey(_cellKey(nr, nc));
+    const nr = Math.max(0, Math.min(C.VISIBLE_ROWS - 1, ref.row + dr));
+    const nc = Math.max(0, Math.min(C.VISIBLE_COLS - 1, ref.col + dc));
+    setActiveKey(formulas._cellKey(nr, nc));
   };
 
   const handleGridKeyDown = e => {
@@ -127,17 +119,17 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
   };
 
   const handleEditKeyDown = e => {
-    const ref = _parseRef(editKey);
+    const ref = formulas._parseRef(editKey);
     if (!ref) {
       return;
     }
     if (e.key === "Enter") {
       _commitEdit(editKey, editVal);
-      setActiveKey(_cellKey(Math.min(ref.row + 1, VISIBLE_ROWS - 1), ref.col));
+      setActiveKey(formulas._cellKey(Math.min(ref.row + 1, C.VISIBLE_ROWS - 1), ref.col));
       e.preventDefault();
     } else if (e.key === "Tab") {
       _commitEdit(editKey, editVal);
-      setActiveKey(_cellKey(ref.row, Math.min(ref.col + 1, VISIBLE_COLS - 1)));
+      setActiveKey(formulas._cellKey(ref.row, Math.min(ref.col + 1, C.VISIBLE_COLS - 1)));
       e.preventDefault();
     } else if (e.key === "Escape") {
       setEditKey(null);
@@ -181,7 +173,7 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const activeRef = _parseRef(activeKey) || { row: 0, col: 0 };
+  const activeRef = formulas._parseRef(activeKey) || { row: 0, col: 0 };
   const formulaDisplay = editKey ? editVal : (cells[activeKey]?.raw || "");
 
   return (
@@ -256,7 +248,7 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
             <tr>
               <th
                 style={{
-                  width: ROW_HEADER_WIDTH,
+                  width: C.ROW_HEADER_WIDTH,
                   background: theme.sa,
                   border: `1px solid ${theme.bd}`,
                   position: "sticky",
@@ -271,7 +263,7 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
                   <th
                     key={c}
                     style={{
-                      width: COL_WIDTH,
+                      width: C.COL_WIDTH,
                       border: `1px solid ${theme.bd}`,
                       padding: "3px 0",
                       textAlign: "center",
@@ -292,7 +284,7 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
             </tr>
           </thead>
           <tbody>
-            {Array.from({ length: VISIBLE_ROWS }, (_, ri) => {
+            {Array.from({ length: C.VISIBLE_ROWS }, (_, ri) => {
               const isActiveRow = activeRef.row === ri;
               return (
                 <tr key={ri}>
@@ -308,13 +300,13 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
                       position: "sticky",
                       left: 0,
                       zIndex: 1,
-                      width: ROW_HEADER_WIDTH,
+                      width: C.ROW_HEADER_WIDTH,
                     }}
                   >
                     {ri + 1}
                   </td>
                   {COLS.map((c, ci) => {
-                    const key = _cellKey(ri, ci);
+                    const key = formulas._cellKey(ri, ci);
                     const isActive = activeKey === key;
                     const isEditing = editKey === key;
                     const cell = cells[key];
@@ -349,8 +341,8 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
                         onDoubleClick={() => startEdit(key)}
                         style={{
                           border: `1px solid ${isActive ? appColor : theme.bd}`,
-                          width: COL_WIDTH,
-                          height: ROW_HEIGHT,
+                          width: C.COL_WIDTH,
+                          height: C.ROW_HEIGHT,
                           padding: 0,
                           background: isActive ? appColor + "10" : "transparent",
                           outline: isActive ? `2px solid ${appColor}` : "none",

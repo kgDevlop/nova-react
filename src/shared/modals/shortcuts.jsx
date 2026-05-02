@@ -1,25 +1,7 @@
 import React from "react";
 import { I } from "../icons";
 import { useT } from "../theme";
-
-const SHORTCUTS = [
-  ["⌘ K", "Command palette"],
-  ["⌘ N", "New document"],
-  ["Del", "Delete selected"],
-  ["Esc", "Close / deselect"],
-  ["Enter", "Confirm"],
-  ["Tab", "Next cell (Sheets)"],
-  ["F2", "Edit cell (Sheets)"],
-  ["V", "Select tool (Draw)"],
-  ["R", "Rect (Draw)"],
-  ["E", "Ellipse (Draw)"],
-  ["L", "Line (Draw)"],
-  ["T", "Text (Draw)"],
-  ["P", "Pen (Draw)"],
-  ["⌘ B", "Bold (Writer)"],
-  ["⌘ I", "Italic (Writer)"],
-  ["⌘ U", "Underline (Writer)"],
-];
+import { shortcuts as C } from "../_constants";
 
 export const ShortcutsModal = ({ onClose }) => {
   const theme = useT();
@@ -44,7 +26,7 @@ export const ShortcutsModal = ({ onClose }) => {
 
         {/* ── Shortcut grid ── */}
         <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "1px 0", rowGap: 0 }}>
-          {SHORTCUTS.map(([key, desc]) => (
+          {C.SHORTCUTS.map(([key, desc]) => (
             <React.Fragment key={key}>
               <div
                 style={{

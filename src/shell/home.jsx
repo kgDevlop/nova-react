@@ -3,19 +3,14 @@ import { I } from "../shared/icons";
 import { useT } from "../shared/theme";
 import { useKbd, useOut } from "../shared/hooks/system";
 import { AppChip, TileGrid } from "../shared/atoms";
-import { _rel, _filterQ, _filterV, _sortD, _vtitle } from "../shared/utils";
-import { APPS, _app } from "./registry";
-
-// Layout constants.
-const CARD_PREVIEW_BAR_WIDTHS = [70, 88, 52, 76, 38];
-const GRID_MIN_CARD_PX = 150;
-const GRID_COLS_KEY = "nova.grid.docs.cols";
+import { home as C, registry } from "../shared/_constants";
+import { utils, registry as registryU } from "../shared/_utils";
 
 // ── Doc tile (grid view) ────────────────────────────────────────────────────
 
 const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeWS }) => {
   const theme = useT();
-  const def = _app(doc.type);
+  const def = registryU._app(doc.type);
   const c = doc.appColor || getAppColor(activeWS.id, doc.type, def.dc);
   const soft = c + (theme.dk ? "1A" : "22");
 
@@ -85,7 +80,7 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
             gap: 4,
           }}
         >
-          {CARD_PREVIEW_BAR_WIDTHS.map((w, i) => (
+          {C.CARD_PREVIEW_BAR_WIDTHS.map((w, i) => (
             <div
               key={i}
               style={{
@@ -132,6 +127,7 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
               fontWeight: 700,
               color: theme.tx,
               lineHeight: 1.35,
+              minHeight: "2.7em",
               overflow: "hidden",
               display: "-webkit-box",
               WebkitLineClamp: 2,
@@ -158,7 +154,7 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
           }}
         >
           <I.Clock size={9} color={theme.tm} />
-          {_rel(doc.modified)}
+          {utils._rel(doc.modified)}
         </span>
         <div style={{ marginLeft: "auto", display: "flex", gap: 4, flexShrink: 0 }}>
           <button
@@ -247,7 +243,7 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
 
 const DocRow = ({ doc, onOpen, onStar, onDelete, getAppColor, activeWS }) => {
   const theme = useT();
-  const def = _app(doc.type);
+  const def = registryU._app(doc.type);
   const c = doc.appColor || getAppColor(activeWS.id, doc.type, def.dc);
   const soft = c + (theme.dk ? "1A" : "22");
 
@@ -279,7 +275,7 @@ const DocRow = ({ doc, onOpen, onStar, onDelete, getAppColor, activeWS }) => {
           {doc.title}
         </div>
         <div style={{ fontSize: 10, color: theme.tm, marginTop: 1 }}>
-          {_rel(doc.modified)}
+          {utils._rel(doc.modified)}
         </div>
       </div>
       <span
@@ -343,7 +339,7 @@ export const HomeScreen = ({
 
   // Grid sizing: slider picks a column count, snapped to ticks. Max columns is
   // recomputed from the grid's measured width so the upper bound matches what
-  // can actually fit on screen at GRID_MIN_CARD_PX per card.
+  // can actually fit on screen at C.GRID_MIN_CARD_PX per card.
   const gridRef = useRef(null);
   const [maxCols, setMaxCols] = useState(6);
   useEffect(() => {
@@ -351,7 +347,7 @@ export const HomeScreen = ({
     if (!el || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(([entry]) => {
       const w = entry.contentRect.width;
-      setMaxCols(Math.max(2, Math.min(8, Math.floor((w + 9) / (GRID_MIN_CARD_PX + 9)))));
+      setMaxCols(Math.max(2, Math.min(8, Math.floor((w + 9) / (C.GRID_MIN_CARD_PX + 9)))));
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -359,24 +355,28 @@ export const HomeScreen = ({
 
   const [savedCols, setSavedCols] = useState(() => {
     if (typeof window === "undefined") return 0;
-    const v = Number(window.localStorage.getItem(GRID_COLS_KEY));
+    const v = Number(window.localStorage.getItem(C.GRID_COLS_KEY));
     return Number.isFinite(v) && v >= 2 ? v : 0;
   });
   const defaultCols = Math.max(2, Math.round((2 + maxCols) / 2));
   const cols = savedCols ? Math.min(Math.max(savedCols, 2), maxCols) : defaultCols;
+  const [sliderPos, setSliderPos] = useState(cols);
+  useEffect(() => {
+    setSliderPos(p => Math.min(Math.max(p, 2), maxCols));
+  }, [maxCols]);
 
   const visible = useMemo(() => {
-    let docs = _filterV(activeWS.docs, view);
+    let docs = utils._filterV(activeWS.docs, view);
     if (favOnly) docs = docs.filter(d => d.starred);
-    return _sortD(_filterQ(docs, q), sort);
+    return utils._sortD(utils._filterQ(docs, q), sort);
   }, [activeWS.docs, view, q, sort, favOnly]);
 
   // Quick-start tiles: all apps on home, just the current app on a filtered view.
   // Calendar is a singleton and lives outside the doc-creation flow.
   let qt;
   if (view === "home") {
-    qt = APPS.filter(a => a.id !== "calendar").map(a => a.id);
-  } else if (APPS.map(a => a.id).includes(view)) {
+    qt = registry.APPS.filter(a => a.id !== "calendar").map(a => a.id);
+  } else if (registry.APPS.map(a => a.id).includes(view)) {
     qt = [view];
   } else {
     qt = null;
@@ -407,7 +407,7 @@ export const HomeScreen = ({
             letterSpacing: "-0.03em",
           }}
         >
-          {view === "home" ? activeWS.name : _vtitle(view)}
+          {view === "home" ? activeWS.name : utils._vtitle(view)}
         </h1>
       </div>
 
@@ -432,7 +432,7 @@ export const HomeScreen = ({
           </div>
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
             {qt.map(type => {
-              const def = _app(type);
+              const def = registryU._app(type);
               const c = getAppColor(activeWS.id, type, def.dc);
               return (
                 <button
@@ -544,24 +544,20 @@ export const HomeScreen = ({
               type="range"
               min={2}
               max={maxCols}
-              step={1}
-              value={cols}
-              list="nova-grid-ticks"
+              step="any"
+              value={sliderPos}
               title={`${cols} per row`}
               onChange={e => {
                 const v = Number(e.target.value);
-                setSavedCols(v);
+                setSliderPos(v);
+                const snapped = Math.min(Math.max(Math.round(v), 2), maxCols);
+                setSavedCols(snapped);
                 if (typeof window !== "undefined") {
-                  window.localStorage.setItem(GRID_COLS_KEY, String(v));
+                  window.localStorage.setItem(C.GRID_COLS_KEY, String(snapped));
                 }
               }}
-              style={{ width: 96, accentColor: theme.ac, cursor: "pointer" }}
+              style={{ width: 115, accentColor: theme.ac, cursor: "pointer" }}
             />
-            <datalist id="nova-grid-ticks">
-              {Array.from({ length: Math.max(0, maxCols - 1) }, (_, i) => (
-                <option key={i + 2} value={i + 2} />
-              ))}
-            </datalist>
           </div>
         )}
         <div style={{ display: "flex", gap: 2, marginLeft: vm === "grid" ? 0 : "auto" }}>
@@ -615,7 +611,7 @@ export const HomeScreen = ({
           {!q && (
             <button
               className="nb np"
-              onClick={() => onNewDoc(APPS.some(a => a.id === view) ? view : undefined)}
+              onClick={() => onNewDoc(registry.APPS.some(a => a.id === view) ? view : undefined)}
             >
               <I.Plus size={13} /> New document
             </button>
@@ -674,7 +670,7 @@ export const HomeScreen = ({
 
 export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS }) => {
   const theme = useT();
-  const cats = [...new Set(APPS.map(a => a.cat))];
+  const cats = [...new Set(registry.APPS.map(a => a.cat))];
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "26px 22px 48px" }}>
@@ -716,7 +712,7 @@ export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS }) => {
             {cat}
           </div>
           <TileGrid min={210}>
-            {APPS.filter(a => a.cat === cat).map(app => {
+            {registry.APPS.filter(a => a.cat === cat).map(app => {
               const c = getAppColor(activeWS.id, app.id, app.dc);
               const soft = c + (theme.dk ? "1A" : "22");
               return (

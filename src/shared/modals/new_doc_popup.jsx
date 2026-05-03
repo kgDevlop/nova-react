@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { I } from "../icons";
 import { useT } from "../theme";
 import { AppChip } from "../atoms";
-import { new_doc_popup as new_doc_popupConst } from "../_constants";
+import { NewDocPopupConstants } from "../_constants";
 import { utils, registry } from "../_utils";
 
 export const NewDocModal = ({ onClose, onCreate, initType, getAppColor, activeWS }) => {
@@ -58,13 +58,13 @@ export const NewDocModal = ({ onClose, onCreate, initType, getAppColor, activeWS
         }}
       >
         {/* ── Header ── */}
-        <div style={{ padding: "18px 22px 0", borderBottom: `1px solid ${theme.bd}`, flexShrink: 0 }}>
+        <div style={{ padding: "18px 22px 0", borderBottom: `1px solid ${theme.border}`, flexShrink: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
             <div>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: theme.tx, letterSpacing: "-0.02em" }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: theme.text, letterSpacing: "-0.02em" }}>
                 New document
               </h2>
-              <p style={{ fontSize: 13, color: theme.tx, marginTop: 2, opacity: 0.75 }}>
+              <p style={{ fontSize: 13, color: theme.text, marginTop: 2, opacity: 0.75 }}>
                 Choose a type — name auto-fills with today's date
               </p>
             </div>
@@ -78,8 +78,8 @@ export const NewDocModal = ({ onClose, onCreate, initType, getAppColor, activeWS
                 padding: "6px 13px",
                 fontSize: 13,
                 fontWeight: 700,
-                color: theme.tx,
-                borderBottom: `2px solid ${theme.ac}`,
+                color: theme.text,
+                borderBottom: `2px solid ${theme.accent}`,
                 whiteSpace: "nowrap",
                 textTransform: "capitalize",
               }}
@@ -99,31 +99,31 @@ export const NewDocModal = ({ onClose, onCreate, initType, getAppColor, activeWS
             flexShrink: 0,
           }}
         >
-          {new_doc_popupConst.CREATABLE_APPS.map(app => {
-            const selected = type === app.id;
-            const color = getAppColor(activeWS.id, app.id, theme.appColorFor(app.id));
+          {NewDocPopupConstants.CREATABLE_APPS.map(app => {
+            const selected = type === app.appId;
+            const color = getAppColor(activeWS.id, app.appId, theme.appColorFor(app.appId));
             return (
               <div
-                key={app.id}
-                onClick={() => setType(app.id)}
+                key={app.appId}
+                onClick={() => setType(app.appId)}
                 style={{
                   padding: "11px 11px",
                   borderRadius: theme.r14,
                   cursor: "pointer",
                   border: `1px solid ${selected ? color + "AA" : color + "33"}`,
                   background: selected
-                    ? color + (theme.dk ? "40" : "33")
-                    : color + (theme.dk ? "14" : "10"),
-                  transition: theme.tr,
+                    ? color + (theme.isDark ? "40" : "33")
+                    : color + (theme.isDark ? "14" : "10"),
+                  transition: theme.transition,
                   position: "relative",
                 }}
               >
-                <AppChip appId={app.id} size={30} colorOverride={color} />
-                <div style={{ fontSize: 14, fontWeight: 700, color: theme.tx, marginTop: 7, marginBottom: 2 }}>
+                <AppChip appId={app.appId} size={30} colorOverride={color} />
+                <div style={{ fontSize: 14, fontWeight: 700, color: theme.text, marginTop: 7, marginBottom: 2 }}>
                   {app.label}
                 </div>
-                <div style={{ fontSize: 12, color: theme.tx, opacity: 0.8, lineHeight: 1.4 }}>
-                  {app.desc.slice(0, 36)}…
+                <div style={{ fontSize: 12, color: theme.text, opacity: 0.8, lineHeight: 1.4 }}>
+                  {app.description.slice(0, 36)}…
                 </div>
               </div>
             );
@@ -134,7 +134,7 @@ export const NewDocModal = ({ onClose, onCreate, initType, getAppColor, activeWS
         <div
           style={{
             padding: "12px 22px 18px",
-            borderTop: `1px solid ${theme.bd}`,
+            borderTop: `1px solid ${theme.border}`,
             display: "flex",
             alignItems: "center",
             gap: 8,

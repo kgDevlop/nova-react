@@ -3,7 +3,7 @@ import { I } from "../icons";
 import { useT, useCustomSchemes } from "../theme";
 import { AppChip } from "../atoms";
 import { useDeviceCaps } from "../hooks/system";
-import { theme as themeConst, registry as registryConst } from "../_constants";
+import { NovaSettingsConstants } from "../_constants";
 import { CustomSchemeModal } from "./custom_scheme";
 
 export const SettingsPanel = ({
@@ -26,11 +26,11 @@ export const SettingsPanel = ({
   const [showCustomModal, setShowCustomModal] = useState(false);
 
   const activeSchemeId = theme.schemeId ?? "classic";
-  const activeIsCustom = customSchemes.some(s => s.id === activeSchemeId);
+  const activeIsCustom = customSchemes.some(s => s.schemeId === activeSchemeId);
 
   const TABS = [
-    { id: "appearance", l: "Appearance", I: I.Palette },
-    { id: "apps", l: "App colours", I: I.Sparkles },
+    { tabId: "appearance", label: "Appearance", Icon: I.Palette },
+    { tabId: "apps",       label: "App colours", Icon: I.Sparkles },
   ];
 
   const MODES = [
@@ -69,11 +69,11 @@ export const SettingsPanel = ({
               alignItems: "center",
               gap: 6,
               padding: "12px 14px",
-              borderBottom: `1px solid ${t.bd}`,
+              borderBottom: `1px solid ${t.border}`,
               flexShrink: 0,
             }}
           >
-            <div style={{ fontSize: 14, fontWeight: 800, color: t.tx, flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: t.text, flex: 1 }}>
               Settings
             </div>
             <button className="nb ni" style={{ padding: 6 }} onClick={onClose}>
@@ -85,22 +85,22 @@ export const SettingsPanel = ({
           <div
             style={{
               width: 172,
-              borderRight: `1px solid ${t.bd}`,
+              borderRight: `1px solid ${t.border}`,
               padding: "18px 7px",
               flexShrink: 0,
             }}
           >
-            <div style={{ fontSize: 12, fontWeight: 800, color: t.tx, padding: "3px 9px 14px" }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: t.text, padding: "3px 9px 14px" }}>
               Settings
             </div>
-            {TABS.map(({ id, l, I: Ico }) => (
+            {TABS.map(({ tabId, label, Icon: TabIcon }) => (
               <div
-                key={id}
-                className={`nnav ${tab === id ? "active" : ""}`}
-                onClick={() => setTab(id)}
+                key={tabId}
+                className={`nnav ${tab === tabId ? "active" : ""}`}
+                onClick={() => setTab(tabId)}
               >
-                <Ico size={13} />
-                <span style={{ fontSize: 11 }}>{l}</span>
+                <TabIcon size={13} />
+                <span style={{ fontSize: 11 }}>{label}</span>
               </div>
             ))}
           </div>
@@ -112,36 +112,36 @@ export const SettingsPanel = ({
               display: "flex",
               gap: 6,
               padding: "10px 12px",
-              borderBottom: `1px solid ${t.bd}`,
+              borderBottom: `1px solid ${t.border}`,
               flexShrink: 0,
               overflowX: "auto",
             }}
           >
-            {TABS.map(({ id, l, I: Ico }) => {
-              const active = tab === id;
+            {TABS.map(({ tabId, label, Icon: TabIcon }) => {
+              const active = tab === tabId;
               return (
                 <button
-                  key={id}
-                  onClick={() => setTab(id)}
+                  key={tabId}
+                  onClick={() => setTab(tabId)}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: 6,
                     padding: "7px 12px",
                     borderRadius: t.rF,
-                    border: `1px solid ${active ? t.ac + "66" : t.bd}`,
-                    background: active ? t.as : "transparent",
-                    color: active ? t.tx : t.ts,
+                    border: `1px solid ${active ? t.accent + "66" : t.border}`,
+                    background: active ? t.accentSoft : "transparent",
+                    color: active ? t.text : t.textDim,
                     fontSize: 11,
                     fontWeight: 600,
-                    fontFamily: t.fn,
+                    fontFamily: t.fontFamily,
                     cursor: "pointer",
                     flexShrink: 0,
                     outline: "none",
                   }}
                 >
-                  <Ico size={12} color={active ? t.ac : t.ts} />
-                  {l}
+                  <TabIcon size={12} color={active ? t.accent : t.textDim} />
+                  {label}
                 </button>
               );
             })}
@@ -152,10 +152,10 @@ export const SettingsPanel = ({
         <div style={{ flex: 1, padding: isMobile ? "16px 16px" : "22px 24px", overflowY: "auto" }}>
           {tab === "appearance" && (
             <div>
-              <h3 style={{ fontSize: 14, fontWeight: 800, color: t.tx, marginBottom: 3 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: t.text, marginBottom: 3 }}>
                 Appearance
               </h3>
-              <p style={{ fontSize: 11, color: t.ts, marginBottom: 22 }}>
+              <p style={{ fontSize: 11, color: t.textDim, marginBottom: 22 }}>
                 Customise Nova's look and feel
               </p>
 
@@ -163,7 +163,7 @@ export const SettingsPanel = ({
                 style={{
                   fontSize: 10,
                   fontWeight: 700,
-                  color: t.tm,
+                  color: t.textMuted,
                   letterSpacing: "0.06em",
                   textTransform: "uppercase",
                   marginBottom: 9,
@@ -172,31 +172,31 @@ export const SettingsPanel = ({
                 Mode
               </div>
               <div style={{ display: "flex", gap: 7, marginBottom: 24 }}>
-                {MODES.map(([id, l, Ico]) => {
-                  const active = theme.mode === id;
+                {MODES.map(([modeId, label, ModeIcon]) => {
+                  const active = theme.mode === modeId;
                   return (
                     <button
-                      key={id}
-                      onClick={() => setTheme(p => ({ ...p, mode: id }))}
+                      key={modeId}
+                      onClick={() => setTheme(p => ({ ...p, mode: modeId }))}
                       style={{
                         flex: 1,
                         padding: "9px 7px",
                         borderRadius: t.r10,
                         cursor: "pointer",
-                        border: `1px solid ${active ? t.ac + "66" : t.bd}`,
-                        background: active ? t.as : "transparent",
+                        border: `1px solid ${active ? t.accent + "66" : t.border}`,
+                        background: active ? t.accentSoft : "transparent",
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
                         gap: 5,
-                        transition: t.tr,
-                        fontFamily: t.fn,
+                        transition: t.transition,
+                        fontFamily: t.fontFamily,
                         outline: "none",
                       }}
                     >
-                      <Ico size={15} color={active ? t.ac : t.ts} />
-                      <span style={{ fontSize: 10, fontWeight: 600, color: active ? t.tx : t.ts }}>
-                        {l}
+                      <ModeIcon size={15} color={active ? t.accent : t.textDim} />
+                      <span style={{ fontSize: 10, fontWeight: 600, color: active ? t.text : t.textDim }}>
+                        {label}
                       </span>
                     </button>
                   );
@@ -207,7 +207,7 @@ export const SettingsPanel = ({
                 style={{
                   fontSize: 10,
                   fontWeight: 700,
-                  color: t.tm,
+                  color: t.textMuted,
                   letterSpacing: "0.06em",
                   textTransform: "uppercase",
                   marginBottom: 9,
@@ -222,9 +222,9 @@ export const SettingsPanel = ({
                   style={{
                     flex: 1,
                     background: t.surface,
-                    border: `1px solid ${t.bd}`,
-                    color: t.tx,
-                    fontFamily: t.fn,
+                    border: `1px solid ${t.border}`,
+                    color: t.text,
+                    fontFamily: t.fontFamily,
                     fontSize: 12,
                     fontWeight: 600,
                     borderRadius: t.r10,
@@ -234,14 +234,14 @@ export const SettingsPanel = ({
                   }}
                 >
                   <optgroup label="Built-in">
-                    {themeConst.COLOR_SCHEMES.map(s => (
-                      <option key={s.id} value={s.id}>{s.label}</option>
+                    {NovaSettingsConstants.COLOR_SCHEMES.map(s => (
+                      <option key={s.schemeId} value={s.schemeId}>{s.label}</option>
                     ))}
                   </optgroup>
                   {customSchemes.length > 0 && (
                     <optgroup label="Custom">
                       {customSchemes.map(s => (
-                        <option key={s.id} value={s.id}>{s.label}</option>
+                        <option key={s.schemeId} value={s.schemeId}>{s.label}</option>
                       ))}
                     </optgroup>
                   )}
@@ -265,8 +265,8 @@ export const SettingsPanel = ({
                   <I.Plus size={13} /> New
                 </button>
               </div>
-              <p style={{ fontSize: 10, color: t.tm, marginBottom: 22 }}>
-                <strong style={{ color: t.ts }}>Classic</strong> follows the mode above.
+              <p style={{ fontSize: 10, color: t.textMuted, marginBottom: 22 }}>
+                <strong style={{ color: t.textDim }}>Classic</strong> follows the mode above.
                 Other schemes override the full palette.
               </p>
 
@@ -274,7 +274,7 @@ export const SettingsPanel = ({
                 style={{
                   fontSize: 10,
                   fontWeight: 700,
-                  color: t.tm,
+                  color: t.textMuted,
                   letterSpacing: "0.06em",
                   textTransform: "uppercase",
                   marginBottom: 9,
@@ -289,7 +289,7 @@ export const SettingsPanel = ({
                   gap: 9,
                   padding: "9px 11px",
                   borderRadius: t.r10,
-                  border: `1px solid ${t.bd}`,
+                  border: `1px solid ${t.border}`,
                   cursor: "pointer",
                   marginBottom: 22,
                 }}
@@ -301,10 +301,10 @@ export const SettingsPanel = ({
                   style={{ cursor: "pointer", margin: 0 }}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: t.tx }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>
                     Disable mobile site
                   </div>
-                  <div style={{ fontSize: 10, color: t.ts, marginTop: 2 }}>
+                  <div style={{ fontSize: 10, color: t.textDim, marginTop: 2 }}>
                     Always use the desktop layout, even on small screens.
                   </div>
                 </div>
@@ -314,33 +314,33 @@ export const SettingsPanel = ({
 
           {tab === "apps" && (
             <div>
-              <h3 style={{ fontSize: 14, fontWeight: 800, color: t.tx, marginBottom: 3 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: t.text, marginBottom: 3 }}>
                 App colours
               </h3>
-              <p style={{ fontSize: 11, color: t.ts, marginBottom: 18 }}>
+              <p style={{ fontSize: 11, color: t.textDim, marginBottom: 18 }}>
                 Override the accent for each app in{" "}
-                <strong style={{ color: t.tx }}>{activeWS.name}</strong>
+                <strong style={{ color: t.text }}>{activeWS.name}</strong>
               </p>
-              {registryConst.APPS.map(app => {
-                const def = t.appColorFor(app.id);
-                const cur = getAppColor(activeWS.id, app.id, def);
-                const isOverridden = getAppColor(activeWS.id, app.id, null) != null;
+              {NovaSettingsConstants.APPS.map(app => {
+                const def = t.appColorFor(app.appId);
+                const cur = getAppColor(activeWS.id, app.appId, def);
+                const isOverridden = getAppColor(activeWS.id, app.appId, null) != null;
                 const isPreset = t.appColors.includes(cur);
                 const isCustom = isOverridden && !isPreset;
                 return (
                   <div
-                    key={app.id}
+                    key={app.appId}
                     style={{
                       display: "flex",
                       alignItems: "center",
                       gap: 10,
                       padding: "8px 0",
-                      borderBottom: `1px solid ${t.bd}`,
+                      borderBottom: `1px solid ${t.border}`,
                     }}
                   >
-                    <AppChip appId={app.id} size={28} colorOverride={cur} />
+                    <AppChip appId={app.appId} size={28} colorOverride={cur} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: t.tx, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: t.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {app.label}
                       </div>
                     </div>
@@ -348,14 +348,14 @@ export const SettingsPanel = ({
                       {t.appColors.slice(0, 8).map(c => (
                         <button
                           key={c}
-                          onClick={() => setAppColor(activeWS.id, app.id, c)}
+                          onClick={() => setAppColor(activeWS.id, app.appId, c)}
                           style={{
                             width: 16,
                             height: 16,
                             borderRadius: t.rF,
                             background: c,
                             cursor: "pointer",
-                            border: `2px solid ${cur === c ? t.tx : "transparent"}`,
+                            border: `2px solid ${cur === c ? t.text : "transparent"}`,
                             outline: "none",
                             padding: 0,
                           }}
@@ -374,7 +374,7 @@ export const SettingsPanel = ({
                           borderRadius: t.rF,
                           background: "conic-gradient(red,yellow,lime,cyan,blue,magenta,red)",
                           cursor: "pointer",
-                          border: `2px solid ${isCustom ? t.tx : "transparent"}`,
+                          border: `2px solid ${isCustom ? t.text : "transparent"}`,
                           outline: "none",
                           overflow: "hidden",
                         }}
@@ -382,7 +382,7 @@ export const SettingsPanel = ({
                       <input
                         type="color"
                         value={cur}
-                        onChange={e => setAppColor(activeWS.id, app.id, e.target.value)}
+                        onChange={e => setAppColor(activeWS.id, app.appId, e.target.value)}
                         style={{
                           position: "absolute",
                           opacity: 0,
@@ -409,7 +409,7 @@ export const SettingsPanel = ({
                         opacity: isOverridden ? 0.7 : 0.25,
                         flexShrink: 0,
                       }}
-                      onClick={() => delAppColor?.(activeWS.id, app.id)}
+                      onClick={() => delAppColor?.(activeWS.id, app.appId)}
                       disabled={!isOverridden}
                     >
                       <I.Refresh size={11} />
@@ -421,7 +421,7 @@ export const SettingsPanel = ({
           )}
 
           {/* Shortcuts link at the bottom of every tab */}
-          <div style={{ marginTop: "auto", paddingTop: 20, borderTop: `1px solid ${t.bd}` }}>
+          <div style={{ marginTop: "auto", paddingTop: 20, borderTop: `1px solid ${t.border}` }}>
             <button
               className="nb ng"
               style={{ width: "100%", fontSize: 11, justifyContent: "flex-start", gap: 8 }}
@@ -435,9 +435,9 @@ export const SettingsPanel = ({
                 style={{
                   marginLeft: "auto",
                   fontSize: 9,
-                  color: t.tm,
-                  background: t.sa,
-                  border: `1px solid ${t.bd}`,
+                  color: t.textMuted,
+                  background: t.surfaceAlt,
+                  border: `1px solid ${t.border}`,
                   borderRadius: t.r6,
                   padding: "1px 5px",
                   fontFamily: "monospace",
@@ -465,7 +465,7 @@ export const SettingsPanel = ({
           onClose={() => setShowCustomModal(false)}
           onSave={scheme => {
             addCustomScheme(scheme);
-            setTheme(p => ({ ...p, schemeId: scheme.id }));
+            setTheme(p => ({ ...p, schemeId: scheme.schemeId }));
           }}
         />
       )}

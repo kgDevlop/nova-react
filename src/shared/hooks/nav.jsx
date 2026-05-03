@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { nova_base as nova_baseConst } from "../_constants";
+import { NovaBaseConstants } from "../_constants";
 
 // ── Navigation history ────────────────────────────────────────────────────
 //
@@ -58,7 +58,7 @@ export const useNavHistory = ({ apply, isValid, initial }) => {
     }
     const truncated = prev.entries.slice(0, prev.idx + 1);
     truncated.push(entry);
-    const trimmed = truncated.slice(-nova_baseConst.HIST_LIMIT);
+    const trimmed = truncated.slice(-NovaBaseConstants.HIST_LIMIT);
     const newIdx = trimmed.length - 1;
     const next = { entries: trimmed, idx: newIdx };
     stateRef.current = next;

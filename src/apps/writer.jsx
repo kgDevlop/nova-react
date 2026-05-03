@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { I } from "../shared/icons";
 import { AppsSidebar, DefaultSections, MobileToolbarPanel } from "../shared/apps_sidebar";
-import { writer as writerConst } from "../shared/_constants";
+import { WriterConstants } from "../shared/_constants";
 
 // One 8.5×11 paper sheet. The inner contentEditable is height-clipped to the
 // page's content area; the parent (WriterEditor) detects overflow on this
@@ -55,7 +55,7 @@ const Page = React.forwardRef(function Page(
           fontFamily: "Georgia,'Times New Roman',serif",
           fontSize: 16,
           lineHeight: 1.85,
-          color: theme.tx,
+          color: theme.text,
         }}
       />
     </div>
@@ -96,14 +96,14 @@ export const WriterEditor = ({
 
   // Fixed paper dimensions — the page never reflows to viewport width. The
   // canvas container has overflow:auto so narrow viewports get scrollbars.
-  const paperWidth = writerConst.PAPER_MAX_WIDTH;
-  const pageHeight = paperWidth * writerConst.PAGE_HEIGHT_RATIO;
-  const padTop = paperWidth * writerConst.MARGIN_TOP_RATIO;
-  const padBottom = paperWidth * writerConst.MARGIN_BOTTOM_RATIO;
-  const padHorizontal = paperWidth * writerConst.MARGIN_HORIZONTAL_RATIO;
+  const paperWidth = WriterConstants.PAPER_MAX_WIDTH;
+  const pageHeight = paperWidth * WriterConstants.PAGE_HEIGHT_RATIO;
+  const padTop = paperWidth * WriterConstants.MARGIN_TOP_RATIO;
+  const padBottom = paperWidth * WriterConstants.MARGIN_BOTTOM_RATIO;
+  const padHorizontal = paperWidth * WriterConstants.MARGIN_HORIZONTAL_RATIO;
   const contentHeight = pageHeight - padTop - padBottom;
-  const canvasBackground = theme.dk ? "#0C0C10" : "#E8E8E2";
-  const paperBackground = theme.dk ? theme.el : "#fff";
+  const canvasBackground = theme.isDark ? "#0C0C10" : "#E8E8E2";
+  const paperBackground = theme.isDark ? theme.elevated : "#fff";
 
   // ── Editor element accessors ──────────────────────────────────────────────
 
@@ -850,7 +850,7 @@ export const WriterEditor = ({
           paddingHorizontal={padHorizontal}
           contentHeight={contentHeight}
           paperBackground={paperBackground}
-          isDark={theme.dk}
+          isDark={theme.isDark}
           isLast={i === pageCount - 1}
           onInput={handleInput}
           onKeyDown={handleKeyDown}
@@ -866,12 +866,12 @@ export const WriterEditor = ({
           position: "fixed",
           bottom: 36,
           right: 20,
-          background: theme.el,
-          border: `1px solid ${theme.bd}`,
+          background: theme.elevated,
+          border: `1px solid ${theme.border}`,
           borderRadius: theme.rF,
           padding: "3px 10px",
           fontSize: 10,
-          color: theme.tm,
+          color: theme.textMuted,
           pointerEvents: "none",
         }}
       >
@@ -898,8 +898,8 @@ export const WriterEditor = ({
         >
           <div
             style={{
-              background: theme.el,
-              border: `1px solid ${theme.bs}`,
+              background: theme.elevated,
+              border: `1px solid ${theme.borderStrong}`,
               borderRadius: theme.r14,
               padding: "16px 18px",
               boxShadow: "0 16px 48px rgba(0,0,0,0.4)",
@@ -907,7 +907,7 @@ export const WriterEditor = ({
               animation: "popIn 0.15s ease",
             }}
           >
-            <div style={{ fontSize: 13, fontWeight: 700, color: theme.tx, marginBottom: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, marginBottom: 10 }}>
               Insert link
             </div>
             <div style={{ display: "flex", gap: 7 }}>
@@ -944,7 +944,7 @@ export const WriterEditor = ({
                 <I.X size={13} />
               </button>
             </div>
-            <div style={{ fontSize: 10, color: theme.tm, marginTop: 8 }}>
+            <div style={{ fontSize: 10, color: theme.textMuted, marginTop: 8 }}>
               ⌘K · Select text first to wrap it in the link, or leave cursor to insert a new link
             </div>
           </div>

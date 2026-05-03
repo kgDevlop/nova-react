@@ -2,13 +2,13 @@ import React, { useState, useEffect, useRef } from "react";
 import { I } from "./icons";
 import { useT } from "./theme";
 import { AppChip } from "./atoms";
-import { apps_sidebar as apps_sidebarConst, toolbar as toolbarConst } from "./_constants";
+import { AppsSidebarConstants } from "./_constants";
 
 export const AppsSidebarSection = ({ title, icon: Ico, children, defaultOpen = true }) => {
   const t = useT();
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ borderBottom: `1px solid ${t.bd}` }}>
+    <div style={{ borderBottom: `1px solid ${t.border}` }}>
       <button
         onClick={() => setOpen(v => !v)}
         style={{
@@ -20,19 +20,19 @@ export const AppsSidebarSection = ({ title, icon: Ico, children, defaultOpen = t
           background: "transparent",
           border: "none",
           cursor: "pointer",
-          color: t.tx,
+          color: t.text,
           fontSize: 11,
           fontWeight: 700,
           letterSpacing: "0.04em",
           textTransform: "uppercase",
         }}
       >
-        {Ico && <Ico size={12} color={t.tm} />}
+        {Ico && <Ico size={12} color={t.textMuted} />}
         <span style={{ flex: 1, textAlign: "left" }}>{title}</span>
         <I.ChevDown
           size={11}
-          color={t.tm}
-          style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)", transition: t.tr }}
+          color={t.textMuted}
+          style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)", transition: t.transition }}
         />
       </button>
       {open && <div style={{ padding: "2px 12px 12px" }}>{children}</div>}
@@ -46,24 +46,16 @@ export const DefaultSections = ({ doc, defaultOpen = true }) => {
   const created = doc?.created ? new Date(doc.created).toLocaleString() : "—";
   const row = (k, v) => (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 11, padding: "3px 0" }}>
-      <span style={{ color: t.tm }}>{k}</span>
-      <span style={{ color: t.tx, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v}</span>
+      <span style={{ color: t.textMuted }}>{k}</span>
+      <span style={{ color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v}</span>
     </div>
   );
   return (
-    <>
-      <AppsSidebarSection title="Document" icon={I.FileText} defaultOpen={defaultOpen}>
-        {row("Type", doc?.type || "—")}
-        {row("Created", created)}
-        {row("Modified", modified)}
-      </AppsSidebarSection>
-      <AppsSidebarSection title="Activity" icon={I.Clock} defaultOpen={false}>
-        <div style={{ fontSize: 11, color: t.tm, lineHeight: 1.5 }}>No recent activity.</div>
-      </AppsSidebarSection>
-      <AppsSidebarSection title="Comments" icon={I.Bell} defaultOpen={false}>
-        <div style={{ fontSize: 11, color: t.tm, lineHeight: 1.5 }}>No comments yet.</div>
-      </AppsSidebarSection>
-    </>
+    <AppsSidebarSection title="Document" icon={I.FileText} defaultOpen={defaultOpen}>
+      {row("Type", doc?.type || "—")}
+      {row("Created", created)}
+      {row("Modified", modified)}
+    </AppsSidebarSection>
   );
 };
 
@@ -108,7 +100,7 @@ const MobileTopHeader = ({ doc, appColor, saveStatus, activeWS, onTitleChange, o
         flexDirection: "column",
         gap: 6,
         padding: "10px 10px 10px",
-        borderBottom: `1px solid ${t.bd}`,
+        borderBottom: `1px solid ${t.border}`,
         flexShrink: 0,
       }}
     >
@@ -116,7 +108,7 @@ const MobileTopHeader = ({ doc, appColor, saveStatus, activeWS, onTitleChange, o
         <AppChip appId={doc?.type} size={26} colorOverride={appColor} />
         <div style={{ flex: 1 }} />
         {saveLabel && (
-          <span style={{ fontSize: 10, color: t.ac, flexShrink: 0 }}>
+          <span style={{ fontSize: 10, color: t.accent, flexShrink: 0 }}>
             {saveLabel}
           </span>
         )}
@@ -148,7 +140,7 @@ const MobileTopHeader = ({ doc, appColor, saveStatus, activeWS, onTitleChange, o
           style={{
             fontSize: 13,
             fontWeight: 700,
-            color: t.tx,
+            color: t.text,
             cursor: isSingleton ? "default" : "text",
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -173,10 +165,16 @@ const MobileAppsSidebar = ({ doc, appColor, children, saveStatus, activeWS, onTi
   // top-right placement (right:12, top:64).
   const FAB_SIZE = 38;
   const DRAG_THRESHOLD = 5;
-  const [pos, setPos] = useState(() => ({
-    x: Math.max(8, (typeof window !== "undefined" ? window.innerWidth : 400) - FAB_SIZE - 12),
-    y: 64,
-  }));
+  // Default position: vertically aligned with the mobile top bar (50px tall),
+  // horizontally just to the left of the back/forward/menu cluster on the
+  // right. The cluster reserves ~108px on the right edge, plus an 8px gap.
+  const [pos, setPos] = useState(() => {
+    const W = typeof window !== "undefined" ? window.innerWidth : 400;
+    return {
+      x: Math.max(8, W - FAB_SIZE - 116),
+      y: 6,
+    };
+  });
 
   // Pointerdown attaches document-level move/up listeners so the drag tracks
   // even when the cursor leaves the button. Tap vs drag is decided at pointerup
@@ -230,9 +228,9 @@ const MobileAppsSidebar = ({ doc, appColor, children, saveStatus, activeWS, onTi
           width: FAB_SIZE,
           height: FAB_SIZE,
           background: t.surface,
-          border: `1px solid ${t.bd}`,
+          border: `1px solid ${t.border}`,
           borderRadius: "50%",
-          color: appColor || t.tx,
+          color: appColor || t.text,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -267,7 +265,7 @@ const MobileAppsSidebar = ({ doc, appColor, children, saveStatus, activeWS, onTi
               bottom: 0,
               width: "min(320px, 88vw)",
               background: t.surface,
-              borderLeft: `1px solid ${t.bd}`,
+              borderLeft: `1px solid ${t.border}`,
               display: "flex",
               flexDirection: "column",
               animation: "slideR 0.24s ease",
@@ -304,7 +302,7 @@ export const MobileToolbarPanel = ({
   items,
 }) => {
   const t = useT();
-  const cfg = items || toolbarConst.TOOLBARS[appId] || [];
+  const cfg = items || AppsSidebarConstants.TOOLBARS[appId] || [];
 
   const groups = [];
   let cur = [];
@@ -328,24 +326,24 @@ export const MobileToolbarPanel = ({
     if (item.type === "dd") {
       return (
         <select
-          key={item.id}
-          onChange={e => onAction?.(item.id, e.target.value)}
-          defaultValue={item.opts?.[0]?.v}
+          key={item.actionId}
+          onChange={e => onAction?.(item.actionId, e.target.value)}
+          defaultValue={item.opts?.[0]?.value}
           style={{
             flex: 1,
             minWidth: 0,
             background: t.surface,
-            border: `1px solid ${t.bd}`,
-            color: t.tx,
+            border: `1px solid ${t.border}`,
+            color: t.text,
             fontSize: 12,
-            fontFamily: t.fn,
+            fontFamily: t.fontFamily,
             borderRadius: t.r6,
             padding: "6px 13px 6px 8px",
             outline: "none",
           }}
         >
           {item.opts?.map(o => (
-            <option key={o.v} value={o.v}>{o.l}</option>
+            <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
       );
@@ -355,9 +353,9 @@ export const MobileToolbarPanel = ({
       const isText = !Icon && item.label;
       return (
         <button
-          key={item.id}
+          key={item.actionId}
           title={item.label}
-          onClick={() => onAction?.(item.id)}
+          onClick={() => onAction?.(item.actionId)}
           style={{
             display: "flex",
             alignItems: "center",
@@ -366,12 +364,12 @@ export const MobileToolbarPanel = ({
             height: 36,
             padding: isText ? "0 12px" : 0,
             borderRadius: t.r6,
-            border: `1px solid ${t.bd}`,
+            border: `1px solid ${t.border}`,
             background: t.surface,
-            color: appColor || t.tx,
+            color: appColor || t.text,
             cursor: "pointer",
             flexShrink: 0,
-            fontFamily: t.fn,
+            fontFamily: t.fontFamily,
             fontSize: 11,
             fontWeight: 600,
           }}
@@ -414,7 +412,7 @@ export const AppsSidebar = ({ doc, appColor, defaultOpen, children, mobile, onBa
     );
   }
 
-  const W = open ? apps_sidebarConst.OPEN_W : apps_sidebarConst.CLOSED_W;
+  const W = open ? AppsSidebarConstants.OPEN_W : AppsSidebarConstants.CLOSED_W;
 
   return (
     <div
@@ -422,10 +420,10 @@ export const AppsSidebar = ({ doc, appColor, defaultOpen, children, mobile, onBa
         width: W,
         height: "100%",
         background: t.surface,
-        borderLeft: `1px solid ${t.bd}`,
+        borderLeft: `1px solid ${t.border}`,
         display: "flex",
         flexDirection: "column",
-        transition: `width ${t.tr}`,
+        transition: `width ${t.transition}`,
         flexShrink: 0,
         overflow: "hidden",
       }}
@@ -438,12 +436,12 @@ export const AppsSidebar = ({ doc, appColor, defaultOpen, children, mobile, onBa
           gap: 6,
           padding: open ? "0 8px 0 12px" : 0,
           justifyContent: open ? "space-between" : "center",
-          borderBottom: `1px solid ${t.bd}`,
+          borderBottom: `1px solid ${t.border}`,
           flexShrink: 0,
         }}
       >
         {open && (
-          <span style={{ fontSize: 11, fontWeight: 700, color: t.tx, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: t.text, letterSpacing: "0.04em", textTransform: "uppercase" }}>
             Panel
           </span>
         )}
@@ -451,7 +449,7 @@ export const AppsSidebar = ({ doc, appColor, defaultOpen, children, mobile, onBa
           className="nb ni"
           onClick={() => setOpen(v => !v)}
           title={open ? "Collapse panel" : "Expand panel"}
-          style={{ padding: 5, color: appColor || t.tm }}
+          style={{ padding: 5, color: appColor || t.textMuted }}
         >
           {open ? <I.ChevRight size={13} /> : <I.ChevLeft size={13} />}
         </button>

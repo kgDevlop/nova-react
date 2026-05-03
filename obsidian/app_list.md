@@ -1,6 +1,6 @@
 # App list
 
-Wwhat apps does Nova have?
+What apps does Nova have?
 Implemented as the `APPS` array in [`src/shell/registry.js`](../src/shell/registry.js).
 The `_app(id)` helper resolves an id to its definition and falls back to the
 first entry if the id is unknown.
@@ -26,7 +26,7 @@ APPS = [
 | id         | File                                  | Note |
 |---|---|---|
 | `writer`   | [writer.jsx](../src/apps/writer.jsx)    | [[text_editor]] |
-| `sheets`   | [spreads.jsx](../src/apps/spreads.jsx)  | [[sheets]] |
+| `spreads`  | [spreads.jsx](../src/apps/spreads.jsx)  | [[spreads]] |
 | `slides`   | [slides.jsx](../src/apps/slides.jsx)    | [[slides]] |
 | `draw`     | [draw.jsx](../src/apps/draw.jsx)        | [[draw]] |
 | `calendar` | [calendar.jsx](../src/apps/calendar.jsx)| [[calendar]] — workspace singleton |

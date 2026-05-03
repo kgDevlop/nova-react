@@ -23,9 +23,9 @@ Shown over a text selection in the Writer canvas. Style cluster only.
 - Superscript / Subscript
 - Format
 
-### 2. Half-size strip (Sheets)
+### 2. Half-size strip (Spreads)
 
-Top-of-content row inside the Sheets editor. Cell-level formatting.
+Top-of-content row inside the Spreads editor. Cell-level formatting.
 
 - Style: Font, Color, Highlight, Bold, Strikethrough
 - List: numbers, bullets, solid points, hollow points, custom SVG upload

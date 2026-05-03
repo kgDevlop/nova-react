@@ -1,35 +1,36 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { utils } from "../_utils";
-import { store as storeConst } from "../_constants";
+import { StoreConstants } from "../_constants";
 
 // ── Persistence ───────────────────────────────────────────────────────────
 //
 // localStorage round-trip. Dates serialise to strings, so revive them on load.
 const _load = () => {
   try {
-    const raw = localStorage.getItem(storeConst.STORAGE_KEY);
+    const raw = localStorage.getItem(StoreConstants.STORAGE_KEY);
     if (!raw) {
-      return storeConst.WS_SEEDS;
+      return StoreConstants.WS_SEEDS;
     }
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || !parsed.length) {
-      return storeConst.WS_SEEDS;
+      return StoreConstants.WS_SEEDS;
     }
     return parsed.map(w => ({
       ...w,
       docs: (w.docs || []).map(d => ({
         ...d,
         modified: d.modified ? new Date(d.modified) : new Date(),
+        created: d.created ? new Date(d.created) : (d.modified ? new Date(d.modified) : new Date()),
       })),
     }));
   } catch {
-    return storeConst.WS_SEEDS;
+    return StoreConstants.WS_SEEDS;
   }
 };
 
 const _save = ws => {
   try {
-    localStorage.setItem(storeConst.STORAGE_KEY, JSON.stringify(ws));
+    localStorage.setItem(StoreConstants.STORAGE_KEY, JSON.stringify(ws));
     return true;
   } catch {
     return false;
@@ -38,7 +39,7 @@ const _save = ws => {
 
 const _loadActive = ws => {
   try {
-    const id = localStorage.getItem(storeConst.ACTIVE_KEY);
+    const id = localStorage.getItem(StoreConstants.ACTIVE_KEY);
     if (id && ws.some(w => w.id === id)) {
       return id;
     }
@@ -60,7 +61,7 @@ export const useWSStore = () => {
 
   useEffect(() => {
     try {
-      localStorage.setItem(storeConst.ACTIVE_KEY, activeId || "");
+      localStorage.setItem(StoreConstants.ACTIVE_KEY, activeId || "");
     } catch {
       // Ignore quota/availability errors — active id will just not persist.
     }
@@ -111,11 +112,13 @@ export const useWSStore = () => {
     // Fall back to the first workspace if activeId is stale — mirrors the
     // `active` selector so we never silently no-op on a stale id.
     const target = ws.find(w => w.id === activeId) || ws[0];
+    const now = new Date();
     const doc = {
       id: utils._uid(),
       title: utils._uniqueTitle(target.docs, type, title || utils._autoName(type)),
       type,
-      modified: new Date(),
+      created: now,
+      modified: now,
       starred: false,
       content: "",
       appColor,
@@ -232,7 +235,7 @@ export const useAutoSave = (docId, content, updateDoc) => {
 // sessions so per-app picks survive a reload.
 const _loadAppColors = () => {
   try {
-    const raw = localStorage.getItem(storeConst.APP_COLORS_KEY);
+    const raw = localStorage.getItem(StoreConstants.APP_COLORS_KEY);
     if (!raw) {
       return {};
     }
@@ -248,7 +251,7 @@ export const useAppColors = () => {
 
   useEffect(() => {
     try {
-      localStorage.setItem(storeConst.APP_COLORS_KEY, JSON.stringify(ov));
+      localStorage.setItem(StoreConstants.APP_COLORS_KEY, JSON.stringify(ov));
     } catch {
       // Ignore quota / availability — overrides just won't persist.
     }
@@ -270,6 +273,43 @@ export const useAppColors = () => {
     return next;
   }), []);
   return { get, put, del };
+};
+
+// ── Enabled beta apps ─────────────────────────────────────────────────────
+//
+// Beta-status apps (see registry.APPS) are hidden from the side nav by default.
+// Users opt them in from the Catalogue screen; selections persist as a list of
+// app ids in localStorage.
+const _loadEnabledBetas = () => {
+  try {
+    const raw = localStorage.getItem(StoreConstants.ENABLED_BETAS_KEY);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+export const useEnabledBetas = () => {
+  const [ids, setIds] = useState(_loadEnabledBetas);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(StoreConstants.ENABLED_BETAS_KEY, JSON.stringify(ids));
+    } catch {
+      // Ignore quota / availability — selection just won't persist.
+    }
+  }, [ids]);
+
+  const has = useCallback(id => ids.includes(id), [ids]);
+  const toggle = useCallback(id => {
+    setIds(p => (p.includes(id) ? p.filter(x => x !== id) : [...p, id]));
+  }, []);
+
+  return { ids, has, toggle };
 };
 
 // ── Tab management ────────────────────────────────────────────────────────

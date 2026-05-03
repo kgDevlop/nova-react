@@ -43,7 +43,7 @@ export const AppTopBar = ({ doc, appColor, saveStatus, activeWS, onTitleChange }
       style={{
         height: 44,
         background: theme.surface,
-        borderBottom: `1px solid ${theme.bd}`,
+        borderBottom: `1px solid ${theme.border}`,
         display: "flex",
         alignItems: "center",
         padding: "0 10px",
@@ -78,7 +78,7 @@ export const AppTopBar = ({ doc, appColor, saveStatus, activeWS, onTitleChange }
           style={{
             fontSize: 13,
             fontWeight: 700,
-            color: theme.tx,
+            color: theme.text,
             flex: 1,
             cursor: isSingleton ? "default" : "text",
             overflow: "hidden",
@@ -97,7 +97,7 @@ export const AppTopBar = ({ doc, appColor, saveStatus, activeWS, onTitleChange }
         <span
           style={{
             fontSize: 11,
-            color: theme.ac,
+            color: theme.accent,
             minWidth: 52,
             textAlign: "right",
             flexShrink: 0,

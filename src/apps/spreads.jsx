@@ -1,30 +1,46 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { I } from "../shared/icons";
 import { formulas } from "../shared/_utils";
-import { spreads as spreadsConst } from "../shared/_constants";
+import { SpreadsConstants } from "../shared/_constants";
+import { useDocState } from "../shared/hooks/doc_state";
+import { AppsSidebar, AppsSidebarSection, DefaultSections } from "../shared/apps_sidebar";
 
-export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registerActions }) => {
-  const COLS = Array.from({ length: spreadsConst.VISIBLE_COLS }, (_, i) => formulas._colLetter(i));
+const BG_SWATCHES = [
+  null,
+  "#FCA5A5", "#FCD34D", "#86EFAC", "#7DD3FC", "#C4B5FD", "#F9A8D4",
+  "#FECACA", "#FEF3C7", "#D1FAE5", "#DBEAFE", "#EDE9FE", "#FCE7F3",
+];
 
-  const [cells, setCells] = useState(() => {
-    try {
-      return JSON.parse(doc.content || "{}");
-    } catch {
-      return {};
-    }
-  });
+const TEXT_SWATCHES = [
+  null,
+  "#111827", "#DC2626", "#D97706", "#059669", "#2563EB", "#7C3AED", "#DB2777", "#6B7280",
+];
+
+const FONT_SIZES = [10, 11, 12, 13, 14, 16, 18, 22];
+
+export const SpreadsEditor = ({
+  appColor,
+  doc,
+  t: theme,
+  onContentChange,
+  registerActions,
+  isMobile,
+  onBack,
+  saveStatus,
+  activeWS,
+  onTitleChange,
+}) => {
+  const COLS = Array.from({ length: SpreadsConstants.VISIBLE_COLS }, (_, i) => formulas._colLetter(i));
+
+  const _parseCells = (content) => { try { return JSON.parse(content || "{}"); } catch { return {}; } };
+  const [cells, setCells] = useDocState(doc, _parseCells, onContentChange);
   const [activeKey, setActiveKey] = useState("A1");
   const [editKey, setEditKey] = useState(null);
   const [editVal, setEditVal] = useState("");
-  const [sheets, setSheets] = useState(["Sheet 1", "Sheet 2", "Sheet 3"]);
-  const [activeSheet, setActiveSheet] = useState(0);
+  const [spreads, setSpreads] = useState(["Spread 1", "Spread 2", "Spread 3"]);
+  const [activeSpread, setActiveSpread] = useState(0);
   const editInputRef = useRef(null);
   const gridRef = useRef(null);
-
-  // Notify parent of cell changes so autosave can pick them up.
-  useEffect(() => {
-    onContentChange(JSON.stringify(cells));
-  }, [cells]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Cell display + edit commit ────────────────────────────────────────────
 
@@ -51,6 +67,23 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
       return parseFloat(val.toFixed(6)).toString();
     }
     return val?.toString() || "";
+  };
+
+  const _setCellProp = (key, prop, val) => {
+    setCells(p => ({ ...p, [key]: { ...p[key], [prop]: val } }));
+  };
+
+  const _toggleBorder = (key, side) => {
+    setCells(p => {
+      const cur = p[key]?.borders || { t: true, r: true, b: true, l: true };
+      const next = { ...cur, [side]: !cur[side] };
+      return { ...p, [key]: { ...p[key], borders: next } };
+    });
+  };
+
+  const _setBordersAll = (key, on) => {
+    const next = { t: on, r: on, b: on, l: on };
+    setCells(p => ({ ...p, [key]: { ...p[key], borders: next } }));
   };
 
   const _commitEdit = (key, val) => {
@@ -84,8 +117,8 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
     if (!ref) {
       return;
     }
-    const nr = Math.max(0, Math.min(spreadsConst.VISIBLE_ROWS - 1, ref.row + dr));
-    const nc = Math.max(0, Math.min(spreadsConst.VISIBLE_COLS - 1, ref.col + dc));
+    const nr = Math.max(0, Math.min(SpreadsConstants.VISIBLE_ROWS - 1, ref.row + dr));
+    const nc = Math.max(0, Math.min(SpreadsConstants.VISIBLE_COLS - 1, ref.col + dc));
     setActiveKey(formulas._cellKey(nr, nc));
   };
 
@@ -125,11 +158,11 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
     }
     if (e.key === "Enter") {
       _commitEdit(editKey, editVal);
-      setActiveKey(formulas._cellKey(Math.min(ref.row + 1, spreadsConst.VISIBLE_ROWS - 1), ref.col));
+      setActiveKey(formulas._cellKey(Math.min(ref.row + 1, SpreadsConstants.VISIBLE_ROWS - 1), ref.col));
       e.preventDefault();
     } else if (e.key === "Tab") {
       _commitEdit(editKey, editVal);
-      setActiveKey(formulas._cellKey(ref.row, Math.min(ref.col + 1, spreadsConst.VISIBLE_COLS - 1)));
+      setActiveKey(formulas._cellKey(ref.row, Math.min(ref.col + 1, SpreadsConstants.VISIBLE_COLS - 1)));
       e.preventDefault();
     } else if (e.key === "Escape") {
       setEditKey(null);
@@ -175,8 +208,40 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
 
   const activeRef = formulas._parseRef(activeKey) || { row: 0, col: 0 };
   const formulaDisplay = editKey ? editVal : (cells[activeKey]?.raw || "");
+  const activeCell = cells[activeKey] || {};
+
+  const Swatch = ({ value, current, onPick, isText }) => {
+    const selected = (current || null) === (value || null);
+    const isNone = value === null;
+    return (
+      <button
+        onClick={() => onPick(value)}
+        title={isNone ? "Default" : value}
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: theme.r6,
+          border: selected ? `2px solid ${appColor}` : `1px solid ${theme.border}`,
+          background: isNone ? "transparent" : value,
+          cursor: "pointer",
+          padding: 0,
+          flexShrink: 0,
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: isText && !isNone ? value : theme.textMuted,
+          fontSize: 11,
+          fontWeight: 700,
+        }}
+      >
+        {isNone && (isText ? "A" : <I.X size={11} color={theme.textMuted} />)}
+      </button>
+    );
+  };
 
   return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "row", overflow: "hidden", minHeight: 0 }}>
     <div
       onKeyDown={handleGridKeyDown}
       tabIndex={0}
@@ -186,14 +251,67 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
         flexDirection: "column",
         overflow: "hidden",
         outline: "none",
+        minWidth: 0,
       }}
     >
+      {/* Spread tabs */}
+      <div
+        style={{
+          height: 30,
+          background: theme.surface,
+          borderBottom: `1px solid ${theme.border}`,
+          display: "flex",
+          alignItems: "flex-end",
+          padding: "0 8px",
+          gap: 2,
+          flexShrink: 0,
+        }}
+      >
+        {spreads.map((s, i) => {
+          const isActive = i === activeSpread;
+          return (
+            <div
+              key={s}
+              onClick={() => setActiveSpread(i)}
+              style={{
+                padding: "3px 12px",
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: isActive ? 600 : 500,
+                background: isActive ? theme.elevated : "transparent",
+                color: isActive ? theme.text : theme.textDim,
+                border: isActive ? `1px solid ${theme.border}` : "none",
+                borderBottom: "none",
+                borderRadius: `${theme.r6} ${theme.r6} 0 0`,
+              }}
+            >
+              {s}
+            </div>
+          );
+        })}
+        <button
+          className="ni"
+          style={{
+            padding: 3,
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            display: "flex",
+            marginLeft: 4,
+            marginBottom: 2,
+          }}
+          onClick={() => setSpreads(p => [...p, `Spread ${p.length + 1}`])}
+        >
+          <I.Plus size={11} color={theme.textDim} />
+        </button>
+      </div>
+
       {/* Formula bar */}
       <div
         style={{
           height: 30,
           background: theme.surface,
-          borderBottom: `1px solid ${theme.bd}`,
+          borderBottom: `1px solid ${theme.border}`,
           display: "flex",
           alignItems: "center",
           padding: "0 8px",
@@ -207,8 +325,8 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
             textAlign: "center",
             fontSize: 10,
             fontWeight: 700,
-            color: theme.ts,
-            background: theme.sa,
+            color: theme.textDim,
+            background: theme.surfaceAlt,
             padding: "2px 8px",
             borderRadius: theme.r6,
             cursor: "pointer",
@@ -217,11 +335,11 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
         >
           {activeKey}
         </div>
-        <div style={{ width: 1, height: 14, background: theme.bd }} />
+        <div style={{ width: 1, height: 14, background: theme.border }} />
         <span
           style={{
             fontSize: 12,
-            color: theme.tx,
+            color: theme.text,
             flex: 1,
             fontFamily: "monospace",
             overflow: "hidden",
@@ -239,18 +357,19 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
           style={{
             borderCollapse: "collapse",
             fontSize: 12,
-            fontFamily: theme.fn,
+            fontFamily: theme.fontFamily,
             tableLayout: "fixed",
             userSelect: "none",
+            width: SpreadsConstants.ROW_HEADER_WIDTH + SpreadsConstants.COL_WIDTH * SpreadsConstants.VISIBLE_COLS,
           }}
         >
           <thead>
             <tr>
               <th
                 style={{
-                  width: spreadsConst.ROW_HEADER_WIDTH,
-                  background: theme.sa,
-                  border: `1px solid ${theme.bd}`,
+                  width: SpreadsConstants.ROW_HEADER_WIDTH,
+                  background: theme.surfaceAlt,
+                  border: `1px solid ${theme.border}`,
                   position: "sticky",
                   top: 0,
                   left: 0,
@@ -263,18 +382,18 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
                   <th
                     key={c}
                     style={{
-                      width: spreadsConst.COL_WIDTH,
-                      border: `1px solid ${theme.bd}`,
+                      width: SpreadsConstants.COL_WIDTH,
+                      border: `1px solid ${theme.border}`,
                       padding: "3px 0",
                       textAlign: "center",
-                      color: isActiveCol ? appColor : theme.ts,
+                      color: isActiveCol ? appColor : theme.textDim,
                       fontSize: 11,
                       fontWeight: isActiveCol ? 700 : 500,
                       position: "sticky",
                       top: 0,
                       zIndex: 2,
                       cursor: "pointer",
-                      background: isActiveCol ? appColor + "15" : theme.sa,
+                      background: isActiveCol ? appColor + "15" : theme.surfaceAlt,
                     }}
                   >
                     {c}
@@ -284,23 +403,23 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
             </tr>
           </thead>
           <tbody>
-            {Array.from({ length: spreadsConst.VISIBLE_ROWS }, (_, ri) => {
+            {Array.from({ length: SpreadsConstants.VISIBLE_ROWS }, (_, ri) => {
               const isActiveRow = activeRef.row === ri;
               return (
                 <tr key={ri}>
                   <td
                     style={{
-                      background: isActiveRow ? appColor + "15" : theme.sa,
-                      border: `1px solid ${theme.bd}`,
+                      background: isActiveRow ? appColor + "15" : theme.surfaceAlt,
+                      border: `1px solid ${theme.border}`,
                       padding: "0 6px",
                       textAlign: "center",
-                      color: isActiveRow ? appColor : theme.tm,
+                      color: isActiveRow ? appColor : theme.textMuted,
                       fontSize: 10,
                       fontWeight: isActiveRow ? 700 : 400,
                       position: "sticky",
                       left: 0,
                       zIndex: 1,
-                      width: spreadsConst.ROW_HEADER_WIDTH,
+                      width: SpreadsConstants.ROW_HEADER_WIDTH,
                     }}
                   >
                     {ri + 1}
@@ -328,6 +447,18 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
                     const isFormulaError =
                       isFormula && _display(key).toString().startsWith("#");
 
+                    const borders = cell?.borders;
+                    const bClr = cell?.borderColor || theme.border;
+                    const sideStyle = side =>
+                      borders
+                        ? (borders[side] ? `1px solid ${bClr}` : "1px solid transparent")
+                        : `1px solid ${theme.border}`;
+                    const cellBg = cell?.bg
+                      ? cell.bg
+                      : isActive
+                        ? appColor + "10"
+                        : "transparent";
+
                     return (
                       <td
                         key={ci}
@@ -340,18 +471,19 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
                         }}
                         onDoubleClick={() => startEdit(key)}
                         style={{
-                          border: `1px solid ${isActive ? appColor : theme.bd}`,
-                          width: spreadsConst.COL_WIDTH,
-                          height: spreadsConst.ROW_HEIGHT,
+                          borderTop: isActive ? `1.5px solid ${appColor}` : sideStyle("t"),
+                          borderRight: isActive ? `1.5px solid ${appColor}` : sideStyle("r"),
+                          borderBottom: isActive ? `1.5px solid ${appColor}` : sideStyle("b"),
+                          borderLeft: isActive ? `1.5px solid ${appColor}` : sideStyle("l"),
+                          width: SpreadsConstants.COL_WIDTH,
+                          height: SpreadsConstants.ROW_HEIGHT,
                           padding: 0,
-                          background: isActive ? appColor + "10" : "transparent",
+                          background: cellBg,
                           outline: isActive ? `2px solid ${appColor}` : "none",
                           outlineOffset: -1,
                           cursor: "cell",
                           overflow: "hidden",
                           position: "relative",
-                          borderColor: isActive ? appColor : theme.bd,
-                          borderWidth: isActive ? "1.5px" : "1px",
                         }}
                       >
                         {isEditing ? (
@@ -366,11 +498,11 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
                               height: "100%",
                               border: "none",
                               outline: "none",
-                              background: theme.el,
+                              background: theme.elevated,
                               fontFamily: "monospace",
                               fontSize: 12,
                               padding: "0 4px",
-                              color: theme.tx,
+                              color: theme.text,
                             }}
                           />
                         ) : (
@@ -383,10 +515,10 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
                               height: "100%",
                               display: "flex",
                               alignItems: "center",
-                              color: isFormulaError ? theme.er : theme.tx,
+                              color: isFormulaError ? theme.error : (cell?.color || theme.text),
                               fontWeight: cell?.bold ? "700" : "400",
                               fontStyle: cell?.italic ? "italic" : "normal",
-                              fontSize: 12,
+                              fontSize: cell?.fontSize || 12,
                               justifyContent: justify,
                             }}
                           >
@@ -402,57 +534,175 @@ export const SheetsEditor = ({ appColor, doc, t: theme, onContentChange, registe
           </tbody>
         </table>
       </div>
+    </div>
 
-      {/* Sheet tabs */}
-      <div
-        style={{
-          height: 30,
-          background: theme.surface,
-          borderTop: `1px solid ${theme.bd}`,
-          display: "flex",
-          alignItems: "center",
-          padding: "0 8px",
-          gap: 2,
-          flexShrink: 0,
-        }}
-      >
-        {sheets.map((s, i) => {
-          const isActive = i === activeSheet;
-          return (
-            <div
-              key={s}
-              onClick={() => setActiveSheet(i)}
-              style={{
-                padding: "3px 12px",
-                cursor: "pointer",
-                fontSize: 11,
-                fontWeight: isActive ? 600 : 500,
-                background: isActive ? theme.el : "transparent",
-                color: isActive ? theme.tx : theme.ts,
-                border: isActive ? `1px solid ${theme.bd}` : "none",
-                borderBottom: "none",
-                borderRadius: `${theme.r6} ${theme.r6} 0 0`,
-              }}
-            >
-              {s}
-            </div>
-          );
-        })}
-        <button
-          className="ni"
+    <AppsSidebar
+      doc={doc}
+      appColor={appColor}
+      mobile={isMobile}
+      onBack={onBack}
+      saveStatus={saveStatus}
+      activeWS={activeWS}
+      onTitleChange={onTitleChange}
+    >
+      <AppsSidebarSection title={`Cell ${activeKey}`} icon={I.Grid}>
+        <div style={{ fontSize: 10, color: theme.textMuted, marginBottom: 6 }}>
+          Styling applies to the active cell.
+        </div>
+      </AppsSidebarSection>
+
+      <AppsSidebarSection title="Borders" icon={I.BorderAll}>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
+          <button
+            className="nb ng"
+            style={{ fontSize: 11, padding: "5px 9px" }}
+            onClick={() => _setBordersAll(activeKey, true)}
+          >
+            All
+          </button>
+          <button
+            className="nb ng"
+            style={{ fontSize: 11, padding: "5px 9px" }}
+            onClick={() => _setBordersAll(activeKey, false)}
+          >
+            None
+          </button>
+          <button
+            className="nb ng"
+            style={{ fontSize: 11, padding: "5px 9px" }}
+            onClick={() => _setCellProp(activeKey, "borders", undefined)}
+          >
+            Reset
+          </button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 4, marginBottom: 8 }}>
+          {[
+            ["t", "Top"],
+            ["b", "Bottom"],
+            ["l", "Left"],
+            ["r", "Right"],
+          ].map(([side, label]) => {
+            const on = activeCell.borders?.[side];
+            return (
+              <button
+                key={side}
+                onClick={() => _toggleBorder(activeKey, side)}
+                style={{
+                  fontSize: 11,
+                  padding: "5px 8px",
+                  borderRadius: theme.r6,
+                  border: `1px solid ${on ? appColor : theme.border}`,
+                  background: on ? appColor + "15" : "transparent",
+                  color: on ? appColor : theme.text,
+                  cursor: "pointer",
+                  fontFamily: theme.fontFamily,
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 10, color: theme.textMuted, marginBottom: 4 }}>Border color</div>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          {[null, "#111827", "#DC2626", "#2563EB", "#059669", "#D97706"].map((c, i) => (
+            <Swatch
+              key={i}
+              value={c}
+              current={activeCell.borderColor}
+              onPick={v => _setCellProp(activeKey, "borderColor", v || undefined)}
+            />
+          ))}
+        </div>
+      </AppsSidebarSection>
+
+      <AppsSidebarSection title="Background" icon={I.Palette}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 22px)", gap: 4 }}>
+          {BG_SWATCHES.map((c, i) => (
+            <Swatch
+              key={i}
+              value={c}
+              current={activeCell.bg}
+              onPick={v => _setCellProp(activeKey, "bg", v || undefined)}
+            />
+          ))}
+        </div>
+      </AppsSidebarSection>
+
+      <AppsSidebarSection title="Text" icon={I.TypeT}>
+        <div style={{ fontSize: 10, color: theme.textMuted, marginBottom: 4 }}>Color</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 22px)", gap: 4, marginBottom: 10 }}>
+          {TEXT_SWATCHES.map((c, i) => (
+            <Swatch
+              key={i}
+              value={c}
+              current={activeCell.color}
+              onPick={v => _setCellProp(activeKey, "color", v || undefined)}
+              isText
+            />
+          ))}
+        </div>
+        <div style={{ fontSize: 10, color: theme.textMuted, marginBottom: 4 }}>Size</div>
+        <select
+          value={activeCell.fontSize || 12}
+          onChange={e => _setCellProp(activeKey, "fontSize", Number(e.target.value))}
           style={{
-            padding: 3,
-            border: "none",
-            background: "transparent",
-            cursor: "pointer",
-            display: "flex",
-            marginLeft: 4,
+            width: "100%",
+            background: theme.surface,
+            border: `1px solid ${theme.border}`,
+            color: theme.text,
+            fontSize: 12,
+            fontFamily: theme.fontFamily,
+            borderRadius: theme.r6,
+            padding: "5px 8px",
+            outline: "none",
+            marginBottom: 10,
           }}
-          onClick={() => setSheets(p => [...p, `Sheet ${p.length + 1}`])}
         >
-          <I.Plus size={11} color={theme.ts} />
-        </button>
-      </div>
+          {FONT_SIZES.map(s => (
+            <option key={s} value={s}>{s}px</option>
+          ))}
+        </select>
+        <div style={{ display: "flex", gap: 4 }}>
+          <button
+            onClick={() => _setCellProp(activeKey, "bold", !activeCell.bold)}
+            style={{
+              flex: 1,
+              padding: "6px 0",
+              borderRadius: theme.r6,
+              border: `1px solid ${activeCell.bold ? appColor : theme.border}`,
+              background: activeCell.bold ? appColor + "15" : "transparent",
+              color: activeCell.bold ? appColor : theme.text,
+              cursor: "pointer",
+              fontFamily: theme.fontFamily,
+              fontWeight: 700,
+              fontSize: 12,
+            }}
+          >
+            B
+          </button>
+          <button
+            onClick={() => _setCellProp(activeKey, "italic", !activeCell.italic)}
+            style={{
+              flex: 1,
+              padding: "6px 0",
+              borderRadius: theme.r6,
+              border: `1px solid ${activeCell.italic ? appColor : theme.border}`,
+              background: activeCell.italic ? appColor + "15" : "transparent",
+              color: activeCell.italic ? appColor : theme.text,
+              cursor: "pointer",
+              fontFamily: theme.fontFamily,
+              fontStyle: "italic",
+              fontSize: 12,
+            }}
+          >
+            I
+          </button>
+        </div>
+      </AppsSidebarSection>
+
+      <DefaultSections doc={doc} defaultOpen={false} />
+    </AppsSidebar>
     </div>
   );
 };

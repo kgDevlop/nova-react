@@ -3,7 +3,7 @@ import { I } from "../shared/icons";
 import { useT } from "../shared/theme";
 import { useKbd, useOut } from "../shared/hooks/system";
 import { AppChip, TileGrid } from "../shared/atoms";
-import { home as homeConst, registry as registryConst } from "../shared/_constants";
+import { HomeConstants } from "../shared/_constants";
 import { utils, registry as registryU } from "../shared/_utils";
 
 // ── Doc tile (grid view) ────────────────────────────────────────────────────
@@ -14,7 +14,7 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
   // Always resolve dynamically so theme/scheme changes flow through to old
   // docs too. Pre-existing `doc.appColor` values from older builds are ignored.
   const c = getAppColor(activeWS.id, doc.type, theme.appColorFor(doc.type));
-  const soft = c + (theme.dk ? "1A" : "22");
+  const soft = c + (theme.isDark ? "1A" : "22");
 
   const [menu, setMenu] = useState(false);
   const [ren, setRen] = useState(false);
@@ -82,7 +82,7 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
             gap: 4,
           }}
         >
-          {homeConst.CARD_PREVIEW_BAR_WIDTHS.map((w, i) => (
+          {HomeConstants.CARD_PREVIEW_BAR_WIDTHS.map((w, i) => (
             <div
               key={i}
               style={{
@@ -127,7 +127,7 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
             style={{
               fontSize: 12,
               fontWeight: 700,
-              color: theme.tx,
+              color: theme.text,
               lineHeight: 1.35,
               minHeight: "2.7em",
               overflow: "hidden",
@@ -149,13 +149,13 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
         <span
           style={{
             fontSize: 10,
-            color: theme.tm,
+            color: theme.textMuted,
             display: "flex",
             alignItems: "center",
             gap: 2,
           }}
         >
-          <I.Clock size={9} color={theme.tm} />
+          <I.Clock size={9} color={theme.textMuted} />
           {utils._rel(doc.modified)}
         </span>
         <div style={{ marginLeft: "auto", display: "flex", gap: 4, flexShrink: 0 }}>
@@ -163,9 +163,9 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
             className="nb"
             style={{
               padding: "4px 6px",
-              background: doc.starred ? theme.ac + "1F" : theme.sa,
-              color: doc.starred ? theme.ac : theme.tm,
-              border: `1px solid ${doc.starred ? theme.ac + "55" : theme.bd}`,
+              background: doc.starred ? theme.accent + "1F" : theme.surfaceAlt,
+              color: doc.starred ? theme.accent : theme.textMuted,
+              border: `1px solid ${doc.starred ? theme.accent + "55" : theme.border}`,
               borderRadius: theme.r6,
             }}
             title={doc.starred ? "Unstar" : "Star"}
@@ -176,8 +176,8 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
           >
             <I.Star
               size={11}
-              fill={doc.starred ? theme.ac : "none"}
-              color={doc.starred ? theme.ac : theme.tm}
+              fill={doc.starred ? theme.accent : "none"}
+              color={doc.starred ? theme.accent : theme.textMuted}
             />
           </button>
 
@@ -186,9 +186,9 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
               className="nb"
               style={{
                 padding: "4px 6px",
-                background: theme.sa,
-                color: theme.ts,
-                border: `1px solid ${theme.bd}`,
+                background: theme.surfaceAlt,
+                color: theme.textDim,
+                border: `1px solid ${theme.border}`,
                 borderRadius: theme.r6,
               }}
               onClick={e => {
@@ -196,7 +196,7 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
                 setMenu(v => !v);
               }}
             >
-              <I.Dots size={11} color={theme.ts} />
+              <I.Dots size={11} color={theme.textDim} />
             </button>
             {menu && (
               <div className="nmenu" onClick={e => e.stopPropagation()}>
@@ -247,7 +247,7 @@ const DocRow = ({ doc, onOpen, onStar, onDelete, getAppColor, activeWS }) => {
   const theme = useT();
   const def = registryU._app(doc.type);
   const c = getAppColor(activeWS.id, doc.type, theme.appColorFor(doc.type));
-  const soft = c + (theme.dk ? "1A" : "22");
+  const soft = c + (theme.isDark ? "1A" : "22");
 
   return (
     <div
@@ -268,7 +268,7 @@ const DocRow = ({ doc, onOpen, onStar, onDelete, getAppColor, activeWS }) => {
           style={{
             fontSize: 12,
             fontWeight: 600,
-            color: theme.tx,
+            color: theme.text,
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -276,7 +276,7 @@ const DocRow = ({ doc, onOpen, onStar, onDelete, getAppColor, activeWS }) => {
         >
           {doc.title}
         </div>
-        <div style={{ fontSize: 10, color: theme.tm, marginTop: 1 }}>
+        <div style={{ fontSize: 10, color: theme.textMuted, marginTop: 1 }}>
           {utils._rel(doc.modified)}
         </div>
       </div>
@@ -289,7 +289,7 @@ const DocRow = ({ doc, onOpen, onStar, onDelete, getAppColor, activeWS }) => {
       <button
         className="nb ni"
         style={{
-          color: doc.starred ? theme.ac : theme.tm,
+          color: doc.starred ? theme.accent : theme.textMuted,
           padding: 3,
           flexShrink: 0,
         }}
@@ -300,8 +300,8 @@ const DocRow = ({ doc, onOpen, onStar, onDelete, getAppColor, activeWS }) => {
       >
         <I.Star
           size={11}
-          fill={doc.starred ? theme.ac : "none"}
-          color={doc.starred ? theme.ac : theme.tm}
+          fill={doc.starred ? theme.accent : "none"}
+          color={doc.starred ? theme.accent : theme.textMuted}
         />
       </button>
       <button
@@ -351,7 +351,7 @@ export const HomeScreen = ({
 
   // Grid sizing: slider picks a column count, snapped to ticks. Max columns is
   // recomputed from the grid's measured width so the upper bound matches what
-  // can actually fit on screen at homeConst.GRID_MIN_CARD_PX per card.
+  // can actually fit on screen at HomeConstants.GRID_MIN_CARD_PX per card.
   const gridRef = useRef(null);
   const [maxCols, setMaxCols] = useState(6);
   useEffect(() => {
@@ -359,7 +359,7 @@ export const HomeScreen = ({
     if (!el || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(([entry]) => {
       const w = entry.contentRect.width;
-      setMaxCols(Math.max(2, Math.min(8, Math.floor((w + 9) / (homeConst.GRID_MIN_CARD_PX + 9)))));
+      setMaxCols(Math.max(2, Math.min(8, Math.floor((w + 9) / (HomeConstants.GRID_MIN_CARD_PX + 9)))));
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -367,7 +367,7 @@ export const HomeScreen = ({
 
   const [savedCols, setSavedCols] = useState(() => {
     if (typeof window === "undefined") return 0;
-    const v = Number(window.localStorage.getItem(homeConst.GRID_COLS_KEY));
+    const v = Number(window.localStorage.getItem(HomeConstants.GRID_COLS_KEY));
     return Number.isFinite(v) && v >= 2 ? v : 0;
   });
   const defaultCols = Math.max(2, Math.round((2 + maxCols) / 2));
@@ -387,8 +387,8 @@ export const HomeScreen = ({
   // Calendar is a singleton and lives outside the doc-creation flow.
   let qt;
   if (view === "home") {
-    qt = registryConst.APPS.filter(a => a.id !== "calendar").map(a => a.id);
-  } else if (registryConst.APPS.map(a => a.id).includes(view)) {
+    qt = HomeConstants.APPS.filter(a => a.appId !== "calendar").map(a => a.appId);
+  } else if (HomeConstants.APPS.map(a => a.appId).includes(view)) {
     qt = [view];
   } else {
     qt = null;
@@ -414,7 +414,7 @@ export const HomeScreen = ({
             style={{
               fontSize: 23,
               fontWeight: 800,
-              color: theme.tx,
+              color: theme.text,
               letterSpacing: "-0.03em",
             }}
           >
@@ -434,7 +434,7 @@ export const HomeScreen = ({
             style={{
               fontSize: 9,
               fontWeight: 700,
-              color: theme.tm,
+              color: theme.textMuted,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
               marginBottom: 8,
@@ -456,13 +456,13 @@ export const HomeScreen = ({
                     gap: 8,
                     padding: "8px 13px",
                     borderRadius: theme.r14,
-                    background: c + (theme.dk ? "1A" : "22"),
+                    background: c + (theme.isDark ? "1A" : "22"),
                     border: `1px solid ${c}22`,
                     cursor: "pointer",
-                    transition: theme.tr,
-                    fontFamily: theme.fn,
+                    transition: theme.transition,
+                    fontFamily: theme.fontFamily,
                     outline: "none",
-                    color: theme.tx,
+                    color: theme.text,
                     fontSize: 12,
                     fontWeight: 700,
                   }}
@@ -492,7 +492,7 @@ export const HomeScreen = ({
           animation: "fadeUp 0.3s ease 0.1s both",
         }}
       >
-        <span style={{ fontSize: 10, color: theme.tm }}>
+        <span style={{ fontSize: 10, color: theme.textMuted }}>
           {visible.length} doc{visible.length !== 1 ? "s" : ""}
         </span>
         <div style={{ display: "flex", gap: 2 }}>
@@ -501,8 +501,8 @@ export const HomeScreen = ({
               key={m}
               className="nb ni"
               style={{
-                color: vm === m ? theme.tx : theme.tm,
-                background: vm === m ? theme.sa : "transparent",
+                color: vm === m ? theme.text : theme.textMuted,
+                background: vm === m ? theme.surfaceAlt : "transparent",
               }}
               onClick={() => setVm(m)}
             >
@@ -525,10 +525,10 @@ export const HomeScreen = ({
                 const snapped = Math.min(Math.max(Math.round(v), 2), maxCols);
                 setSavedCols(snapped);
                 if (typeof window !== "undefined") {
-                  window.localStorage.setItem(homeConst.GRID_COLS_KEY, String(snapped));
+                  window.localStorage.setItem(HomeConstants.GRID_COLS_KEY, String(snapped));
                 }
               }}
-              style={{ width: 115, accentColor: theme.ac, cursor: "pointer" }}
+              style={{ width: 115, accentColor: theme.accent, cursor: "pointer" }}
             />
           </div>
         )}
@@ -543,13 +543,13 @@ export const HomeScreen = ({
                 padding: "6px 10px",
                 fontSize: 11,
                 fontWeight: 600,
-                background: favOnly ? theme.ac + "1F" : theme.surface,
-                color: favOnly ? theme.ac : theme.ts,
-                border: `1px solid ${favOnly ? theme.ac + "55" : theme.bd}`,
+                background: favOnly ? theme.accent + "1F" : theme.surface,
+                color: favOnly ? theme.accent : theme.textDim,
+                border: `1px solid ${favOnly ? theme.accent + "55" : theme.border}`,
                 borderRadius: theme.r10,
               }}
             >
-              <I.Star size={11} fill={favOnly ? theme.ac : "none"} color={favOnly ? theme.ac : theme.ts} />
+              <I.Star size={11} fill={favOnly ? theme.accent : "none"} color={favOnly ? theme.accent : theme.textDim} />
               Favorites
             </button>
             <select
@@ -557,9 +557,9 @@ export const HomeScreen = ({
               onChange={e => setSort(e.target.value)}
               style={{
                 background: theme.surface,
-                border: `1px solid ${theme.bd}`,
-                color: theme.ts,
-                fontFamily: theme.fn,
+                border: `1px solid ${theme.border}`,
+                color: theme.textDim,
+                fontFamily: theme.fontFamily,
                 fontSize: 11,
                 borderRadius: theme.r10,
                 padding: "6px 23px 6px 9px",
@@ -584,7 +584,7 @@ export const HomeScreen = ({
                 pointerEvents: "none",
               }}
             >
-              <I.Search size={11} color={theme.tm} />
+              <I.Search size={11} color={theme.textMuted} />
             </div>
             <input
               ref={searchRef}
@@ -615,7 +615,7 @@ export const HomeScreen = ({
                   background: "transparent",
                   border: "none",
                   cursor: "pointer",
-                  color: theme.tm,
+                  color: theme.textMuted,
                   display: "flex",
                   padding: 4,
                   borderRadius: theme.r6,
@@ -635,13 +635,13 @@ export const HomeScreen = ({
               onClick={() => setFavOnly(v => !v)}
               style={{
                 padding: 7,
-                background: favOnly ? theme.ac + "1F" : theme.surface,
-                color: favOnly ? theme.ac : theme.ts,
-                border: `1px solid ${favOnly ? theme.ac + "55" : theme.bd}`,
+                background: favOnly ? theme.accent + "1F" : theme.surface,
+                color: favOnly ? theme.accent : theme.textDim,
+                border: `1px solid ${favOnly ? theme.accent + "55" : theme.border}`,
                 borderRadius: theme.r10,
               }}
             >
-              <I.Star size={13} fill={favOnly ? theme.ac : "none"} color={favOnly ? theme.ac : theme.ts} />
+              <I.Star size={13} fill={favOnly ? theme.accent : "none"} color={favOnly ? theme.accent : theme.textDim} />
             </button>
             <div style={{ position: "relative", display: "flex" }}>
               <button
@@ -650,14 +650,14 @@ export const HomeScreen = ({
                 style={{
                   padding: 7,
                   background: theme.surface,
-                  color: theme.ts,
-                  border: `1px solid ${theme.bd}`,
+                  color: theme.textDim,
+                  border: `1px solid ${theme.border}`,
                   borderRadius: theme.r10,
                   pointerEvents: "none",
                 }}
                 tabIndex={-1}
               >
-                <I.SortAsc size={13} color={theme.ts} />
+                <I.SortAsc size={13} color={theme.textDim} />
               </button>
               <select
                 value={sort}
@@ -670,7 +670,7 @@ export const HomeScreen = ({
                   height: "100%",
                   opacity: 0,
                   cursor: "pointer",
-                  fontFamily: theme.fn,
+                  fontFamily: theme.fontFamily,
                 }}
               >
                 <option value="modified">Last modified</option>
@@ -685,7 +685,7 @@ export const HomeScreen = ({
                 title="Search"
                 style={{
                   padding: 7,
-                  border: `1px solid ${theme.bd}`,
+                  border: `1px solid ${theme.border}`,
                   borderRadius: theme.r10,
                   background: theme.surface,
                 }}
@@ -710,25 +710,25 @@ export const HomeScreen = ({
               width: 52,
               height: 52,
               borderRadius: theme.r20,
-              background: theme.sa,
+              background: theme.surfaceAlt,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               margin: "0 auto 13px",
             }}
           >
-            <I.File size={20} color={theme.tm} />
+            <I.File size={20} color={theme.textMuted} />
           </div>
-          <p style={{ fontSize: 14, fontWeight: 700, color: theme.ts, marginBottom: 5 }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: theme.textDim, marginBottom: 5 }}>
             {q ? `No results for "${q}"` : "No documents yet"}
           </p>
-          <p style={{ fontSize: 12, color: theme.tm, marginBottom: 18 }}>
+          <p style={{ fontSize: 12, color: theme.textMuted, marginBottom: 18 }}>
             {q ? "Try a different search term" : "Create your first document to get started"}
           </p>
           {!q && (
             <button
               className="nb np"
-              onClick={() => onNewDoc(registryConst.APPS.some(a => a.id === view) ? view : undefined)}
+              onClick={() => onNewDoc(HomeConstants.APPS.some(a => a.appId === view) ? view : undefined)}
             >
               <I.Plus size={13} /> New document
             </button>
@@ -740,7 +740,7 @@ export const HomeScreen = ({
         <TileGrid
           gridRef={gridRef}
           cols={isMobile ? undefined : cols}
-          min={homeConst.GRID_MIN_CARD_PX}
+          min={HomeConstants.GRID_MIN_CARD_PX}
           style={{ animation: "fadeUp 0.3s ease 0.12s both" }}
         >
           {visible.map(doc => (
@@ -786,9 +786,9 @@ export const HomeScreen = ({
 
 // ── Catalogue screen ────────────────────────────────────────────────────
 
-export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS }) => {
+export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS, isBetaEnabled, onToggleBeta }) => {
   const theme = useT();
-  const cats = [...new Set(registryConst.APPS.map(a => a.cat))];
+  const cats = [...new Set(HomeConstants.APPS.map(a => a.category))];
 
   return (
     <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "26px 22px 48px" }}>
@@ -797,14 +797,14 @@ export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS }) => {
           style={{
             fontSize: 23,
             fontWeight: 800,
-            color: theme.tx,
+            color: theme.text,
             letterSpacing: "-0.03em",
             marginBottom: 4,
           }}
         >
           Catalogue
         </h1>
-        <p style={{ fontSize: 12, color: theme.ts }}>
+        <p style={{ fontSize: 12, color: theme.textDim }}>
           Click any tile to create a new document instantly.
         </p>
       </div>
@@ -821,7 +821,7 @@ export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS }) => {
             style={{
               fontSize: 9,
               fontWeight: 700,
-              color: theme.tm,
+              color: theme.textMuted,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
               marginBottom: 10,
@@ -830,28 +830,30 @@ export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS }) => {
             {cat}
           </div>
           <TileGrid min={210}>
-            {registryConst.APPS.filter(a => a.cat === cat).map(app => {
-              const c = getAppColor(activeWS.id, app.id, theme.appColorFor(app.id));
-              const soft = c + (theme.dk ? "1A" : "22");
+            {HomeConstants.APPS.filter(a => a.category === cat).map(app => {
+              const c = getAppColor(activeWS.id, app.appId, theme.appColorFor(app.appId));
+              const soft = c + (theme.isDark ? "1A" : "22");
+              const isBeta = app.status === "beta";
+              const enabled = isBeta && isBetaEnabled?.(app.appId);
               return (
                 <div
-                  key={app.id}
-                  onClick={() => onNewDoc(app.id)}
+                  key={app.appId}
+                  onClick={() => onNewDoc(app.appId)}
                   style={{
                     padding: 15,
                     borderRadius: theme.r14,
-                    border: `1px solid ${theme.bd}`,
+                    border: `1px solid ${theme.border}`,
                     background: theme.surface,
                     cursor: "pointer",
-                    transition: theme.tr,
+                    transition: theme.transition,
                     position: "relative",
                   }}
                   onMouseEnter={e => {
                     e.currentTarget.style.borderColor = c + "44";
-                    e.currentTarget.style.background = theme.sh;
+                    e.currentTarget.style.background = theme.surfaceShade;
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = theme.bd;
+                    e.currentTarget.style.borderColor = theme.border;
                     e.currentTarget.style.background = theme.surface;
                   }}
                 >
@@ -861,11 +863,11 @@ export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS }) => {
                       position: "absolute",
                       top: 10,
                       right: 10,
-                      background: "rgba(59,181,128,0.15)",
-                      color: "#3BB580",
+                      background: isBeta ? "rgba(232,123,58,0.15)" : "rgba(59,181,128,0.15)",
+                      color: isBeta ? "#E87B3A" : "#3BB580",
                     }}
                   >
-                    Live
+                    {isBeta ? "Beta" : "Live"}
                   </span>
                   <div
                     style={{
@@ -885,15 +887,63 @@ export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS }) => {
                     style={{
                       fontSize: 13,
                       fontWeight: 800,
-                      color: theme.tx,
+                      color: theme.text,
                       marginBottom: 3,
                     }}
                   >
                     {app.label}
                   </div>
-                  <div style={{ fontSize: 11, color: theme.ts, lineHeight: 1.5 }}>
-                    {app.desc}
+                  <div style={{ fontSize: 11, color: theme.textDim, lineHeight: 1.5 }}>
+                    {app.description}
                   </div>
+                  {isBeta && (
+                    <div
+                      onClick={e => {
+                        e.stopPropagation();
+                        onToggleBeta?.(app.appId);
+                      }}
+                      style={{
+                        marginTop: 12,
+                        paddingTop: 10,
+                        borderTop: `1px dashed ${theme.border}`,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span style={{ fontSize: 11, color: theme.textDim, flex: 1 }}>
+                        Show in sidebar
+                      </span>
+                      <span
+                        role="switch"
+                        aria-checked={enabled}
+                        style={{
+                          width: 26,
+                          height: 15,
+                          borderRadius: 999,
+                          background: enabled ? c : theme.border,
+                          position: "relative",
+                          transition: theme.transition,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: 2,
+                            left: enabled ? 13 : 2,
+                            width: 11,
+                            height: 11,
+                            borderRadius: "50%",
+                            background: "#fff",
+                            transition: theme.transition,
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+                          }}
+                        />
+                      </span>
+                    </div>
+                  )}
                 </div>
               );
             })}

@@ -22,25 +22,25 @@ const _rgba = (hex, alpha) => {
   return `rgba(${r},${g},${b},${alpha})`;
 };
 
-// `t.tx` / `t.bd` etc. may already be valid hex from buildTokens; `as` is the
-// only token that's stored as rgba(). Coerce non-hex values to a sensible hex
-// so input[type=color] doesn't reject them.
+// `t.text` / `t.border` etc. may already be valid hex from buildTokens;
+// `accentSoft` is the only token that's stored as rgba(). Coerce non-hex
+// values to a sensible hex so input[type=color] doesn't reject them.
 const _asHex = v => (typeof v === "string" && v.startsWith("#") ? v : "#000000");
 
-// All eleven user-tunable palette tokens. `as` is auto-derived from `ac`
-// because input[type=color] can't express alpha.
+// All eleven user-tunable palette tokens. `accentSoft` is auto-derived
+// from `accent` because input[type=color] can't express alpha.
 const FIELDS = [
-  { key: "bg",      label: "Background"      },
-  { key: "surface", label: "Surface"         },
-  { key: "sh",      label: "Shade 1"         },
-  { key: "sa",      label: "Shade 2"         },
-  { key: "el",      label: "Elevated"        },
-  { key: "bd",      label: "Border"          },
-  { key: "bs",      label: "Strong border"   },
-  { key: "ac",      label: "Accent"          },
-  { key: "tx",      label: "Text primary"    },
-  { key: "ts",      label: "Text secondary"  },
-  { key: "tm",      label: "Text muted"      },
+  { key: "bg",           label: "Background"     },
+  { key: "surface",      label: "Surface"        },
+  { key: "surfaceShade", label: "Shade 1"        },
+  { key: "surfaceAlt",   label: "Shade 2"        },
+  { key: "elevated",     label: "Elevated"       },
+  { key: "border",       label: "Border"         },
+  { key: "borderStrong", label: "Strong border"  },
+  { key: "accent",       label: "Accent"         },
+  { key: "text",         label: "Text primary"   },
+  { key: "textDim",      label: "Text secondary" },
+  { key: "textMuted",    label: "Text muted"     },
 ];
 
 // ── Modal ────────────────────────────────────────────────────────────────────
@@ -54,18 +54,18 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
   const { setPreviewPalette } = usePreviewPalette();
 
   const [name, setName] = useState("My theme");
-  const [dk, setDk] = useState(!!t.dk);
+  const [isDark, setIsDark] = useState(!!t.isDark);
   const [colors, setColors] = useState(() =>
     Object.fromEntries(FIELDS.map(f => [f.key, _asHex(t[f.key])])),
   );
   const inputRef = useRef(null);
 
-  // Build the full palette payload from local state. `as` is auto-derived
-  // from `ac` so it stays in sync with whatever accent the user picks.
+  // Build the full palette payload from local state. `accentSoft` is
+  // auto-derived from `accent` so it stays in sync with whatever the user picks.
   const palette = {
     ...colors,
-    as: _rgba(colors.ac, 0.14),
-    dk,
+    accentSoft: _rgba(colors.accent, 0.14),
+    isDark,
   };
 
   // Push every change to the live preview so the whole UI updates as the
@@ -73,9 +73,9 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
   // applied theme (this is what makes Cancel / Esc / backdrop-click work).
   useEffect(() => {
     setPreviewPalette(palette);
-  }, [palette.bg, palette.surface, palette.sh, palette.sa, palette.el,
-      palette.bd, palette.bs, palette.ac, palette.tx, palette.ts, palette.tm,
-      palette.dk]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [palette.bg, palette.surface, palette.surfaceShade, palette.surfaceAlt, palette.elevated,
+      palette.border, palette.borderStrong, palette.accent, palette.text, palette.textDim, palette.textMuted,
+      palette.isDark]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => () => setPreviewPalette(null), [setPreviewPalette]);
 
@@ -100,7 +100,7 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
       return;
     }
     onSave({
-      id: `custom_${utils._uid()}`,
+      schemeId: `custom_${utils._uid()}`,
       label: name.trim(),
       custom: true,
       palette,
@@ -125,10 +125,10 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
         {/* ── Header ── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
           <div>
-            <h2 style={{ fontSize: 17, fontWeight: 800, color: t.tx, letterSpacing: "-0.02em" }}>
+            <h2 style={{ fontSize: 17, fontWeight: 800, color: t.text, letterSpacing: "-0.02em" }}>
               Create custom theme
             </h2>
-            <p style={{ fontSize: 11, color: t.ts, marginTop: 2 }}>
+            <p style={{ fontSize: 11, color: t.textDim, marginTop: 2 }}>
               Edit any colour — the app updates live. Cancel or press Esc to revert.
             </p>
           </div>
@@ -142,7 +142,7 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
           <div style={{ flex: 1 }}>
             <label
               style={{
-                fontSize: 10, fontWeight: 700, color: t.ts,
+                fontSize: 10, fontWeight: 700, color: t.textDim,
                 letterSpacing: "0.05em", textTransform: "uppercase",
                 display: "block", marginBottom: 7,
               }}
@@ -162,7 +162,7 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
           <div style={{ width: 150 }}>
             <label
               style={{
-                fontSize: 10, fontWeight: 700, color: t.ts,
+                fontSize: 10, fontWeight: 700, color: t.textDim,
                 letterSpacing: "0.05em", textTransform: "uppercase",
                 display: "block", marginBottom: 7,
               }}
@@ -171,22 +171,22 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
             </label>
             <div style={{ display: "flex", gap: 5 }}>
               {[["dark", "Dark"], ["light", "Light"]].map(([k, l]) => {
-                const active = (k === "dark") === dk;
+                const active = (k === "dark") === isDark;
                 return (
                   <button
                     key={k}
-                    onClick={() => setDk(k === "dark")}
+                    onClick={() => setIsDark(k === "dark")}
                     style={{
                       flex: 1,
                       padding: "8px 6px",
                       borderRadius: t.r10,
                       cursor: "pointer",
-                      border: `1px solid ${active ? t.ac + "66" : t.bd}`,
-                      background: active ? t.as : "transparent",
-                      color: active ? t.tx : t.ts,
+                      border: `1px solid ${active ? t.accent + "66" : t.border}`,
+                      background: active ? t.accentSoft : "transparent",
+                      color: active ? t.text : t.textDim,
                       fontSize: 11,
                       fontWeight: 600,
-                      fontFamily: t.fn,
+                      fontFamily: t.fontFamily,
                       outline: "none",
                     }}
                   >
@@ -216,7 +216,7 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
                 gap: 10,
                 padding: "7px 9px",
                 borderRadius: t.r10,
-                border: `1px solid ${t.bd}`,
+                border: `1px solid ${t.border}`,
                 cursor: "pointer",
               }}
             >
@@ -226,7 +226,7 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
                   height: 24,
                   borderRadius: t.r6,
                   background: colors[f.key],
-                  border: `1px solid ${t.bd}`,
+                  border: `1px solid ${t.border}`,
                   flexShrink: 0,
                   position: "relative",
                   overflow: "hidden",
@@ -249,8 +249,8 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
                 />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: t.tx }}>{f.label}</div>
-                <div style={{ fontSize: 9, color: t.tm, fontFamily: "monospace" }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{f.label}</div>
+                <div style={{ fontSize: 9, color: t.textMuted, fontFamily: "monospace" }}>
                   {colors[f.key].toUpperCase()}
                 </div>
               </div>

@@ -11,7 +11,7 @@ jobs:
       - name: Check branch name
         env:
           BRANCH_NAME: ${{ github.head_ref }}
-          PATTERN: '^v\d+\.\d+\.\d+$'
+          PATTERN: '^v[0-9]+\.[0-9]+\.[0-9]+$'
         run: |
           if [[ "$BRANCH_NAME" =~ $PATTERN ]]; then
             echo "Branch '$BRANCH_NAME' matches required pattern '$PATTERN'."

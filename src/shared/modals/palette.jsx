@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { I } from "../icons";
 import { useT } from "../theme";
+import { useDeviceCaps } from "../hooks/system";
 import { AppChip } from "../atoms";
-import { registry } from "../_constants";
+import { PaletteConstants } from "../_constants";
 import { utils, registry as registryU } from "../_utils";
 
 export const CommandPalette = ({
@@ -15,6 +16,7 @@ export const CommandPalette = ({
   setShowShortcuts,
 }) => {
   const theme = useT();
+  const { isMobile } = useDeviceCaps();
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(0);
   const inputRef = useRef(null);
@@ -46,19 +48,19 @@ export const CommandPalette = ({
 
   // ── Command sources ───────────────────────────────────────────────────────
 
-  const APP_CMDS = registry.APPS.map(a => {
+  const APP_CMDS = PaletteConstants.APPS.map(a => {
     // Calendar is a workspace-wide singleton — phrase the entry as Open, not New.
-    const isSingleton = a.id === "calendar";
+    const isSingleton = a.appId === "calendar";
     return {
       type: "app",
-      id: `new:${a.id}`,
+      id: `new:${a.appId}`,
       label: isSingleton ? `Open ${a.label}` : `New ${a.label}`,
       sub: isSingleton
         ? `Open the workspace ${a.label.toLowerCase()}`
         : `Create a new ${a.label} document`,
-      appId: a.id,
+      appId: a.appId,
       action: () => {
-        onNewDoc(a.id);
+        onNewDoc(a.appId);
         onClose();
       },
     };
@@ -81,16 +83,9 @@ export const CommandPalette = ({
     },
     {
       type: "nav",
-      id: "na",
-      label: "All documents",
-      sub: "Browse every document",
-      action: () => { onNav("all"); onClose(); },
-    },
-    {
-      type: "nav",
       id: "nc",
-      label: "App catalogue",
-      sub: `See all ${registry.APPS.length} Nova apps`,
+      label: "Catalogue",
+      sub: `See all ${PaletteConstants.APPS.length} Nova apps`,
       action: () => { onNav("catalogue"); onClose(); },
     },
     {
@@ -165,8 +160,8 @@ export const CommandPalette = ({
     >
       <div
         style={{
-          background: theme.el,
-          border: `1px solid ${theme.bs}`,
+          background: theme.elevated,
+          border: `1px solid ${theme.borderStrong}`,
           borderRadius: theme.r20,
           width: "100%",
           maxWidth: 560,
@@ -183,10 +178,10 @@ export const CommandPalette = ({
             alignItems: "center",
             gap: 10,
             padding: "12px 16px",
-            borderBottom: `1px solid ${theme.bd}`,
+            borderBottom: `1px solid ${theme.border}`,
           }}
         >
-          <I.Search size={16} color={theme.ts} />
+          <I.Search size={16} color={theme.textDim} />
           <input
             ref={inputRef}
             value={q}
@@ -202,29 +197,41 @@ export const CommandPalette = ({
               border: "none",
               outline: "none",
               fontSize: 14,
-              color: theme.tx,
-              fontFamily: theme.fn,
+              color: theme.text,
+              fontFamily: theme.fontFamily,
             }}
           />
-          <kbd
-            style={{
-              fontSize: 9,
-              color: theme.tm,
-              background: theme.sa,
-              border: `1px solid ${theme.bd}`,
-              borderRadius: theme.r6,
-              padding: "1px 5px",
-              flexShrink: 0,
-            }}
-          >
-            ESC
-          </kbd>
+          {isMobile ? (
+            <button
+              type="button"
+              className="nb ni"
+              onClick={onClose}
+              title="Close"
+              style={{ padding: 6, flexShrink: 0 }}
+            >
+              <I.X size={14} />
+            </button>
+          ) : (
+            <kbd
+              style={{
+                fontSize: 9,
+                color: theme.textMuted,
+                background: theme.surfaceAlt,
+                border: `1px solid ${theme.border}`,
+                borderRadius: theme.r6,
+                padding: "1px 5px",
+                flexShrink: 0,
+              }}
+            >
+              ESC
+            </kbd>
+          )}
         </div>
 
         {/* ── Results ── */}
         <div style={{ maxHeight: 380, overflowY: "auto" }}>
           {results.length === 0 && (
-            <div style={{ padding: "24px 16px", textAlign: "center", fontSize: 12, color: theme.tm }}>
+            <div style={{ padding: "24px 16px", textAlign: "center", fontSize: 12, color: theme.textMuted }}>
               No results for "{q}"
             </div>
           )}
@@ -238,7 +245,7 @@ export const CommandPalette = ({
                     style={{
                       fontSize: 9,
                       fontWeight: 700,
-                      color: theme.tm,
+                      color: theme.textMuted,
                       padding: "8px 16px 3px",
                       letterSpacing: "0.08em",
                       textTransform: "uppercase",
@@ -258,7 +265,7 @@ export const CommandPalette = ({
                     margin: "0 4px",
                     borderRadius: theme.r10,
                     cursor: "pointer",
-                    background: i === sel ? theme.sa : "transparent",
+                    background: i === sel ? theme.surfaceAlt : "transparent",
                     transition: "background 0.1s",
                   }}
                 >
@@ -270,13 +277,13 @@ export const CommandPalette = ({
                         width: 28,
                         height: 28,
                         borderRadius: theme.r6,
-                        background: theme.sa,
+                        background: theme.surfaceAlt,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                       }}
                     >
-                      <I.ArrowR size={12} color={theme.ts} />
+                      <I.ArrowR size={12} color={theme.textDim} />
                     </div>
                   )}
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -284,7 +291,7 @@ export const CommandPalette = ({
                       style={{
                         fontSize: 13,
                         fontWeight: 500,
-                        color: theme.tx,
+                        color: theme.text,
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -295,7 +302,7 @@ export const CommandPalette = ({
                     <div
                       style={{
                         fontSize: 11,
-                        color: theme.tm,
+                        color: theme.textMuted,
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -308,9 +315,9 @@ export const CommandPalette = ({
                     <kbd
                       style={{
                         fontSize: 9,
-                        color: theme.tm,
-                        background: theme.sa,
-                        border: `1px solid ${theme.bd}`,
+                        color: theme.textMuted,
+                        background: theme.surfaceAlt,
+                        border: `1px solid ${theme.border}`,
                         borderRadius: theme.r6,
                         padding: "1px 5px",
                         flexShrink: 0,

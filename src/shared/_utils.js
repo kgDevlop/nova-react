@@ -12,11 +12,7 @@
 // When a consumer file uses functions from multiple groups, it imports each
 // group it needs (still one name per group).
 
-import {
-  utils as utils_C,
-  registry as registry_C,
-  canvas_utils as canvas_utils_C,
-} from "./_constants";
+import { UtilsConstants } from "./_constants";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // registry.js  (declared first so other groups can reference _app)
@@ -29,17 +25,17 @@ import {
 /**
  * Look up an app definition by its id, falling back to the first app when
  * the id is unknown. Never returns `undefined`.
- * @param {string} id - The app id (e.g. "writer", "sheets").
+ * @param {string} id - The app id (e.g. "writer", "spreads").
  * @returns {object} The matching app definition from the registry.
  */
-const _app = (id) => registry_C.APPS.find(a => a.id === id) || registry_C.APPS[0];
+const _app = (appId) => UtilsConstants.APPS.find(a => a.appId === appId) || UtilsConstants.APPS[0];
 
 export const registry = { _app };
 
 // ═══════════════════════════════════════════════════════════════════════════
 // utils.jsx
-// Used in: src/shell/home.jsx, src/shared/notifications.jsx,
-//          src/shared/modals/palette.jsx, src/shared/modals/new_doc_popup.jsx,
+// Used in: src/shell/home.jsx, src/shared/modals/palette.jsx,
+//          src/shared/modals/new_doc_popup.jsx,
 //          src/shared/hooks/store.jsx, src/apps/slides.jsx, src/apps/draw.jsx,
 //          src/apps/list.jsx, src/shared/canvas_utils.jsx (and below in
 //          `canvas_utils._mkSlide`).
@@ -110,7 +106,7 @@ const _filterQ = (docs, q) => {
  */
 const _filterV = (docs, v) => {
   const browseable = docs.filter(d => d.type !== "calendar");
-  if (registry_C.APPS.map(a => a.id).includes(v)) {
+  if (UtilsConstants.APPS.map(a => a.appId).includes(v)) {
     return browseable.filter(d => d.type === v);
   }
   if (v === "starred") {
@@ -142,7 +138,7 @@ const _sortD = (docs, by) => {
  * @param {string} v - View id.
  * @returns {string} Display title.
  */
-const _vtitle = (v) => utils_C.VIEW_TITLES[v] ?? "Home";
+const _vtitle = (v) => UtilsConstants.VIEW_TITLES[v] ?? "Home";
 
 /**
  * Build full doc records from partial defs, filling in id / starred / content.
@@ -219,7 +215,7 @@ export const utils = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// formulas.js — Sheets formula engine. Pure logic, no React deps.
+// formulas.js — Spreads formula engine. Pure logic, no React deps.
 // Used in: src/apps/spreads.jsx
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -399,7 +395,7 @@ export const formulas = {
  * @param {object} [theme] - Slide theme; defaults to the first SLIDE_THEMES preset.
  * @returns {object} Slide record `{ id, layout, bg, elements }`.
  */
-const _mkSlide = (layout = "blank", theme = canvas_utils_C.SLIDE_THEMES[0]) => {
+const _mkSlide = (layout = "blank", theme = UtilsConstants.SLIDE_THEMES[0]) => {
   const id = _elId();
 
   if (layout === "title") {
@@ -411,12 +407,12 @@ const _mkSlide = (layout = "blank", theme = canvas_utils_C.SLIDE_THEMES[0]) => {
         {
           id: _elId(), type: "text", x: 40, y: 140, w: 720, h: 80,
           text: "Click to add title", fontSize: 36, bold: true,
-          color: theme.hd, align: "center", placeholder: true,
+          color: theme.heading, align: "center", placeholder: true,
         },
         {
           id: _elId(), type: "text", x: 40, y: 240, w: 720, h: 50,
           text: "Click to add subtitle", fontSize: 20, bold: false,
-          color: theme.tx, align: "center", placeholder: true,
+          color: theme.text, align: "center", placeholder: true,
         },
       ],
     };
@@ -431,12 +427,12 @@ const _mkSlide = (layout = "blank", theme = canvas_utils_C.SLIDE_THEMES[0]) => {
         {
           id: _elId(), type: "text", x: 40, y: 30, w: 720, h: 60,
           text: "Slide Title", fontSize: 28, bold: true,
-          color: theme.hd, align: "left", placeholder: false,
+          color: theme.heading, align: "left", placeholder: false,
         },
         {
           id: _elId(), type: "text", x: 40, y: 110, w: 720, h: 260,
           text: "• Add your content here\n• Second point\n• Third point",
-          fontSize: 16, bold: false, color: theme.tx, align: "left", placeholder: false,
+          fontSize: 16, bold: false, color: theme.text, align: "left", placeholder: false,
         },
       ],
     };
@@ -451,17 +447,17 @@ const _mkSlide = (layout = "blank", theme = canvas_utils_C.SLIDE_THEMES[0]) => {
         {
           id: _elId(), type: "text", x: 40, y: 30, w: 720, h: 60,
           text: "Slide Title", fontSize: 28, bold: true,
-          color: theme.hd, align: "left", placeholder: false,
+          color: theme.heading, align: "left", placeholder: false,
         },
         {
           id: _elId(), type: "text", x: 40, y: 110, w: 340, h: 240,
           text: "Left column content", fontSize: 15, bold: false,
-          color: theme.tx, align: "left", placeholder: false,
+          color: theme.text, align: "left", placeholder: false,
         },
         {
           id: _elId(), type: "text", x: 420, y: 110, w: 340, h: 240,
           text: "Right column content", fontSize: 15, bold: false,
-          color: theme.tx, align: "left", placeholder: false,
+          color: theme.text, align: "left", placeholder: false,
         },
       ],
     };

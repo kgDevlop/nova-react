@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { I } from "../icons";
 import { useT } from "../theme";
-import { newws, theme } from "../_constants";
+import { NewWSConstants } from "../_constants";
 
 export const NewWSModal = ({ onClose, onCreate }) => {
   const theme = useT();
@@ -40,10 +40,10 @@ export const NewWSModal = ({ onClose, onCreate }) => {
         {/* ── Header ── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
           <div>
-            <h2 style={{ fontSize: 17, fontWeight: 800, color: theme.tx, letterSpacing: "-0.02em" }}>
+            <h2 style={{ fontSize: 17, fontWeight: 800, color: theme.text, letterSpacing: "-0.02em" }}>
               New workspace
             </h2>
-            <p style={{ fontSize: 11, color: theme.ts, marginTop: 2 }}>
+            <p style={{ fontSize: 11, color: theme.textDim, marginTop: 2 }}>
               Group related documents together
             </p>
           </div>
@@ -57,7 +57,7 @@ export const NewWSModal = ({ onClose, onCreate }) => {
           style={{
             fontSize: 10,
             fontWeight: 700,
-            color: theme.ts,
+            color: theme.textDim,
             letterSpacing: "0.05em",
             textTransform: "uppercase",
             display: "block",
@@ -65,7 +65,7 @@ export const NewWSModal = ({ onClose, onCreate }) => {
           }}
         >
           Icon{" "}
-          <span style={{ textTransform: "none", letterSpacing: 0, color: theme.tm, fontWeight: 500 }}>
+          <span style={{ textTransform: "none", letterSpacing: 0, color: theme.textMuted, fontWeight: 500 }}>
             (optional)
           </span>
         </label>
@@ -77,17 +77,17 @@ export const NewWSModal = ({ onClose, onCreate }) => {
               width: 32,
               height: 32,
               borderRadius: theme.r6,
-              border: `1px solid ${emoji === "" ? theme.ac + "88" : theme.bd}`,
-              background: emoji === "" ? theme.as : "transparent",
+              border: `1px solid ${emoji === "" ? theme.accent + "88" : theme.border}`,
+              background: emoji === "" ? theme.accentSoft : "transparent",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <I.X size={11} color={theme.tm} />
+            <I.X size={11} color={theme.textMuted} />
           </button>
-          {newws.EMOJIS.map(em => (
+          {NewWSConstants.EMOJIS.map(em => (
             <button
               key={em}
               onClick={() => setEmoji(em)}
@@ -95,8 +95,8 @@ export const NewWSModal = ({ onClose, onCreate }) => {
                 width: 32,
                 height: 32,
                 borderRadius: theme.r6,
-                border: `1px solid ${emoji === em ? theme.ac + "88" : theme.bd}`,
-                background: emoji === em ? theme.as : "transparent",
+                border: `1px solid ${emoji === em ? theme.accent + "88" : theme.border}`,
+                background: emoji === em ? theme.accentSoft : "transparent",
                 cursor: "pointer",
                 fontSize: 15,
                 display: "flex",
@@ -114,7 +114,7 @@ export const NewWSModal = ({ onClose, onCreate }) => {
           style={{
             fontSize: 10,
             fontWeight: 700,
-            color: theme.ts,
+            color: theme.textDim,
             letterSpacing: "0.05em",
             textTransform: "uppercase",
             display: "block",
@@ -145,7 +145,7 @@ export const NewWSModal = ({ onClose, onCreate }) => {
           style={{
             fontSize: 10,
             fontWeight: 700,
-            color: theme.ts,
+            color: theme.textDim,
             letterSpacing: "0.05em",
             textTransform: "uppercase",
             display: "block",
@@ -165,7 +165,7 @@ export const NewWSModal = ({ onClose, onCreate }) => {
                 borderRadius: theme.rF,
                 background: c,
                 cursor: "pointer",
-                border: `2px solid ${color === c ? theme.tx : "transparent"}`,
+                border: `2px solid ${color === c ? theme.text : "transparent"}`,
                 outline: "none",
               }}
             />

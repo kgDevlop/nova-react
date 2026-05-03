@@ -1,7 +1,7 @@
 import React from "react";
 import { I } from "../icons";
 import { useT } from "../theme";
-import { shortcuts as C } from "../_constants";
+import { ShortcutsConstants } from "../_constants";
 
 export const ShortcutsModal = ({ onClose }) => {
   const theme = useT();
@@ -18,7 +18,7 @@ export const ShortcutsModal = ({ onClose }) => {
       <div className="nmod" style={{ maxWidth: 460 }}>
         {/* ── Header ── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 800, color: theme.tx }}>Keyboard shortcuts</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 800, color: theme.text }}>Keyboard shortcuts</h3>
           <button className="nb ni" onClick={onClose}>
             <I.X size={15} />
           </button>
@@ -26,7 +26,7 @@ export const ShortcutsModal = ({ onClose }) => {
 
         {/* ── Shortcut grid ── */}
         <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "1px 0", rowGap: 0 }}>
-          {C.SHORTCUTS.map(([key, desc]) => (
+          {ShortcutsConstants.SHORTCUTS.map(([key, desc]) => (
             <React.Fragment key={key}>
               <div
                 style={{
@@ -34,15 +34,15 @@ export const ShortcutsModal = ({ onClose }) => {
                   justifyContent: "flex-end",
                   alignItems: "center",
                   padding: "6px 12px 6px 0",
-                  borderBottom: `1px solid ${theme.bd}`,
+                  borderBottom: `1px solid ${theme.border}`,
                 }}
               >
                 <kbd
                   style={{
                     fontSize: 11,
-                    color: theme.tx,
-                    background: theme.sa,
-                    border: `1px solid ${theme.bd}`,
+                    color: theme.text,
+                    background: theme.surfaceAlt,
+                    border: `1px solid ${theme.border}`,
                     borderRadius: theme.r6,
                     padding: "2px 7px",
                     fontFamily: "monospace",
@@ -56,8 +56,8 @@ export const ShortcutsModal = ({ onClose }) => {
                 style={{
                   padding: "6px 0",
                   fontSize: 12,
-                  color: theme.ts,
-                  borderBottom: `1px solid ${theme.bd}`,
+                  color: theme.textDim,
+                  borderBottom: `1px solid ${theme.border}`,
                   display: "flex",
                   alignItems: "center",
                 }}

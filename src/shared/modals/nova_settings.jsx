@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { I } from "../icons";
-import { useT } from "../theme";
+import { useT, useCustomSchemes } from "../theme";
 import { AppChip } from "../atoms";
-import { theme, registry } from "../_constants";
+import { useDeviceCaps } from "../hooks/system";
+import { NovaSettingsConstants } from "../_constants";
+import { CustomSchemeModal } from "./custom_scheme";
 
 export const SettingsPanel = ({
   onClose,
@@ -10,15 +12,25 @@ export const SettingsPanel = ({
   setTheme,
   getAppColor,
   setAppColor,
+  delAppColor,
   activeWS,
+  mobileDisabled,
+  setMobileDisabled,
   onShowShortcuts,
 }) => {
   const t = useT();
+  const device = useDeviceCaps();
+  const isMobile = device.isMobile && !mobileDisabled;
   const [tab, setTab] = useState("appearance");
+  const { customSchemes, addCustomScheme, deleteCustomScheme } = useCustomSchemes();
+  const [showCustomModal, setShowCustomModal] = useState(false);
+
+  const activeSchemeId = theme.schemeId ?? "classic";
+  const activeIsCustom = customSchemes.some(s => s.schemeId === activeSchemeId);
 
   const TABS = [
-    { id: "appearance", l: "Appearance", I: I.Palette },
-    { id: "apps", l: "App colours", I: I.Sparkles },
+    { tabId: "appearance", label: "Appearance", Icon: I.Palette },
+    { tabId: "apps",       label: "App colours", Icon: I.Sparkles },
   ];
 
   const MODES = [
@@ -39,46 +51,111 @@ export const SettingsPanel = ({
       <div
         className="nmod"
         style={{
-          maxWidth: 660,
+          maxWidth: isMobile ? "none" : 660,
+          width: isMobile ? "100%" : undefined,
+          height: isMobile ? "100%" : undefined,
           padding: 0,
           display: "flex",
+          flexDirection: isMobile ? "column" : "row",
           overflow: "hidden",
-          maxHeight: "86vh",
+          maxHeight: isMobile ? "100%" : "86vh",
           position: "relative",
         }}
       >
-        {/* ── Sidebar ── */}
-        <div
-          style={{
-            width: 172,
-            borderRight: `1px solid ${t.bd}`,
-            padding: "18px 7px",
-            flexShrink: 0,
-          }}
-        >
-          <div style={{ fontSize: 12, fontWeight: 800, color: t.tx, padding: "3px 9px 14px" }}>
-            Settings
-          </div>
-          {TABS.map(({ id, l, I: Ico }) => (
-            <div
-              key={id}
-              className={`nnav ${tab === id ? "active" : ""}`}
-              onClick={() => setTab(id)}
-            >
-              <Ico size={13} />
-              <span style={{ fontSize: 11 }}>{l}</span>
+        {isMobile ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "12px 14px",
+              borderBottom: `1px solid ${t.border}`,
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 800, color: t.text, flex: 1 }}>
+              Settings
             </div>
-          ))}
-        </div>
+            <button className="nb ni" style={{ padding: 6 }} onClick={onClose}>
+              <I.X size={15} />
+            </button>
+          </div>
+        ) : (
+          /* ── Sidebar (desktop) ── */
+          <div
+            style={{
+              width: 172,
+              borderRight: `1px solid ${t.border}`,
+              padding: "18px 7px",
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ fontSize: 12, fontWeight: 800, color: t.text, padding: "3px 9px 14px" }}>
+              Settings
+            </div>
+            {TABS.map(({ tabId, label, Icon: TabIcon }) => (
+              <div
+                key={tabId}
+                className={`nnav ${tab === tabId ? "active" : ""}`}
+                onClick={() => setTab(tabId)}
+              >
+                <TabIcon size={13} />
+                <span style={{ fontSize: 11 }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {isMobile && (
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              padding: "10px 12px",
+              borderBottom: `1px solid ${t.border}`,
+              flexShrink: 0,
+              overflowX: "auto",
+            }}
+          >
+            {TABS.map(({ tabId, label, Icon: TabIcon }) => {
+              const active = tab === tabId;
+              return (
+                <button
+                  key={tabId}
+                  onClick={() => setTab(tabId)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "7px 12px",
+                    borderRadius: t.rF,
+                    border: `1px solid ${active ? t.accent + "66" : t.border}`,
+                    background: active ? t.accentSoft : "transparent",
+                    color: active ? t.text : t.textDim,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    fontFamily: t.fontFamily,
+                    cursor: "pointer",
+                    flexShrink: 0,
+                    outline: "none",
+                  }}
+                >
+                  <TabIcon size={12} color={active ? t.accent : t.textDim} />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* ── Content ── */}
-        <div style={{ flex: 1, padding: "22px 24px", overflowY: "auto" }}>
+        <div style={{ flex: 1, padding: isMobile ? "16px 16px" : "22px 24px", overflowY: "auto" }}>
           {tab === "appearance" && (
             <div>
-              <h3 style={{ fontSize: 14, fontWeight: 800, color: t.tx, marginBottom: 3 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: t.text, marginBottom: 3 }}>
                 Appearance
               </h3>
-              <p style={{ fontSize: 11, color: t.ts, marginBottom: 22 }}>
+              <p style={{ fontSize: 11, color: t.textDim, marginBottom: 22 }}>
                 Customise Nova's look and feel
               </p>
 
@@ -86,7 +163,7 @@ export const SettingsPanel = ({
                 style={{
                   fontSize: 10,
                   fontWeight: 700,
-                  color: t.tm,
+                  color: t.textMuted,
                   letterSpacing: "0.06em",
                   textTransform: "uppercase",
                   marginBottom: 9,
@@ -95,31 +172,31 @@ export const SettingsPanel = ({
                 Mode
               </div>
               <div style={{ display: "flex", gap: 7, marginBottom: 24 }}>
-                {MODES.map(([id, l, Ico]) => {
-                  const active = theme.mode === id;
+                {MODES.map(([modeId, label, ModeIcon]) => {
+                  const active = theme.mode === modeId;
                   return (
                     <button
-                      key={id}
-                      onClick={() => setTheme(p => ({ ...p, mode: id }))}
+                      key={modeId}
+                      onClick={() => setTheme(p => ({ ...p, mode: modeId }))}
                       style={{
                         flex: 1,
                         padding: "9px 7px",
                         borderRadius: t.r10,
                         cursor: "pointer",
-                        border: `1px solid ${active ? t.ac + "66" : t.bd}`,
-                        background: active ? t.as : "transparent",
+                        border: `1px solid ${active ? t.accent + "66" : t.border}`,
+                        background: active ? t.accentSoft : "transparent",
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
                         gap: 5,
-                        transition: t.tr,
-                        fontFamily: t.fn,
+                        transition: t.transition,
+                        fontFamily: t.fontFamily,
                         outline: "none",
                       }}
                     >
-                      <Ico size={15} color={active ? t.ac : t.ts} />
-                      <span style={{ fontSize: 10, fontWeight: 600, color: active ? t.tx : t.ts }}>
-                        {l}
+                      <ModeIcon size={15} color={active ? t.accent : t.textDim} />
+                      <span style={{ fontSize: 10, fontWeight: 600, color: active ? t.text : t.textDim }}>
+                        {label}
                       </span>
                     </button>
                   );
@@ -130,95 +207,157 @@ export const SettingsPanel = ({
                 style={{
                   fontSize: 10,
                   fontWeight: 700,
-                  color: t.tm,
+                  color: t.textMuted,
                   letterSpacing: "0.06em",
                   textTransform: "uppercase",
                   marginBottom: 9,
                 }}
               >
-                Accent colour
+                Colour scheme
               </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 22 }}>
-                {theme.ACCENT_PRESETS.map(p => {
-                  const active = theme.accentId === p.id;
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => setTheme(th => ({ ...th, accentId: p.id }))}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: 4,
-                        padding: "7px 9px",
-                        borderRadius: t.r10,
-                        cursor: "pointer",
-                        border: `1px solid ${active ? p.hex + "66" : t.bd}`,
-                        background: active ? p.soft : "transparent",
-                        transition: t.tr,
-                        fontFamily: t.fn,
-                        outline: "none",
-                      }}
-                    >
-                      <div style={{ width: 20, height: 20, borderRadius: t.rF, background: p.hex }} />
-                      <span
-                        style={{
-                          fontSize: 9,
-                          fontWeight: 600,
-                          color: active ? t.tx : t.ts,
-                          textTransform: "capitalize",
-                        }}
-                      >
-                        {p.id}
-                      </span>
-                    </button>
-                  );
-                })}
+              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                <select
+                  value={activeSchemeId}
+                  onChange={e => setTheme(p => ({ ...p, schemeId: e.target.value }))}
+                  style={{
+                    flex: 1,
+                    background: t.surface,
+                    border: `1px solid ${t.border}`,
+                    color: t.text,
+                    fontFamily: t.fontFamily,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    borderRadius: t.r10,
+                    padding: "9px 16px 9px 11px",
+                    cursor: "pointer",
+                    outline: "none",
+                  }}
+                >
+                  <optgroup label="Built-in">
+                    {NovaSettingsConstants.COLOR_SCHEMES.map(s => (
+                      <option key={s.schemeId} value={s.schemeId}>{s.label}</option>
+                    ))}
+                  </optgroup>
+                  {customSchemes.length > 0 && (
+                    <optgroup label="Custom">
+                      {customSchemes.map(s => (
+                        <option key={s.schemeId} value={s.schemeId}>{s.label}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                {activeIsCustom && (
+                  <button
+                    title="Delete this custom theme"
+                    className="nb ni"
+                    onClick={() => deleteCustomScheme(activeSchemeId)}
+                    style={{ padding: "0 10px", flexShrink: 0 }}
+                  >
+                    <I.Trash size={13} />
+                  </button>
+                )}
+                <button
+                  title="Create a custom theme"
+                  className="nb ng"
+                  onClick={() => setShowCustomModal(true)}
+                  style={{ padding: "0 10px", flexShrink: 0, fontSize: 11 }}
+                >
+                  <I.Plus size={13} /> New
+                </button>
               </div>
+              <p style={{ fontSize: 10, color: t.textMuted, marginBottom: 22 }}>
+                <strong style={{ color: t.textDim }}>Classic</strong> follows the mode above.
+                Other schemes override the full palette.
+              </p>
+
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: t.textMuted,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  marginBottom: 9,
+                }}
+              >
+                Layout
+              </div>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 9,
+                  padding: "9px 11px",
+                  borderRadius: t.r10,
+                  border: `1px solid ${t.border}`,
+                  cursor: "pointer",
+                  marginBottom: 22,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={!!mobileDisabled}
+                  onChange={e => setMobileDisabled?.(e.target.checked)}
+                  style={{ cursor: "pointer", margin: 0 }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>
+                    Disable mobile site
+                  </div>
+                  <div style={{ fontSize: 10, color: t.textDim, marginTop: 2 }}>
+                    Always use the desktop layout, even on small screens.
+                  </div>
+                </div>
+              </label>
             </div>
           )}
 
           {tab === "apps" && (
             <div>
-              <h3 style={{ fontSize: 14, fontWeight: 800, color: t.tx, marginBottom: 3 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: t.text, marginBottom: 3 }}>
                 App colours
               </h3>
-              <p style={{ fontSize: 11, color: t.ts, marginBottom: 18 }}>
+              <p style={{ fontSize: 11, color: t.textDim, marginBottom: 18 }}>
                 Override the accent for each app in{" "}
-                <strong style={{ color: t.tx }}>{activeWS.name}</strong>
+                <strong style={{ color: t.text }}>{activeWS.name}</strong>
               </p>
-              {registry.APPS.map(app => {
-                const cur = getAppColor(activeWS.id, app.id, app.dc);
-                const isCustom = !theme.APP_COLORS.includes(cur) && cur !== app.dc;
+              {NovaSettingsConstants.APPS.map(app => {
+                const def = t.appColorFor(app.appId);
+                const cur = getAppColor(activeWS.id, app.appId, def);
+                const isOverridden = getAppColor(activeWS.id, app.appId, null) != null;
+                const isPreset = t.appColors.includes(cur);
+                const isCustom = isOverridden && !isPreset;
                 return (
                   <div
-                    key={app.id}
+                    key={app.appId}
                     style={{
                       display: "flex",
                       alignItems: "center",
                       gap: 10,
-                      padding: "9px 0",
-                      borderBottom: `1px solid ${t.bd}`,
+                      padding: "8px 0",
+                      borderBottom: `1px solid ${t.border}`,
                     }}
                   >
-                    <AppChip appId={app.id} size={32} colorOverride={cur} />
+                    <AppChip appId={app.appId} size={28} colorOverride={cur} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: t.tx }}>{app.label}</div>
-                      <div style={{ fontSize: 10, color: t.tm }}>{app.desc}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: t.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {app.label}
+                      </div>
                     </div>
-                    <div style={{ display: "flex", gap: 3, flexWrap: "wrap", maxWidth: 148 }}>
-                      {theme.APP_COLORS.slice(0, 8).map(c => (
+                    <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+                      {t.appColors.slice(0, 8).map(c => (
                         <button
                           key={c}
-                          onClick={() => setAppColor(activeWS.id, app.id, c)}
+                          onClick={() => setAppColor(activeWS.id, app.appId, c)}
                           style={{
-                            width: 17,
-                            height: 17,
+                            width: 16,
+                            height: 16,
                             borderRadius: t.rF,
                             background: c,
                             cursor: "pointer",
-                            border: `2px solid ${cur === c ? t.tx : "transparent"}`,
+                            border: `2px solid ${cur === c ? t.text : "transparent"}`,
                             outline: "none",
+                            padding: 0,
                           }}
                         />
                       ))}
@@ -230,12 +369,12 @@ export const SettingsPanel = ({
                     >
                       <div
                         style={{
-                          width: 17,
-                          height: 17,
+                          width: 16,
+                          height: 16,
                           borderRadius: t.rF,
                           background: "conic-gradient(red,yellow,lime,cyan,blue,magenta,red)",
                           cursor: "pointer",
-                          border: `2px solid ${isCustom ? t.tx : "transparent"}`,
+                          border: `2px solid ${isCustom ? t.text : "transparent"}`,
                           outline: "none",
                           overflow: "hidden",
                         }}
@@ -243,7 +382,7 @@ export const SettingsPanel = ({
                       <input
                         type="color"
                         value={cur}
-                        onChange={e => setAppColor(activeWS.id, app.id, e.target.value)}
+                        onChange={e => setAppColor(activeWS.id, app.appId, e.target.value)}
                         style={{
                           position: "absolute",
                           opacity: 0,
@@ -257,9 +396,9 @@ export const SettingsPanel = ({
                         }}
                       />
                     </label>
-                    {/* Reset to default */}
+                    {/* Reset → clear the override so the row falls back to the theme accent. */}
                     <button
-                      title="Reset to default"
+                      title="Reset to theme accent"
                       className="nb ni"
                       style={{
                         padding: 3,
@@ -267,10 +406,11 @@ export const SettingsPanel = ({
                         background: "transparent",
                         cursor: "pointer",
                         display: "flex",
-                        opacity: 0.5,
+                        opacity: isOverridden ? 0.7 : 0.25,
                         flexShrink: 0,
                       }}
-                      onClick={() => setAppColor(activeWS.id, app.id, app.dc)}
+                      onClick={() => delAppColor?.(activeWS.id, app.appId)}
+                      disabled={!isOverridden}
                     >
                       <I.Refresh size={11} />
                     </button>
@@ -281,7 +421,7 @@ export const SettingsPanel = ({
           )}
 
           {/* Shortcuts link at the bottom of every tab */}
-          <div style={{ marginTop: "auto", paddingTop: 20, borderTop: `1px solid ${t.bd}` }}>
+          <div style={{ marginTop: "auto", paddingTop: 20, borderTop: `1px solid ${t.border}` }}>
             <button
               className="nb ng"
               style={{ width: "100%", fontSize: 11, justifyContent: "flex-start", gap: 8 }}
@@ -295,9 +435,9 @@ export const SettingsPanel = ({
                 style={{
                   marginLeft: "auto",
                   fontSize: 9,
-                  color: t.tm,
-                  background: t.sa,
-                  border: `1px solid ${t.bd}`,
+                  color: t.textMuted,
+                  background: t.surfaceAlt,
+                  border: `1px solid ${t.border}`,
                   borderRadius: t.r6,
                   padding: "1px 5px",
                   fontFamily: "monospace",
@@ -309,14 +449,26 @@ export const SettingsPanel = ({
           </div>
         </div>
 
-        <button
-          className="nb ni"
-          style={{ position: "absolute", top: 14, right: 14, padding: 6 }}
-          onClick={onClose}
-        >
-          <I.X size={15} />
-        </button>
+        {!isMobile && (
+          <button
+            className="nb ni"
+            style={{ position: "absolute", top: 14, right: 14, padding: 6 }}
+            onClick={onClose}
+          >
+            <I.X size={15} />
+          </button>
+        )}
       </div>
+
+      {showCustomModal && (
+        <CustomSchemeModal
+          onClose={() => setShowCustomModal(false)}
+          onSave={scheme => {
+            addCustomScheme(scheme);
+            setTheme(p => ({ ...p, schemeId: scheme.schemeId }));
+          }}
+        />
+      )}
     </div>
   );
 };

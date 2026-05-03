@@ -1,5 +1,19 @@
 import React from "react";
 
+// Recursively turn a plain-object spec tree into JSX.
+// Spec ::= null | false | string | number | spec[] | { tag, children?, key?, ...props }
+// `tag` may be a string ("g", "rect", ...) or a React component.
+export const renderSpec = (s) => {
+  if (s == null || s === false) return null;
+  if (typeof s === "string" || typeof s === "number") return s;
+  if (Array.isArray(s)) return s.map(renderSpec);
+  const { tag, children, key, ...rest } = s;
+  const kids = children == null
+    ? null
+    : Array.isArray(children) ? children.map(renderSpec) : renderSpec(children);
+  return React.createElement(tag, { key, ...rest }, kids);
+};
+
 // Resize handle dots on selected element.
 export const SelectionHandles = ({ x, y, w, h, onResize }) => {
   const handles = [

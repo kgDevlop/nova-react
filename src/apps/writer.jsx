@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { I } from "../shared/icons";
-import { writer as C } from "../shared/_constants";
+import { AppsSidebar, DefaultSections, MobileToolbarPanel } from "../shared/apps_sidebar";
+import { WriterConstants } from "../shared/_constants";
 
 // One 8.5×11 paper sheet. The inner contentEditable is height-clipped to the
 // page's content area; the parent (WriterEditor) detects overflow on this
@@ -54,14 +55,25 @@ const Page = React.forwardRef(function Page(
           fontFamily: "Georgia,'Times New Roman',serif",
           fontSize: 16,
           lineHeight: 1.85,
-          color: theme.tx,
+          color: theme.text,
         }}
       />
     </div>
   );
 });
 
-export const WriterEditor = ({ appColor, doc, t: theme, onContentChange, registerActions }) => {
+export const WriterEditor = ({
+  appColor,
+  doc,
+  t: theme,
+  onContentChange,
+  registerActions,
+  isMobile,
+  onBack,
+  saveStatus,
+  activeWS,
+  onTitleChange,
+}) => {
   const containerRef = useRef(null);
   const pageRefs = useRef([]);
   // Last known caret range, captured on blur so toolbar clicks can restore it.
@@ -78,19 +90,20 @@ export const WriterEditor = ({ appColor, doc, t: theme, onContentChange, registe
   const [pageCount, setPageCount] = useState(1);
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
-  const [paperWidth, setPaperWidth] = useState(C.PAPER_MAX_WIDTH);
   const [linkModalOpen, setLinkModalOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const linkInputRef = useRef(null);
 
-  // Derived dimensions — recomputed every render from paperWidth.
-  const pageHeight = paperWidth * C.PAGE_HEIGHT_RATIO;
-  const padTop = paperWidth * C.MARGIN_TOP_RATIO;
-  const padBottom = paperWidth * C.MARGIN_BOTTOM_RATIO;
-  const padHorizontal = paperWidth * C.MARGIN_HORIZONTAL_RATIO;
+  // Fixed paper dimensions — the page never reflows to viewport width. The
+  // canvas container has overflow:auto so narrow viewports get scrollbars.
+  const paperWidth = WriterConstants.PAPER_MAX_WIDTH;
+  const pageHeight = paperWidth * WriterConstants.PAGE_HEIGHT_RATIO;
+  const padTop = paperWidth * WriterConstants.MARGIN_TOP_RATIO;
+  const padBottom = paperWidth * WriterConstants.MARGIN_BOTTOM_RATIO;
+  const padHorizontal = paperWidth * WriterConstants.MARGIN_HORIZONTAL_RATIO;
   const contentHeight = pageHeight - padTop - padBottom;
-  const canvasBackground = theme.dk ? "#0C0C10" : "#E8E8E2";
-  const paperBackground = theme.dk ? theme.el : "#fff";
+  const canvasBackground = theme.isDark ? "#0C0C10" : "#E8E8E2";
+  const paperBackground = theme.isDark ? theme.elevated : "#fff";
 
   // ── Editor element accessors ──────────────────────────────────────────────
 
@@ -251,25 +264,6 @@ export const WriterEditor = ({ appColor, doc, t: theme, onContentChange, registe
     updateCounts();
   }, [pageCount]); // eslint-disable-line
 
-  // Track container width so the paper scales responsively.
-  useEffect(() => {
-    if (!containerRef.current) {
-      return;
-    }
-    const el = containerRef.current;
-    const measure = () => {
-      const target = el.clientWidth - 80;
-      const clamped = Math.max(C.PAPER_MIN_WIDTH, Math.min(C.PAPER_MAX_WIDTH, target));
-      setPaperWidth(clamped);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => {
-      ro.disconnect();
-    };
-  }, []);
-
   // Load doc into page 0; rebalance distributes overflow forward.
   useEffect(() => {
     if (!pageRefs.current[0]) {
@@ -288,12 +282,6 @@ export const WriterEditor = ({ appColor, doc, t: theme, onContentChange, registe
     rebalance();
     updateCounts();
   }, [doc.id]); // eslint-disable-line
-
-  // Reflow when paper width changes (window resize, sidebar toggle, etc).
-  useEffect(() => {
-    rebalance();
-    updateCounts();
-  }, [paperWidth]); // eslint-disable-line
 
   // ── Selection bookkeeping ─────────────────────────────────────────────────
 
@@ -573,45 +561,52 @@ export const WriterEditor = ({ appColor, doc, t: theme, onContentChange, registe
 
   // ── Toolbar wiring ────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    registerActions((id, val) => {
-      if (id === "bold") {
-        execCmd("bold");
-      } else if (id === "italic") {
-        execCmd("italic");
-      } else if (id === "underline") {
-        execCmd("underline");
-      } else if (id === "alignL") {
-        execCmd("justifyLeft");
-      } else if (id === "alignC") {
-        execCmd("justifyCenter");
-      } else if (id === "alignR") {
-        execCmd("justifyRight");
-      } else if (id === "ul") {
-        toggleList("UL");
-      } else if (id === "ol") {
-        toggleList("OL");
-      } else if (id === "bq") {
-        toggleBlockquote();
-      } else if (id === "link") {
-        openLinkModal();
-      } else if (id === "img") {
-        const url = window.prompt("Image URL:");
-        if (url) {
-          execCmd("insertImage", url);
-        }
-      } else if (id === "tbl") {
-        const tableHTML =
-          "<table><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>" +
-          "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>" +
-          "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr></table><p><br></p>";
-        execCmd("insertHTML", tableHTML);
-      } else if (id === "style") {
-        applyBlockType(val);
+  // Dispatch a toolbar action by id. Recreated each render so closures see
+  // the latest state (pageCount, etc.); ref below keeps the registered
+  // handler pointing at the latest version.
+  const dispatchAction = (id, val) => {
+    if (id === "bold") {
+      execCmd("bold");
+    } else if (id === "italic") {
+      execCmd("italic");
+    } else if (id === "underline") {
+      execCmd("underline");
+    } else if (id === "alignL") {
+      execCmd("justifyLeft");
+    } else if (id === "alignC") {
+      execCmd("justifyCenter");
+    } else if (id === "alignR") {
+      execCmd("justifyRight");
+    } else if (id === "ul") {
+      toggleList("UL");
+    } else if (id === "ol") {
+      toggleList("OL");
+    } else if (id === "bq") {
+      toggleBlockquote();
+    } else if (id === "link") {
+      openLinkModal();
+    } else if (id === "img") {
+      const url = window.prompt("Image URL:");
+      if (url) {
+        execCmd("insertImage", url);
       }
-      rebalance();
-      onContentChange(combinedHTML());
-    });
+    } else if (id === "tbl") {
+      const tableHTML =
+        "<table><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>" +
+        "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>" +
+        "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr></table><p><br></p>";
+      execCmd("insertHTML", tableHTML);
+    } else if (id === "style") {
+      applyBlockType(val);
+    }
+    rebalance();
+    onContentChange(combinedHTML());
+  };
+  const dispatchActionRef = useRef(dispatchAction);
+  dispatchActionRef.current = dispatchAction;
+
+  useEffect(() => {
+    registerActions((id, val) => dispatchActionRef.current?.(id, val));
   }, []); // eslint-disable-line
 
   // ── Input + key handling ──────────────────────────────────────────────────
@@ -817,19 +812,31 @@ export const WriterEditor = ({ appColor, doc, t: theme, onContentChange, registe
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        flex: 1,
-        overflow: "auto",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        padding: "40px 20px",
-        background: canvasBackground,
-        position: "relative",
-      }}
-    >
+    <div style={{ flex: 1, display: "flex", flexDirection: "row", overflow: "hidden", minHeight: 0 }}>
+      <div
+        ref={containerRef}
+        style={{
+          flex: 1,
+          overflow: "auto",
+          background: canvasBackground,
+          position: "relative",
+          minWidth: 0,
+        }}
+      >
+      {/* Inner track grows with the page so horizontal scroll reveals the full
+          width on narrow viewports; min-width:100% keeps it centered when the
+          viewport is wider than the page. */}
+      <div
+        style={{
+          minWidth: "100%",
+          width: "fit-content",
+          padding: "40px 20px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          boxSizing: "border-box",
+        }}
+      >
       {Array.from({ length: pageCount }).map((_, i) => (
         <Page
           key={i}
@@ -843,7 +850,7 @@ export const WriterEditor = ({ appColor, doc, t: theme, onContentChange, registe
           paddingHorizontal={padHorizontal}
           contentHeight={contentHeight}
           paperBackground={paperBackground}
-          isDark={theme.dk}
+          isDark={theme.isDark}
           isLast={i === pageCount - 1}
           onInput={handleInput}
           onKeyDown={handleKeyDown}
@@ -851,6 +858,7 @@ export const WriterEditor = ({ appColor, doc, t: theme, onContentChange, registe
           onFocus={() => handleFocus(i)}
         />
       ))}
+      </div>
 
       {/* Floating doc stats — non-interactive overlay, fixed to viewport. */}
       <div
@@ -858,12 +866,12 @@ export const WriterEditor = ({ appColor, doc, t: theme, onContentChange, registe
           position: "fixed",
           bottom: 36,
           right: 20,
-          background: theme.el,
-          border: `1px solid ${theme.bd}`,
+          background: theme.elevated,
+          border: `1px solid ${theme.border}`,
           borderRadius: theme.rF,
           padding: "3px 10px",
           fontSize: 10,
-          color: theme.tm,
+          color: theme.textMuted,
           pointerEvents: "none",
         }}
       >
@@ -890,8 +898,8 @@ export const WriterEditor = ({ appColor, doc, t: theme, onContentChange, registe
         >
           <div
             style={{
-              background: theme.el,
-              border: `1px solid ${theme.bs}`,
+              background: theme.elevated,
+              border: `1px solid ${theme.borderStrong}`,
               borderRadius: theme.r14,
               padding: "16px 18px",
               boxShadow: "0 16px 48px rgba(0,0,0,0.4)",
@@ -899,7 +907,7 @@ export const WriterEditor = ({ appColor, doc, t: theme, onContentChange, registe
               animation: "popIn 0.15s ease",
             }}
           >
-            <div style={{ fontSize: 13, fontWeight: 700, color: theme.tx, marginBottom: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, marginBottom: 10 }}>
               Insert link
             </div>
             <div style={{ display: "flex", gap: 7 }}>
@@ -936,12 +944,37 @@ export const WriterEditor = ({ appColor, doc, t: theme, onContentChange, registe
                 <I.X size={13} />
               </button>
             </div>
-            <div style={{ fontSize: 10, color: theme.tm, marginTop: 8 }}>
+            <div style={{ fontSize: 10, color: theme.textMuted, marginTop: 8 }}>
               ⌘K · Select text first to wrap it in the link, or leave cursor to insert a new link
             </div>
           </div>
         </div>
       )}
+      </div>
+
+      <AppsSidebar
+        doc={doc}
+        appColor={appColor}
+        mobile={isMobile}
+        defaultOpen={false}
+        onBack={onBack}
+        saveStatus={saveStatus}
+        activeWS={activeWS}
+        onTitleChange={onTitleChange}
+      >
+        {isMobile && (
+          <>
+            <MobileToolbarPanel
+              appId="writer"
+              appColor={appColor}
+              onAction={(id, val) => dispatchActionRef.current?.(id, val)}
+              title="Format"
+              icon={I.TypeT}
+            />
+            <DefaultSections doc={doc} defaultOpen={false} />
+          </>
+        )}
+      </AppsSidebar>
     </div>
   );
 };

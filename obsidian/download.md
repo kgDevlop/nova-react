@@ -4,12 +4,11 @@
 
 Spec for the export-to-zip flow:
 
-1. **Bulk download** — produce a single `.zip` containing every doc in the
-   active workspace. Each app should serialise to a portable format:
-   - Writer  → `.html` (or `.md` once a serialiser exists)
-   - Sheets  → `.csv` per sheet
-   - Slides  → `.svg` per slide, plus a manifest
-   - Draw    → `.svg`
+1. **Bulk download** — produce a single folder containing every document in every workspace. Defaulted to the primary file type used to display data in Nova.
+   - Writer  → '.html', '.png'
+   - Spreads → `.csv`, '.png'
+   - Slides  → `.svg`, (folder of) '.png'
+   - Draw    → (folder of) `.svg` by layer, '.png' no layers
    - List    → `.json`
    - Calendar → `.ics`
 2. **Default download location** — surfaced in [[nova_settings]] under "Data".

@@ -3,7 +3,7 @@ import { I } from "./icons";
 import { useT } from "./theme";
 import { useOut } from "./hooks/system";
 import { NovaLogo } from "./atoms";
-import { left_sidebar as C, registry } from "./_constants";
+import { LeftSidebarConstants } from "./_constants";
 
 // ── Delete workspace confirm ──────────────────────────────────────────────
 //
@@ -45,20 +45,20 @@ const DeleteWSConfirm = ({ ws, onCancel, onConfirm }) => {
               flexShrink: 0,
             }}
           >
-            <I.Trash size={16} color={theme.er} />
+            <I.Trash size={16} color={theme.error} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 800, color: theme.tx, marginBottom: 4 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 800, color: theme.text, marginBottom: 4 }}>
               Delete workspace?
             </h3>
-            <p style={{ fontSize: 12, color: theme.ts, lineHeight: 1.5 }}>
-              <strong style={{ color: theme.tx }}>{ws.name}</strong> and its {docCount} {docLabel} will be permanently removed.
+            <p style={{ fontSize: 12, color: theme.textDim, lineHeight: 1.5 }}>
+              <strong style={{ color: theme.text }}>{ws.name}</strong> and its {docCount} {docLabel} will be permanently removed.
             </p>
           </div>
         </div>
 
-        <label style={{ fontSize: 11, color: theme.ts, display: "block", marginBottom: 6 }}>
-          Type <strong style={{ color: theme.tx, fontFamily: "monospace" }}>Delete</strong> to confirm:
+        <label style={{ fontSize: 11, color: theme.textDim, display: "block", marginBottom: 6 }}>
+          Type <strong style={{ color: theme.text, fontFamily: "monospace" }}>Delete</strong> to confirm:
         </label>
         <input
           ref={ref}
@@ -84,7 +84,7 @@ const DeleteWSConfirm = ({ ws, onCancel, onConfirm }) => {
           <button
             className="nb np"
             style={{
-              background: ok ? theme.er : theme.bd,
+              background: ok ? theme.error : theme.border,
               color: "#fff",
               cursor: ok ? "pointer" : "not-allowed",
               opacity: ok ? 1 : 0.5,
@@ -151,10 +151,10 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
       <div
         onClick={() => setOpen(v => !v)}
         onMouseEnter={e => {
-          e.currentTarget.style.background = theme.sh;
+          e.currentTarget.style.background = theme.surfaceShade;
         }}
         onMouseLeave={e => {
-          e.currentTarget.style.background = open ? theme.sa : "transparent";
+          e.currentTarget.style.background = open ? theme.surfaceAlt : "transparent";
         }}
         style={{
           display: "flex",
@@ -163,9 +163,9 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
           padding: "7px 9px",
           borderRadius: theme.r10,
           cursor: "pointer",
-          transition: theme.tr,
-          background: open ? theme.sa : "transparent",
-          border: `1px solid ${open ? theme.bs : "transparent"}`,
+          transition: theme.transition,
+          background: open ? theme.surfaceAlt : "transparent",
+          border: `1px solid ${open ? theme.borderStrong : "transparent"}`,
           justifyContent: collapsed ? "center" : "flex-start",
         }}
       >
@@ -191,7 +191,7 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
                 style={{
                   fontSize: 11,
                   fontWeight: 700,
-                  color: theme.tx,
+                  color: theme.text,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -199,11 +199,11 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
               >
                 {active.name}
               </div>
-              <div style={{ fontSize: 9, color: theme.tm }}>
+              <div style={{ fontSize: 9, color: theme.textMuted }}>
                 {activeDocCount} {activeDocLabel}
               </div>
             </div>
-            <I.ChevDown size={11} color={theme.tm} />
+            <I.ChevDown size={11} color={theme.textMuted} />
           </>
         )}
       </div>
@@ -224,7 +224,7 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
               padding: "5px 9px 3px",
               fontSize: 9,
               fontWeight: 700,
-              color: theme.tm,
+              color: theme.textMuted,
               letterSpacing: "0.06em",
               textTransform: "uppercase",
             }}
@@ -240,8 +240,8 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
                 key={workspace.id}
                 className="nmi"
                 style={{
-                  color: isActive ? theme.tx : theme.ts,
-                  background: isActive ? theme.sa : "transparent",
+                  color: isActive ? theme.text : theme.textDim,
+                  background: isActive ? theme.surfaceAlt : "transparent",
                   gap: 6,
                 }}
                 onClick={() => {
@@ -308,7 +308,7 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
                     {ws.length > 1 && (
                       <button
                         className="nb ni"
-                        style={{ padding: 3, opacity: 0.6, color: theme.er }}
+                        style={{ padding: 3, opacity: 0.6, color: theme.error }}
                         title="Delete"
                         onClick={e => {
                           e.stopPropagation();
@@ -318,7 +318,7 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
                         <I.Trash size={10} />
                       </button>
                     )}
-                    {isActive && <I.Check size={11} color={theme.ac} />}
+                    {isActive && <I.Check size={11} color={theme.accent} />}
                   </>
                 )}
               </div>
@@ -367,6 +367,8 @@ export const Sidebar = ({
   onRenameWS,
   onDeleteWS,
   onSettings,
+  getAppColor,
+  isBetaEnabled,
 }) => {
   const theme = useT();
   const width = collapsed ? 56 : 214;
@@ -377,10 +379,10 @@ export const Sidebar = ({
         width,
         height: "100%",
         background: theme.surface,
-        borderRight: `1px solid ${theme.bd}`,
+        borderRight: `1px solid ${theme.border}`,
         display: "flex",
         flexDirection: "column",
-        transition: `width ${theme.tr}`,
+        transition: `width ${theme.transition}`,
         overflow: "hidden",
         flexShrink: 0,
         padding: "10px 7px",
@@ -422,8 +424,8 @@ export const Sidebar = ({
             style={{
               width: "100%",
               padding: 8,
-              background: theme.as,
-              color: theme.ac,
+              background: theme.accentSoft,
+              color: theme.accent,
               borderRadius: theme.r10,
             }}
           >
@@ -437,19 +439,19 @@ export const Sidebar = ({
       </div>
 
       <div style={{ flex: 1, overflowY: "auto" }}>
-        {C.PRIMARY_NAV.map(({ id, l, I: Ico }) => (
+        {LeftSidebarConstants.PRIMARY_NAV.map(({ viewId, label, Icon: NavIcon }) => (
           <div
-            key={id}
-            className={`nnav ${view === id ? "active" : ""}`}
+            key={viewId}
+            className={`nnav ${view === viewId ? "active" : ""}`}
             style={{
               justifyContent: collapsed ? "center" : "flex-start",
               padding: collapsed ? "8px" : "7px 9px",
             }}
-            title={collapsed ? l : undefined}
-            onClick={() => onNav(id)}
+            title={collapsed ? label : undefined}
+            onClick={() => onNav(viewId)}
           >
-            <Ico size={14} />
-            {!collapsed && <span style={{ fontSize: 12 }}>{l}</span>}
+            <NavIcon size={14} />
+            {!collapsed && <span style={{ fontSize: 12 }}>{label}</span>}
           </div>
         ))}
 
@@ -459,11 +461,13 @@ export const Sidebar = ({
           <div className="ndiv" style={{ margin: "8px 4px" }} />
         )}
 
-        {registry.APPS.map(app => {
-          const isActive = view === app.id;
+        {LeftSidebarConstants.APPS.filter(app => app.status !== "beta" || isBetaEnabled?.(app.appId)).map(app => {
+          const isActive = view === app.appId;
+          const def = theme.appColorFor(app.appId);
+          const c = getAppColor?.(active.id, app.appId, def) ?? def;
           return (
             <div
-              key={app.id}
+              key={app.appId}
               className={`nnav ${isActive ? "active" : ""}`}
               style={{
                 justifyContent: collapsed ? "center" : "flex-start",
@@ -471,11 +475,11 @@ export const Sidebar = ({
                 gap: collapsed ? 0 : 8,
               }}
               title={collapsed ? app.label : undefined}
-              onClick={() => onNav(app.id)}
+              onClick={() => onNav(app.appId)}
             >
-              <app.Icon size={14} color={isActive ? app.dc : undefined} />
+              <app.Icon size={14} color={isActive ? c : undefined} />
               {!collapsed && (
-                <span style={{ fontSize: 12, color: isActive ? theme.tx : undefined }}>
+                <span style={{ fontSize: 12, color: isActive ? theme.text : undefined }}>
                   {app.label}
                 </span>
               )}
@@ -484,7 +488,7 @@ export const Sidebar = ({
         })}
       </div>
 
-      <div style={{ borderTop: `1px solid ${theme.bd}`, paddingTop: 8 }}>
+      <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 8 }}>
         <div
           className="nnav"
           style={{
@@ -514,6 +518,9 @@ export const MobSidebar = ({
   onNew,
   onRenameWS,
   onDeleteWS,
+  onSettings,
+  getAppColor,
+  isBetaEnabled,
 }) => {
   const theme = useT();
 
@@ -524,16 +531,16 @@ export const MobSidebar = ({
         onClick={e => e.stopPropagation()}
         style={{
           position: "absolute",
-          left: 0,
+          right: 0,
           top: 0,
           bottom: 0,
           width: 264,
           background: theme.surface,
-          borderRight: `1px solid ${theme.bd}`,
+          borderLeft: `1px solid ${theme.border}`,
           padding: "12px 8px",
           display: "flex",
           flexDirection: "column",
-          animation: "slideL 0.24s ease",
+          animation: "slideR 0.24s ease",
         }}
       >
         <div
@@ -578,35 +585,52 @@ export const MobSidebar = ({
           <I.Plus size={13} /> New document
         </button>
 
-        {C.PRIMARY_NAV.map(({ id, l, I: Ico }) => (
+        {LeftSidebarConstants.PRIMARY_NAV.map(({ viewId, label, Icon: NavIcon }) => (
           <div
-            key={id}
-            className={`nnav ${view === id ? "active" : ""}`}
+            key={viewId}
+            className={`nnav ${view === viewId ? "active" : ""}`}
             onClick={() => {
-              onNav(id);
+              onNav(viewId);
               onClose();
             }}
           >
-            <Ico size={14} />
-            <span style={{ fontSize: 12 }}>{l}</span>
+            <NavIcon size={14} />
+            <span style={{ fontSize: 12 }}>{label}</span>
           </div>
         ))}
 
         <div className="nsect">Apps</div>
         <div style={{ flex: 1, overflowY: "auto" }}>
-          {registry.APPS.map(app => (
-            <div
-              key={app.id}
-              className={`nnav ${view === app.id ? "active" : ""}`}
-              onClick={() => {
-                onNav(app.id);
-                onClose();
-              }}
-            >
-              <app.Icon size={14} color={app.dc} />
-              <span style={{ fontSize: 12 }}>{app.label}</span>
-            </div>
-          ))}
+          {LeftSidebarConstants.APPS.filter(app => app.status !== "beta" || isBetaEnabled?.(app.appId)).map(app => {
+            const def = theme.appColorFor(app.appId);
+            const c = getAppColor?.(active.id, app.appId, def) ?? def;
+            return (
+              <div
+                key={app.appId}
+                className={`nnav ${view === app.appId ? "active" : ""}`}
+                onClick={() => {
+                  onNav(app.appId);
+                  onClose();
+                }}
+              >
+                <app.Icon size={14} color={c} />
+                <span style={{ fontSize: 12 }}>{app.label}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 8 }}>
+          <div
+            className="nnav"
+            onClick={() => {
+              onSettings?.();
+              onClose();
+            }}
+          >
+            <I.Settings size={14} />
+            <span style={{ fontSize: 12 }}>Settings</span>
+          </div>
         </div>
       </div>
     </div>
@@ -614,66 +638,70 @@ export const MobSidebar = ({
 };
 
 // ── Mobile top bar ────────────────────────────────────────────────────────
-export const MobTopBar = ({ onOpen, q, setQ }) => {
+// Hamburger sits on the right since the menu drawer slides in from the right
+// (dominant-thumb reach). Back/forward live between the logo and the profile
+// cluster, replacing the mobile TabBar.
+export const MobTopBar = ({ onOpen, onSearchClick, onBack, onForward, canBack, canForward, workspace }) => {
   const theme = useT();
+
+  const navBtnStyle = enabled => ({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 28,
+    height: 28,
+    border: "none",
+    background: "transparent",
+    borderRadius: theme.r6,
+    cursor: enabled ? "pointer" : "default",
+    color: enabled ? theme.text : theme.textMuted,
+    opacity: enabled ? 1 : 0.4,
+    padding: 0,
+    transition: theme.transition,
+    flexShrink: 0,
+  });
 
   return (
     <div
       style={{
         height: 50,
         background: theme.surface,
-        borderBottom: `1px solid ${theme.bd}`,
+        borderBottom: `1px solid ${theme.border}`,
         display: "flex",
         alignItems: "center",
         padding: "0 10px",
-        gap: 8,
+        gap: 6,
         flexShrink: 0,
       }}
     >
-      <button className="nb ni" onClick={onOpen}>
+      <NovaLogo workspace={workspace} />
+      {onSearchClick && (
+        <button className="nb ni" onClick={onSearchClick} title="Search">
+          <I.Search size={15} />
+        </button>
+      )}
+      <div style={{ flex: 1 }} />
+      <button
+        type="button"
+        title="Back"
+        disabled={!canBack}
+        onClick={onBack}
+        style={navBtnStyle(!!canBack)}
+      >
+        <I.ArrowL size={14} />
+      </button>
+      <button
+        type="button"
+        title="Forward"
+        disabled={!canForward}
+        onClick={onForward}
+        style={navBtnStyle(!!canForward)}
+      >
+        <I.ArrowR size={14} />
+      </button>
+      <button className="nb ni" onClick={onOpen} title="Menu">
         <I.Menu size={17} />
       </button>
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          gap: 7,
-          background: theme.sa,
-          borderRadius: theme.rF,
-          padding: "6px 11px",
-          border: `1px solid ${theme.bd}`,
-        }}
-      >
-        <I.Search size={12} color={theme.tm} />
-        <input
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          style={{
-            flex: 1,
-            background: "transparent",
-            border: "none",
-            outline: "none",
-            fontSize: 12,
-            color: theme.tx,
-            fontFamily: theme.fn,
-          }}
-          placeholder="Search documents…"
-        />
-      </div>
-      <div
-        style={{
-          width: 30,
-          height: 30,
-          borderRadius: theme.rF,
-          background: theme.as,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <I.User size={13} color={theme.ac} />
-      </div>
     </div>
   );
 };

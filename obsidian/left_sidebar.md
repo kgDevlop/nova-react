@@ -16,7 +16,7 @@ exports three components:
    supports inline rename and a type-to-confirm `DeleteWSConfirm` (the user
    must type `Delete` to enable the destructive button).
 3. **New document** primary button — opens [[new_doc_popup]] via `onNewDoc()`.
-4. **Primary nav rows** — Home / Starred / All documents / App catalogue.
+4. **Primary nav rows** — Home / Starred / All documents / Catalogue.
 5. **Apps section** — every entry from [[app_list]] (`APPS` in `shell/registry.js`).
    Calendar is a singleton; clicking it routes through
    `openCalendarSingleton()` in `nova_base.jsx` rather than opening a list.

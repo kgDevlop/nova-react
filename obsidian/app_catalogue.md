@@ -1,9 +1,9 @@
-# App catalogue
+# Catalogue
 
 The full-screen app browser. `AppCatalogueScreen` in
 [`src/shell/home.jsx`](../src/shell/home.jsx). Reachable from the
-[[left_sidebar]] ("App catalogue" row) and from the ⌘K palette
-("App catalogue" nav entry).
+[[left_sidebar]] ("Catalogue" row) and from the ⌘K palette
+("Catalogue" nav entry).
 
 ## Composition
 

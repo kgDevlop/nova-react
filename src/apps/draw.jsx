@@ -1,27 +1,209 @@
 import React, { useState, useEffect, useRef } from "react";
 import { I } from "../shared/icons";
 import { useCanvasHistory } from "../shared/hooks/system";
-import { SelectionHandles } from "../shared/canvas_utils";
-import { draw as C } from "../shared/_constants";
+import { SelectionHandles, renderSpec } from "../shared/canvas_utils";
+import { DrawConstants } from "../shared/_constants";
 import { utils } from "../shared/_utils";
 
+// In-progress preview: dashed shapes while the user is dragging out a new one.
+const PREVIEW_SHAPES = {
+  rect: (d, c) => ({
+    tag: "rect",
+    x: Math.min(d.x1, d.x2), y: Math.min(d.y1, d.y2),
+    width: Math.abs(d.x2 - d.x1), height: Math.abs(d.y2 - d.y1),
+    fill: c.fill, stroke: c.stroke, strokeWidth: c.strokeW,
+    strokeDasharray: "4 2",
+  }),
+  ellipse: (d, c) => ({
+    tag: "ellipse",
+    cx: (d.x1 + d.x2) / 2, cy: (d.y1 + d.y2) / 2,
+    rx: Math.abs(d.x2 - d.x1) / 2, ry: Math.abs(d.y2 - d.y1) / 2,
+    fill: c.fill, stroke: c.stroke, strokeWidth: c.strokeW,
+    strokeDasharray: "4 2",
+  }),
+  line: (d, c) => ({
+    tag: "line",
+    x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2,
+    stroke: c.stroke, strokeWidth: c.strokeW,
+    strokeDasharray: "4 2",
+  }),
+  pen: (d, c) => d.pts && {
+    tag: "path",
+    d: c.ptsToPath(d.pts),
+    fill: "none",
+    stroke: c.stroke, strokeWidth: c.strokeW,
+    strokeLinecap: "round", strokeLinejoin: "round",
+  },
+};
+
+// Persisted elements: each entry yields a tree (group + shape + selection chrome).
+const DRAW_SHAPES = {
+  rect: (el, c) => ({
+    tag: "g", key: el.id,
+    onMouseDown: e => c.onElMouseDown(el, e),
+    style: { cursor: c.cursor },
+    children: [
+      { tag: "rect",
+        x: el.x, y: el.y, width: el.w, height: el.h,
+        fill: el.fill || "transparent",
+        stroke: el.stroke || "#888",
+        strokeWidth: el.strokeW || 2,
+        rx: el.rx || 0 },
+      c.isSel && { tag: "rect", key: "sel",
+        x: el.x - DrawConstants.SELECTION_PAD,
+        y: el.y - DrawConstants.SELECTION_PAD,
+        width: el.w + DrawConstants.SELECTION_PAD * 2,
+        height: el.h + DrawConstants.SELECTION_PAD * 2,
+        fill: "none", stroke: "#4A8FE8",
+        strokeWidth: 1.5, strokeDasharray: "4 2" },
+      c.isSel && { tag: SelectionHandles, key: "h",
+        x: el.x, y: el.y, w: el.w, h: el.h },
+    ],
+  }),
+
+  ellipse: (el, c) => ({
+    tag: "g", key: el.id,
+    onMouseDown: e => c.onElMouseDown(el, e),
+    style: { cursor: c.cursor },
+    children: [
+      { tag: "ellipse",
+        cx: el.x + el.w / 2, cy: el.y + el.h / 2,
+        rx: el.w / 2, ry: el.h / 2,
+        fill: el.fill || "transparent",
+        stroke: el.stroke || "#888",
+        strokeWidth: el.strokeW || 2 },
+      c.isSel && { tag: "rect", key: "sel",
+        x: el.x - DrawConstants.SELECTION_PAD,
+        y: el.y - DrawConstants.SELECTION_PAD,
+        width: el.w + DrawConstants.SELECTION_PAD * 2,
+        height: el.h + DrawConstants.SELECTION_PAD * 2,
+        fill: "none", stroke: "#4A8FE8",
+        strokeWidth: 1.5, strokeDasharray: "4 2" },
+      c.isSel && { tag: SelectionHandles, key: "h",
+        x: el.x, y: el.y, w: el.w, h: el.h },
+    ],
+  }),
+
+  line: (el, c) => ({
+    tag: "g", key: el.id,
+    onMouseDown: e => c.onElMouseDown(el, e),
+    style: { cursor: c.cursor },
+    children: [
+      { tag: "line",
+        x1: el.x1, y1: el.y1, x2: el.x2, y2: el.y2,
+        stroke: el.stroke || "#888",
+        strokeWidth: el.strokeW || 2,
+        strokeLinecap: "round" },
+      // Translucent thicker overlay acts as the "selected" indicator for lines —
+      // a bounding box around a thin line looks odd.
+      c.isSel && { tag: "line", key: "sel",
+        x1: el.x1, y1: el.y1, x2: el.x2, y2: el.y2,
+        stroke: "#4A8FE8",
+        strokeWidth: (el.strokeW || 2) + 6,
+        strokeOpacity: 0.25,
+        strokeLinecap: "round" },
+    ],
+  }),
+
+  pen: (el, c) => ({
+    tag: "path", key: el.id,
+    d: c.ptsToPath(el.pts),
+    fill: el.fill || "none",
+    stroke: el.stroke || "#888",
+    strokeWidth: el.strokeW || 2,
+    strokeLinecap: "round", strokeLinejoin: "round",
+    onMouseDown: e => c.onElMouseDown(el, e),
+    style: { cursor: c.cursor },
+  }),
+
+  // Text uses a foreignObject so we can leverage native contentEditable for
+  // inline editing — pure SVG text doesn't support that.
+  text: (el, c) => {
+    const boxHeight = Math.max(el.h, 40);
+    return {
+      tag: "g", key: el.id,
+      onMouseDown: e => c.onElMouseDown(el, e),
+      children: [
+        { tag: "foreignObject",
+          x: el.x, y: el.y, width: el.w, height: boxHeight,
+          style: { overflow: "visible", cursor: c.cursor },
+          children: {
+            tag: "div",
+            contentEditable: c.isEdit,
+            suppressContentEditableWarning: true,
+            onDoubleClick: e => {
+              e.stopPropagation();
+              if (c.tool === "select") c.setEditId(el.id);
+            },
+            onBlur: e => {
+              c.hist.push(c.elements.map(x => {
+                if (x.id === el.id) return { ...x, text: e.target.innerText };
+                return x;
+              }));
+              c.setEditId(null);
+            },
+            style: {
+              fontFamily: c.theme.fontFamily,
+              fontSize: el.fontSize,
+              fontWeight: el.bold ? 700 : 400,
+              color: el.color,
+              textAlign: el.align,
+              lineHeight: 1.4,
+              outline: c.isEdit ? "2px solid #4A8FE8" : "none",
+              padding: c.isEdit ? "4px" : 0,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              background: c.isEdit ? "rgba(255,255,255,0.05)" : "transparent",
+              minHeight: 30,
+            },
+            children: el.text,
+          },
+        },
+        c.isSel && { tag: "rect", key: "sel",
+          x: el.x - DrawConstants.TEXT_SELECTION_PAD,
+          y: el.y - DrawConstants.TEXT_SELECTION_PAD,
+          width: el.w + DrawConstants.TEXT_SELECTION_PAD * 2,
+          height: boxHeight + DrawConstants.TEXT_SELECTION_PAD * 2,
+          fill: "none", stroke: "#4A8FE8",
+          strokeWidth: 1.5, strokeDasharray: "4 2" },
+        c.isSel && !c.isEdit && { tag: SelectionHandles, key: "h",
+          x: el.x, y: el.y, w: el.w, h: boxHeight },
+      ],
+    };
+  },
+};
+
 export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerActions }) => {
-  // ── Initial element load ──────────────────────────────────────────────────
+  // ── Initial doc load ──────────────────────────────────────────────────────
   // Parse the persisted JSON doc once on mount; tolerate corrupt/empty content.
-  const initEls = () => {
+  // Older docs (no `layers`) are migrated by funneling all elements onto a
+  // single default layer.
+  const initDoc = () => {
+    let parsed = {};
     try {
-      const parsed = JSON.parse(doc.content || "{}");
-      if (parsed.elements) {
-        return parsed.elements;
-      }
+      parsed = JSON.parse(doc.content || "{}");
     } catch {
-      // Ignore parse errors — start with an empty canvas.
+      // Ignore parse errors — start fresh.
     }
-    return [];
+    const defaultLayerId = "L0";
+    const layers = parsed.layers && parsed.layers.length > 0
+      ? parsed.layers
+      : [{ id: defaultLayerId, name: "Layer 1" }];
+    const fallbackId = layers[0].id;
+    const elements = (parsed.elements || []).map(el => (
+      el.layerId ? el : { ...el, layerId: fallbackId }
+    ));
+    const activeLayerId = parsed.activeLayerId && layers.some(L => L.id === parsed.activeLayerId)
+      ? parsed.activeLayerId
+      : layers[layers.length - 1].id;
+    return { elements, layers, activeLayerId };
   };
 
-  const hist = useCanvasHistory(initEls());
+  const initial = initDoc();
+  const hist = useCanvasHistory(initial.elements);
   const elements = hist.current;
+  const [layers, setLayers] = useState(initial.layers);
+  const [activeLayerId, setActiveLayerId] = useState(initial.activeLayerId);
 
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -36,6 +218,18 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
   // Live preview of elements during a drag — committed on mouseup.
   const [dragEls, setDragEls] = useState(null);
   const elementsView = dragEls || elements;
+  // Render order respects layer order (z-stacking): layer 1 elements render
+  // first (bottom), layer N last (top). Within a layer, insertion order wins.
+  // Stragglers without a known layerId fall through to the end so they stay
+  // visible even if their layer was removed.
+  const orderedElements = (() => {
+    const known = new Set(layers.map(L => L.id));
+    const orphans = elementsView.filter(el => !known.has(el.layerId));
+    return [
+      ...layers.flatMap(L => elementsView.filter(el => el.layerId === L.id)),
+      ...orphans,
+    ];
+  })();
 
   const svgRef = useRef(null);
 
@@ -43,10 +237,10 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
   const [stroke, setStroke] = useState(appColor);
   const [strokeW, setStrokeW] = useState(2);
 
-  // Push the serialized canvas up whenever elements change.
+  // Push the serialized canvas up whenever elements or layers change.
   useEffect(() => {
-    onContentChange(JSON.stringify({ elements }));
-  }, [elements]); // eslint-disable-line
+    onContentChange(JSON.stringify({ elements, layers, activeLayerId }));
+  }, [elements, layers, activeLayerId]); // eslint-disable-line
 
   const selEl = elementsView.find(e => e.id === selId) || null;
 
@@ -59,9 +253,9 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
       if (e.target.tagName === "INPUT" || e.target.contentEditable === "true") {
         return;
       }
-      C.DRAW_TOOLS.forEach(dt => {
+      DrawConstants.DRAW_TOOLS.forEach(dt => {
         if (e.key.toUpperCase() === dt.key) {
-          setTool(dt.id);
+          setTool(dt.toolId);
           setSelId(null);
         }
       });
@@ -83,8 +277,8 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
 
   useEffect(() => {
     registerActions((id, val) => {
-      C.DRAW_TOOLS.forEach(dt => {
-        if (dt.id === id) {
+      DrawConstants.DRAW_TOOLS.forEach(dt => {
+        if (dt.toolId === id) {
           setTool(id);
         }
       });
@@ -116,8 +310,8 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
       return { x: 0, y: 0 };
     }
     return {
-      x: (e.clientX - rect.left) / zoom / rect.width * C.CANVAS_WIDTH,
-      y: (e.clientY - rect.top) / zoom / rect.height * C.CANVAS_HEIGHT,
+      x: (e.clientX - rect.left) / zoom / rect.width * DrawConstants.CANVAS_WIDTH,
+      y: (e.clientY - rect.top) / zoom / rect.height * DrawConstants.CANVAS_HEIGHT,
     };
   };
 
@@ -205,7 +399,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
 
     // Build the persistent element from the in-progress drawing, but only
     // if the user actually dragged enough to make a meaningful shape.
-    if (type === "rect" && Math.abs(x2 - x1) > C.MIN_SHAPE_SIZE && Math.abs(y2 - y1) > C.MIN_SHAPE_SIZE) {
+    if (type === "rect" && Math.abs(x2 - x1) > DrawConstants.MIN_SHAPE_SIZE && Math.abs(y2 - y1) > DrawConstants.MIN_SHAPE_SIZE) {
       el = {
         id: utils._elId(),
         type: "rect",
@@ -218,7 +412,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
         strokeW,
         rx: 0,
       };
-    } else if (type === "ellipse" && Math.abs(x2 - x1) > C.MIN_SHAPE_SIZE && Math.abs(y2 - y1) > C.MIN_SHAPE_SIZE) {
+    } else if (type === "ellipse" && Math.abs(x2 - x1) > DrawConstants.MIN_SHAPE_SIZE && Math.abs(y2 - y1) > DrawConstants.MIN_SHAPE_SIZE) {
       el = {
         id: utils._elId(),
         type: "ellipse",
@@ -230,7 +424,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
         stroke,
         strokeW,
       };
-    } else if (type === "line" && (Math.abs(x2 - x1) > C.MIN_SHAPE_SIZE || Math.abs(y2 - y1) > C.MIN_SHAPE_SIZE)) {
+    } else if (type === "line" && (Math.abs(x2 - x1) > DrawConstants.MIN_SHAPE_SIZE || Math.abs(y2 - y1) > DrawConstants.MIN_SHAPE_SIZE)) {
       el = {
         id: utils._elId(),
         type: "line",
@@ -248,10 +442,10 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
         type: "text",
         x: x1,
         y: y1,
-        w: C.DEFAULT_TEXT_WIDTH,
-        h: C.DEFAULT_TEXT_HEIGHT,
+        w: DrawConstants.DEFAULT_TEXT_WIDTH,
+        h: DrawConstants.DEFAULT_TEXT_HEIGHT,
         text: "Text",
-        fontSize: C.DEFAULT_TEXT_FONT_SIZE,
+        fontSize: DrawConstants.DEFAULT_TEXT_FONT_SIZE,
         bold: false,
         color: stroke,
         align: "left",
@@ -268,6 +462,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
     }
 
     if (el) {
+      el.layerId = activeLayerId;
       hist.push([...elements, el]);
       setSelId(el.id);
     }
@@ -324,274 +519,31 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
   // ── Render: in-progress preview ───────────────────────────────────────────
 
   const renderPreview = () => {
-    if (!drawing) {
-      return null;
-    }
-    const { type, x1, y1, x2, y2, pts } = drawing;
-    if (type === "rect") {
-      return (
-        <rect
-          x={Math.min(x1, x2)}
-          y={Math.min(y1, y2)}
-          width={Math.abs(x2 - x1)}
-          height={Math.abs(y2 - y1)}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth={strokeW}
-          strokeDasharray="4 2"
-        />
-      );
-    }
-    if (type === "ellipse") {
-      const rx = Math.abs(x2 - x1) / 2;
-      const ry = Math.abs(y2 - y1) / 2;
-      return (
-        <ellipse
-          cx={(x1 + x2) / 2}
-          cy={(y1 + y2) / 2}
-          rx={rx}
-          ry={ry}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth={strokeW}
-          strokeDasharray="4 2"
-        />
-      );
-    }
-    if (type === "line") {
-      return (
-        <line
-          x1={x1}
-          y1={y1}
-          x2={x2}
-          y2={y2}
-          stroke={stroke}
-          strokeWidth={strokeW}
-          strokeDasharray="4 2"
-        />
-      );
-    }
-    if (type === "pen" && pts) {
-      return (
-        <path
-          d={ptsToPath(pts)}
-          fill="none"
-          stroke={stroke}
-          strokeWidth={strokeW}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      );
-    }
-    return null;
+    if (!drawing) return null;
+    return renderSpec(
+      PREVIEW_SHAPES[drawing.type]?.(drawing, { fill, stroke, strokeW, ptsToPath })
+    );
   };
 
   // ── Render: persisted elements ────────────────────────────────────────────
 
   const renderElement = el => {
     const isSel = selId === el.id && tool === "select";
-    const isEdit = editId === el.id;
-
-    // Cursor over an element depends on tool + drag state.
-    let cur;
+    // Cursor depends on tool + drag state.
+    let cursor;
     if (tool === "select") {
-      if (dragging && dragging.id === el.id) {
-        cur = "grabbing";
-      } else {
-        cur = "grab";
-      }
+      cursor = dragging && dragging.id === el.id ? "grabbing" : "grab";
     } else {
-      cur = "crosshair";
+      cursor = "crosshair";
     }
-
-    if (el.type === "rect") {
-      return (
-        <g
-          key={el.id}
-          onMouseDown={e => onElMouseDown(el, e)}
-          style={{ cursor: cur }}
-        >
-          <rect
-            x={el.x}
-            y={el.y}
-            width={el.w}
-            height={el.h}
-            fill={el.fill || "transparent"}
-            stroke={el.stroke || "#888"}
-            strokeWidth={el.strokeW || 2}
-            rx={el.rx || 0}
-          />
-          {isSel && (
-            <rect
-              x={el.x - C.SELECTION_PAD}
-              y={el.y - C.SELECTION_PAD}
-              width={el.w + C.SELECTION_PAD * 2}
-              height={el.h + C.SELECTION_PAD * 2}
-              fill="none"
-              stroke="#4A8FE8"
-              strokeWidth={1.5}
-              strokeDasharray="4 2"
-            />
-          )}
-          {isSel && <SelectionHandles x={el.x} y={el.y} w={el.w} h={el.h} />}
-        </g>
-      );
-    }
-
-    if (el.type === "ellipse") {
-      const cx = el.x + el.w / 2;
-      const cy = el.y + el.h / 2;
-      return (
-        <g
-          key={el.id}
-          onMouseDown={e => onElMouseDown(el, e)}
-          style={{ cursor: cur }}
-        >
-          <ellipse
-            cx={cx}
-            cy={cy}
-            rx={el.w / 2}
-            ry={el.h / 2}
-            fill={el.fill || "transparent"}
-            stroke={el.stroke || "#888"}
-            strokeWidth={el.strokeW || 2}
-          />
-          {isSel && (
-            <rect
-              x={el.x - C.SELECTION_PAD}
-              y={el.y - C.SELECTION_PAD}
-              width={el.w + C.SELECTION_PAD * 2}
-              height={el.h + C.SELECTION_PAD * 2}
-              fill="none"
-              stroke="#4A8FE8"
-              strokeWidth={1.5}
-              strokeDasharray="4 2"
-            />
-          )}
-          {isSel && <SelectionHandles x={el.x} y={el.y} w={el.w} h={el.h} />}
-        </g>
-      );
-    }
-
-    if (el.type === "line") {
-      return (
-        <g
-          key={el.id}
-          onMouseDown={e => onElMouseDown(el, e)}
-          style={{ cursor: cur }}
-        >
-          <line
-            x1={el.x1}
-            y1={el.y1}
-            x2={el.x2}
-            y2={el.y2}
-            stroke={el.stroke || "#888"}
-            strokeWidth={el.strokeW || 2}
-            strokeLinecap="round"
-          />
-          {isSel && (
-            // Translucent thicker overlay acts as the "selected" indicator
-            // for lines, since a bounding box around a thin line looks odd.
-            <line
-              x1={el.x1}
-              y1={el.y1}
-              x2={el.x2}
-              y2={el.y2}
-              stroke="#4A8FE8"
-              strokeWidth={(el.strokeW || 2) + 6}
-              strokeOpacity={0.25}
-              strokeLinecap="round"
-            />
-          )}
-        </g>
-      );
-    }
-
-    if (el.type === "pen") {
-      return (
-        <path
-          key={el.id}
-          d={ptsToPath(el.pts)}
-          fill={el.fill || "none"}
-          stroke={el.stroke || "#888"}
-          strokeWidth={el.strokeW || 2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          onMouseDown={e => onElMouseDown(el, e)}
-          style={{ cursor: cur }}
-        />
-      );
-    }
-
-    if (el.type === "text") {
-      // Text uses a foreignObject so we can leverage native contentEditable
-      // for inline editing — pure SVG text doesn't support that.
-      const boxHeight = Math.max(el.h, 40);
-      return (
-        <g key={el.id} onMouseDown={e => onElMouseDown(el, e)}>
-          <foreignObject
-            x={el.x}
-            y={el.y}
-            width={el.w}
-            height={boxHeight}
-            style={{ overflow: "visible", cursor: cur }}
-          >
-            <div
-              contentEditable={isEdit}
-              suppressContentEditableWarning
-              onDoubleClick={e => {
-                e.stopPropagation();
-                if (tool === "select") {
-                  setEditId(el.id);
-                }
-              }}
-              onBlur={e => {
-                hist.push(elements.map(x => {
-                  if (x.id === el.id) {
-                    return { ...x, text: e.target.innerText };
-                  }
-                  return x;
-                }));
-                setEditId(null);
-              }}
-              style={{
-                fontFamily: theme.fn,
-                fontSize: el.fontSize,
-                fontWeight: el.bold ? 700 : 400,
-                color: el.color,
-                textAlign: el.align,
-                lineHeight: 1.4,
-                outline: isEdit ? "2px solid #4A8FE8" : "none",
-                padding: isEdit ? "4px" : 0,
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-                background: isEdit ? "rgba(255,255,255,0.05)" : "transparent",
-                minHeight: 30,
-              }}
-            >
-              {el.text}
-            </div>
-          </foreignObject>
-          {isSel && (
-            <rect
-              x={el.x - C.TEXT_SELECTION_PAD}
-              y={el.y - C.TEXT_SELECTION_PAD}
-              width={el.w + C.TEXT_SELECTION_PAD * 2}
-              height={boxHeight + C.TEXT_SELECTION_PAD * 2}
-              fill="none"
-              stroke="#4A8FE8"
-              strokeWidth={1.5}
-              strokeDasharray="4 2"
-            />
-          )}
-          {isSel && !isEdit && (
-            <SelectionHandles x={el.x} y={el.y} w={el.w} h={boxHeight} />
-          )}
-        </g>
-      );
-    }
-
-    return null;
+    const ctx = {
+      isSel,
+      isEdit: editId === el.id,
+      cursor, tool, theme,
+      onElMouseDown, setEditId, ptsToPath,
+      hist, elements,
+    };
+    return renderSpec(DRAW_SHAPES[el.type]?.(el, ctx));
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -603,7 +555,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
         style={{
           width: 44,
           background: theme.surface,
-          borderRight: `1px solid ${theme.bd}`,
+          borderRight: `1px solid ${theme.border}`,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -612,12 +564,12 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
           flexShrink: 0,
         }}
       >
-        {C.DRAW_TOOLS.map(dt => (
+        {DrawConstants.DRAW_TOOLS.map(dt => (
           <button
-            key={dt.id}
+            key={dt.toolId}
             title={`${dt.label} (${dt.key})`}
             onClick={() => {
-              setTool(dt.id);
+              setTool(dt.toolId);
               setSelId(null);
               setEditId(null);
             }}
@@ -625,34 +577,34 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
               width: 34,
               height: 34,
               borderRadius: theme.r6,
-              border: `1px solid ${tool === dt.id ? appColor + "66" : theme.bd}`,
-              background: tool === dt.id ? appColor + "18" : "transparent",
+              border: `1px solid ${tool === dt.toolId ? appColor + "66" : theme.border}`,
+              background: tool === dt.toolId ? appColor + "18" : "transparent",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transition: theme.tr,
+              transition: theme.transition,
             }}
           >
-            <dt.Icon size={14} color={tool === dt.id ? appColor : theme.ts} />
+            <dt.Icon size={14} color={tool === dt.toolId ? appColor : theme.textDim} />
           </button>
         ))}
         <div style={{ flex: 1 }} />
         <button
-          onClick={() => setZoom(z => Math.min(C.ZOOM_MAX, +(z + C.ZOOM_STEP).toFixed(2)))}
+          onClick={() => setZoom(z => Math.min(DrawConstants.ZOOM_MAX, +(z + DrawConstants.ZOOM_STEP).toFixed(2)))}
           className="ni"
           style={{ padding: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex" }}
         >
           <I.ZoomIn size={13} />
         </button>
         <button
-          onClick={() => setZoom(z => Math.max(C.ZOOM_MIN, +(z - C.ZOOM_STEP).toFixed(2)))}
+          onClick={() => setZoom(z => Math.max(DrawConstants.ZOOM_MIN, +(z - DrawConstants.ZOOM_STEP).toFixed(2)))}
           className="ni"
           style={{ padding: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex" }}
         >
           <I.ZoomOut size={13} />
         </button>
-        <div style={{ fontSize: 9, color: theme.tm, marginBottom: 4 }}>
+        <div style={{ fontSize: 9, color: theme.textMuted, marginBottom: 4 }}>
           {Math.round(zoom * 100)}%
         </div>
       </div>
@@ -661,7 +613,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
       <div
         style={{
           flex: 1,
-          background: theme.dk ? "#111118" : "#DCDBD4",
+          background: theme.isDark ? "#111118" : "#DCDBD4",
           overflow: "hidden",
           position: "relative",
           display: "flex",
@@ -675,14 +627,14 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
         <div style={{ transform: `scale(${zoom})`, transformOrigin: "center center" }}>
           <svg
             ref={svgRef}
-            viewBox={`0 0 ${C.CANVAS_WIDTH} ${C.CANVAS_HEIGHT}`}
-            width={C.CANVAS_WIDTH}
-            height={C.CANVAS_HEIGHT}
+            viewBox={`0 0 ${DrawConstants.CANVAS_WIDTH} ${DrawConstants.CANVAS_HEIGHT}`}
+            width={DrawConstants.CANVAS_WIDTH}
+            height={DrawConstants.CANVAS_HEIGHT}
             style={{
               background: "#FFFFFF",
               boxShadow: "0 2px 20px rgba(0,0,0,0.2)",
               display: "block",
-              cursor: C.CURSOR_BY_TOOL[tool] || "default",
+              cursor: DrawConstants.CURSOR_BY_TOOL[tool] || "default",
             }}
             onMouseDown={onSVGMouseDown}
           >
@@ -692,8 +644,8 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
                 <circle cx="10" cy="10" r="0.8" fill="rgba(0,0,0,0.1)" />
               </pattern>
             </defs>
-            <rect width={C.CANVAS_WIDTH} height={C.CANVAS_HEIGHT} fill="url(#dotgrid)" />
-            {elementsView.map(renderElement)}
+            <rect width={DrawConstants.CANVAS_WIDTH} height={DrawConstants.CANVAS_HEIGHT} fill="url(#dotgrid)" />
+            {orderedElements.map(renderElement)}
             {renderPreview()}
           </svg>
         </div>
@@ -704,7 +656,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
         style={{
           width: 188,
           background: theme.surface,
-          borderLeft: `1px solid ${theme.bd}`,
+          borderLeft: `1px solid ${theme.border}`,
           display: "flex",
           flexDirection: "column",
           flexShrink: 0,
@@ -712,7 +664,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
         }}
       >
         {/* Stroke/fill controls */}
-        <div style={{ padding: 12, borderBottom: `1px solid ${theme.bd}` }}>
+        <div style={{ padding: 12, borderBottom: `1px solid ${theme.border}` }}>
           <div className="nsect" style={{ paddingTop: 0 }}>Paint</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
             <div
@@ -721,7 +673,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
                 height: 28,
                 borderRadius: theme.r6,
                 background: fill,
-                border: `1px solid ${theme.bd}`,
+                border: `1px solid ${theme.border}`,
                 cursor: "pointer",
                 flexShrink: 0,
               }}
@@ -740,7 +692,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
               title="Stroke"
             />
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 9, color: theme.tm, marginBottom: 3 }}>Stroke width</div>
+              <div style={{ fontSize: 9, color: theme.textMuted, marginBottom: 3 }}>Stroke width</div>
               <input
                 type="range"
                 min={1}
@@ -773,7 +725,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
                   height: 18,
                   borderRadius: 3,
                   background: c || "transparent",
-                  border: `2px solid ${fill === c ? theme.tx : theme.bd}`,
+                  border: `2px solid ${fill === c ? theme.text : theme.border}`,
                   cursor: "pointer",
                 }}
               />
@@ -801,60 +753,92 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
                   background: "transparent",
                   border: `2.5px solid ${c}`,
                   cursor: "pointer",
-                  outline: `1px solid ${stroke === c ? theme.tx : "transparent"}`,
+                  outline: `1px solid ${stroke === c ? theme.text : "transparent"}`,
                 }}
               />
             ))}
           </div>
         </div>
 
-        {/* Layers list */}
+        {/* Layers list — top layer first (matches z-stacking visually) */}
         <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
-          <div className="nsect" style={{ paddingTop: 0 }}>Layers ({elementsView.length})</div>
-          {[...elementsView].reverse().map((el, i) => (
-            <div
-              key={el.id}
+          <div
+            className="nsect"
+            style={{
+              paddingTop: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <span>Layers ({layers.length})</span>
+            <button
               onClick={() => {
-                setTool("select");
-                setSelId(el.id);
+                const id = utils._elId();
+                const name = `Layer ${layers.length + 1}`;
+                setLayers([...layers, { id, name }]);
+                setActiveLayerId(id);
               }}
+              title="New layer"
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 6,
-                padding: "4px 6px",
+                justifyContent: "center",
+                width: 18, height: 18,
                 borderRadius: theme.r6,
+                border: `1px solid ${theme.border}`,
+                background: "transparent",
+                color: theme.textDim,
                 cursor: "pointer",
-                background: selId === el.id ? appColor + "18" : "transparent",
-                border: `1px solid ${selId === el.id ? appColor + "44" : "transparent"}`,
-                marginBottom: 2,
+                fontSize: 12,
+                lineHeight: 1,
               }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = selId === el.id ? appColor + "18" : theme.sh;
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = selId === el.id ? appColor + "18" : "transparent";
-              }}
-            >
-              <I.Eye size={10} color={theme.tm} />
-              <span
+            >+</button>
+          </div>
+          {[...layers].reverse().map(L => {
+            const count = elementsView.filter(el => el.layerId === L.id).length;
+            const isActive = L.id === activeLayerId;
+            return (
+              <div
+                key={L.id}
+                onClick={() => setActiveLayerId(L.id)}
                 style={{
-                  fontSize: 10,
-                  color: selId === el.id ? theme.tx : theme.ts,
-                  flex: 1,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "4px 6px",
+                  borderRadius: theme.r6,
+                  cursor: "pointer",
+                  background: isActive ? appColor + "18" : "transparent",
+                  border: `1px solid ${isActive ? appColor + "44" : "transparent"}`,
+                  marginBottom: 2,
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = isActive ? appColor + "18" : theme.surfaceShade;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = isActive ? appColor + "18" : "transparent";
                 }}
               >
-                {el.type === "text"
-                  ? `"${el.text?.slice(0, 12) || "Text"}"`
-                  : `${el.type} ${elements.length - i}`}
-              </span>
-            </div>
-          ))}
+                <I.Eye size={10} color={theme.textMuted} />
+                <span
+                  style={{
+                    fontSize: 10,
+                    color: isActive ? theme.text : theme.textDim,
+                    flex: 1,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {L.name}
+                </span>
+                <span style={{ fontSize: 9, color: theme.textMuted }}>{count}</span>
+              </div>
+            );
+          })}
           {elementsView.length === 0 && (
-            <div style={{ fontSize: 10, color: theme.tm, textAlign: "center", paddingTop: 12 }}>
+            <div style={{ fontSize: 10, color: theme.textMuted, textAlign: "center", paddingTop: 12 }}>
               Pick a tool and draw on the canvas
             </div>
           )}
@@ -862,14 +846,14 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
 
         {/* Selected element actions */}
         {selEl && (
-          <div style={{ padding: 8, borderTop: `1px solid ${theme.bd}` }}>
+          <div style={{ padding: 8, borderTop: `1px solid ${theme.border}` }}>
             <button
               onClick={() => {
                 hist.push(elements.filter(x => x.id !== selId));
                 setSelId(null);
               }}
               className="nb ng"
-              style={{ width: "100%", fontSize: 11, color: theme.er, borderColor: theme.er + "44" }}
+              style={{ width: "100%", fontSize: 11, color: theme.error, borderColor: theme.error + "44" }}
             >
               <I.Trash size={11} /> Delete
             </button>

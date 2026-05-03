@@ -1,6 +1,6 @@
 import React from "react";
 import { useT } from "./theme";
-import { _app } from "../shell/registry";
+import { registry } from "./_utils";
 
 // Card grid container. Pass `cols` for a fixed column count (paired with a
 // slider/control that drives it), or `min` for an auto-fill grid that floors
@@ -21,7 +21,7 @@ export const TileGrid = ({ children, cols, min = 196, gap = 9, gridRef, style })
         display: "grid",
         gridTemplateColumns: useTracks,
         gap,
-        transition: cols ? "grid-template-columns 0.35s ease" : undefined,
+        transition: cols ? "grid-template-columns 0.45s cubic-bezier(0.22, 1, 0.36, 1)" : undefined,
         ...style,
       }}
     >
@@ -32,10 +32,12 @@ export const TileGrid = ({ children, cols, min = 196, gap = 9, gridRef, style })
 
 export const AppChip = ({ appId, size = 36, colorOverride }) => {
   const theme = useT();
-  const def = _app(appId);
-  const color = colorOverride || def.dc;
+  const def = registry._app(appId);
+  // Fall back to the per-app theme colour so chips track the active scheme
+  // when no explicit override is passed.
+  const color = colorOverride || theme.appColorFor(appId);
   // Tint background with a low-opacity overlay of the app color.
-  const bgTint = color + (theme.dk ? "1A" : "22");
+  const bgTint = color + (theme.isDark ? "1A" : "22");
 
   return (
     <div
@@ -55,9 +57,16 @@ export const AppChip = ({ appId, size = 36, colorOverride }) => {
   );
 };
 
-export const NovaLogo = ({ compact }) => {
+export const NovaLogo = ({ compact, workspace }) => {
   const theme = useT();
-  const monogramColor = theme.dk ? "#09060A" : "#fff";
+  const monogramColor = theme.isDark ? "#09060A" : "#fff";
+
+  // When a workspace is provided, swap the brand mark for the workspace's
+  // initial + name. Mobile uses this so the active workspace is the primary
+  // identity on screen instead of generic "Nova".
+  const label = workspace?.name || "Nova";
+  const monogram = (workspace?.name?.[0] || "N").toUpperCase();
+  const bg = workspace?.color || theme.accent;
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, overflow: "hidden" }}>
@@ -66,7 +75,7 @@ export const NovaLogo = ({ compact }) => {
           width: 30,
           height: 30,
           borderRadius: theme.r10,
-          background: theme.ac,
+          background: bg,
           flexShrink: 0,
           display: "flex",
           alignItems: "center",
@@ -78,10 +87,10 @@ export const NovaLogo = ({ compact }) => {
             fontSize: 13,
             fontWeight: 800,
             color: monogramColor,
-            fontFamily: theme.fn,
+            fontFamily: theme.fontFamily,
           }}
         >
-          N
+          {monogram}
         </span>
       </div>
       {!compact && (
@@ -89,12 +98,14 @@ export const NovaLogo = ({ compact }) => {
           style={{
             fontSize: 15,
             fontWeight: 800,
-            color: theme.tx,
+            color: theme.text,
             whiteSpace: "nowrap",
             letterSpacing: "-0.01em",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
           }}
         >
-          Nova
+          {label}
         </span>
       )}
     </div>

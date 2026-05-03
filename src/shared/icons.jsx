@@ -16,15 +16,6 @@ import React from "react";
 
 // ── Primitive ────────────────────────────────────────────────────────────────
 
-type IcProps = {
-  d: string | string[];
-  size?: number;
-  color?: string;
-  fill?: string;
-  sw?: number;
-  style?: React.CSSProperties;
-};
-
 /**
  * @param {{ d: string | string[], size?: number, color?: string,
  *           fill?: string, sw?: number, style?: React.CSSProperties }} props
@@ -36,7 +27,7 @@ const Ic = ({
   fill = "none",
   sw = 2,
   style = {},
-}: IcProps) => {
+}) => {
   // `d` may be a single path string or an array of them — normalise to array
   // so the JSX below can render both shapes uniformly.
   const paths = Array.isArray(d) ? d : [d];
@@ -62,8 +53,8 @@ const Ic = ({
 // Keys are PascalCase semantic names — not visual descriptions.
 // Icons are grouped by domain for easy scanning.
 
-/** @type {{ [name: string]: React.ComponentType<import('../types').IconProps> }} */
-export const I: { [name: string]: React.ComponentType<import('./modals/types.js').IconProps>; } = {
+/** @type {{ [name: string]: React.ComponentType<import('./modals/types').IconProps> }} */
+export const I = {
   // ── Documents ──────────────────────────────────────────────────────────────
   FileText: p => <Ic {...p} d={["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z", "M14 2v6h6", "M16 13H8", "M16 17H8", "M10 9H8"]} />,
   File:     p => <Ic {...p} d={["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z", "M14 2v6h6"]} />,

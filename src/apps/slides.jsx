@@ -1,26 +1,163 @@
 import React, { useState, useEffect, useRef } from "react";
 import { I } from "../shared/icons";
 import { useCanvasHistory } from "../shared/hooks/system";
-import { SLIDE_THEMES, _mkSlide, SelectionHandles } from "../shared/canvas_utils";
-import { _elId } from "../shared/utils";
+import { SelectionHandles, renderSpec } from "../shared/canvas_utils";
+import { SlidesConstants } from "../shared/_constants";
+import { utils, canvas_utils as canvasU } from "../shared/_utils";
 
-// Logical canvas dimensions — every coordinate stored on a slide element is
-// expressed in this space, then scaled to the rendered SVG viewport.
-const CANVAS_WIDTH = 800;
-const CANVAS_HEIGHT = 450;
+// Sharded map: el.type → spec-builder. Each builder returns a tree the recursive
+// renderSpec walks into JSX. ctx bundles closure state from SlidesEditor.
+const SLIDE_SHAPES = {
+  text: (el, c) => {
+    const textHeight = Math.max(el.h, SlidesConstants.TEXT_MIN_HEIGHT);
+    const isDragging = c.dragState && c.dragState.elId === el.id;
+    return {
+      tag: "g", key: el.id,
+      children: [
+        { tag: "foreignObject",
+          x: el.x, y: el.y, width: el.w, height: textHeight,
+          style: { overflow: "visible", cursor: isDragging ? "grabbing" : "grab" },
+          onMouseDown: e => c.onElMouseDown(el, e),
+          onDoubleClick: e => { e.stopPropagation(); c.setEditId(el.id); },
+          children: {
+            tag: "div",
+            contentEditable: c.isEdit,
+            suppressContentEditableWarning: true,
+            onBlur: e => {
+              const newText = e.target.innerText;
+              c.updateElements(c.activeSl, els => els.map(x => {
+                if (x.id === el.id) return { ...x, text: newText, placeholder: false };
+                return x;
+              }));
+              c.setEditId(null);
+            },
+            style: {
+              width: "100%",
+              minHeight: SlidesConstants.TEXT_MIN_HEIGHT,
+              fontFamily: c.theme.fontFamily,
+              fontSize: el.fontSize,
+              fontWeight: el.bold ? 700 : 400,
+              color: el.color,
+              textAlign: el.align,
+              lineHeight: 1.4,
+              outline: c.isEdit ? `2px solid ${SlidesConstants.SELECTION_COLOR}` : "none",
+              padding: c.isEdit ? "4px" : 0,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              cursor: c.isEdit ? "text" : "inherit",
+              background: c.isEdit ? "rgba(255,255,255,0.05)" : "transparent",
+            },
+            children: el.text,
+          },
+        },
+        c.isSel && !c.isEdit && { tag: "rect", key: "sel",
+          x: el.x - 2, y: el.y - 2, width: el.w + 4, height: textHeight + 4,
+          fill: "none",
+          stroke: SlidesConstants.SELECTION_COLOR,
+          strokeWidth: 1.5,
+          strokeDasharray: SlidesConstants.SELECTION_DASH },
+        c.isSel && !c.isEdit && { tag: SelectionHandles, key: "h",
+          x: el.x, y: el.y, w: el.w, h: textHeight },
+      ],
+    };
+  },
 
-// Selection chrome.
-const SELECTION_COLOR = "#4A8FE8";
-const SELECTION_DASH = "4 2";
+  rect: (el, c) => ({
+    tag: "g", key: el.id,
+    onMouseDown: e => c.onElMouseDown(el, e),
+    style: { cursor: "grab" },
+    children: [
+      { tag: "rect",
+        x: el.x, y: el.y, width: el.w, height: el.h,
+        fill: el.fill || "transparent",
+        stroke: el.stroke || "#888",
+        strokeWidth: el.strokeW || 2,
+        rx: el.rx || 0 },
+      c.isSel && { tag: "rect", key: "sel",
+        x: el.x - 3, y: el.y - 3, width: el.w + 6, height: el.h + 6,
+        fill: "none",
+        stroke: SlidesConstants.SELECTION_COLOR,
+        strokeWidth: 1.5,
+        strokeDasharray: SlidesConstants.SELECTION_DASH },
+      c.isSel && { tag: SelectionHandles, key: "h",
+        x: el.x, y: el.y, w: el.w, h: el.h },
+    ],
+  }),
 
-// Default geometry / styling for newly-inserted elements.
-const DEFAULT_TEXT_FONT_SIZE = 18;
-const DEFAULT_STROKE_WIDTH = 2;
-const DEFAULT_LINE_STROKE_WIDTH = 3;
-const TEXT_MIN_HEIGHT = 40;
+  ellipse: (el, c) => ({
+    tag: "g", key: el.id,
+    onMouseDown: e => c.onElMouseDown(el, e),
+    style: { cursor: "grab" },
+    children: [
+      { tag: "ellipse",
+        cx: el.x + el.w / 2, cy: el.y + el.h / 2,
+        rx: el.w / 2, ry: el.h / 2,
+        fill: el.fill || "transparent",
+        stroke: el.stroke || "#888",
+        strokeWidth: el.strokeW || 2 },
+      c.isSel && { tag: "rect", key: "sel",
+        x: el.x - 3, y: el.y - 3, width: el.w + 6, height: el.h + 6,
+        fill: "none",
+        stroke: SlidesConstants.SELECTION_COLOR,
+        strokeWidth: 1.5,
+        strokeDasharray: SlidesConstants.SELECTION_DASH },
+      c.isSel && { tag: SelectionHandles, key: "h",
+        x: el.x, y: el.y, w: el.w, h: el.h },
+    ],
+  }),
+
+  line: (el, c) => ({
+    tag: "g", key: el.id,
+    onMouseDown: e => c.onElMouseDown(el, e),
+    style: { cursor: "grab" },
+    children: [
+      { tag: "line",
+        x1: el.x1, y1: el.y1, x2: el.x2, y2: el.y2,
+        stroke: el.stroke || "#888",
+        strokeWidth: el.strokeW || 2,
+        strokeLinecap: "round" },
+      c.isSel && { tag: "line", key: "sel",
+        x1: el.x1, y1: el.y1, x2: el.x2, y2: el.y2,
+        stroke: SlidesConstants.SELECTION_COLOR,
+        strokeWidth: el.strokeW + 4,
+        strokeOpacity: 0.3,
+        strokeLinecap: "round" },
+    ],
+  }),
+};
+
+// Slide-thumbnail map: same shapes, no selection chrome, smaller font.
+const THUMB_SHAPES = {
+  rect: (el) => ({
+    tag: "rect", key: el.id,
+    x: el.x, y: el.y, width: el.w, height: el.h,
+    fill: el.fill || "transparent",
+    stroke: el.stroke || "#888",
+    strokeWidth: el.strokeW || 2,
+    rx: el.rx || 0,
+  }),
+  ellipse: (el) => ({
+    tag: "ellipse", key: el.id,
+    cx: el.x + el.w / 2, cy: el.y + el.h / 2,
+    rx: el.w / 2, ry: el.h / 2,
+    fill: el.fill || "transparent",
+    stroke: el.stroke || "#888",
+    strokeWidth: el.strokeW || 2,
+  }),
+  text: (el) => ({
+    tag: "text", key: el.id,
+    x: el.align === "center" ? el.x + el.w / 2 : el.x,
+    y: el.y + el.fontSize * 0.8,
+    fontSize: el.fontSize * 0.5,
+    fontWeight: el.bold ? 700 : 400,
+    fill: el.color,
+    textAnchor: el.align === "center" ? "middle" : "start",
+    children: el.text?.slice(0, 30),
+  }),
+};
 
 export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registerActions }) => {
-  const activeTheme = SLIDE_THEMES[0];
+  const activeTheme = SlidesConstants.SLIDE_THEMES[0];
 
   // Parse stored content or fall back to a 3-slide default deck.
   const initSlides = () => {
@@ -33,9 +170,9 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
       // Ignore malformed content; use default deck below.
     }
     return [
-      _mkSlide("title", activeTheme),
-      _mkSlide("content", activeTheme),
-      _mkSlide("blank", activeTheme),
+      canvasU._mkSlide("title", activeTheme),
+      canvasU._mkSlide("content", activeTheme),
+      canvasU._mkSlide("blank", activeTheme),
     ];
   };
 
@@ -55,7 +192,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
 
   // Persist the deck whenever slides or theme change.
   useEffect(() => {
-    onContentChange(JSON.stringify({ slides, theme: deckTheme.id }));
+    onContentChange(JSON.stringify({ slides, theme: deckTheme.themeId }));
   }, [slides, deckTheme]); // eslint-disable-line
 
   const curSlide = slides[Math.min(activeSl, slides.length - 1)] || slides[0];
@@ -75,7 +212,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
   };
 
   const addSlide = (layout = "blank") => {
-    hist.push([...slides, _mkSlide(layout, deckTheme)]);
+    hist.push([...slides, canvasU._mkSlide(layout, deckTheme)]);
     setActiveSl(slides.length);
     setSelId(null);
   };
@@ -83,8 +220,8 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
   const dupSlide = () => {
     const newSlide = {
       ...curSlide,
-      id: _elId(),
-      elements: curSlide.elements.map(e => ({ ...e, id: _elId() })),
+      id: utils._elId(),
+      elements: curSlide.elements.map(e => ({ ...e, id: utils._elId() })),
     };
     const arr = [...slides];
     arr.splice(activeSl + 1, 0, newSlide);
@@ -105,22 +242,22 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
     let el;
     if (type === "text") {
       el = {
-        id: _elId(),
+        id: utils._elId(),
         type: "text",
         x: 100,
         y: 100,
         w: 400,
         h: 80,
         text: "New text box",
-        fontSize: DEFAULT_TEXT_FONT_SIZE,
+        fontSize: SlidesConstants.DEFAULT_TEXT_FONT_SIZE,
         bold: false,
-        color: deckTheme.tx,
+        color: deckTheme.text,
         align: "left",
         placeholder: false,
       };
     } else if (type === "rect") {
       el = {
-        id: _elId(),
+        id: utils._elId(),
         type: "rect",
         x: 150,
         y: 120,
@@ -128,12 +265,12 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
         h: 180,
         fill: appColor + "88",
         stroke: appColor,
-        strokeW: DEFAULT_STROKE_WIDTH,
+        strokeW: SlidesConstants.DEFAULT_STROKE_WIDTH,
         rx: 8,
       };
     } else if (type === "ellipse") {
       el = {
-        id: _elId(),
+        id: utils._elId(),
         type: "ellipse",
         x: 200,
         y: 120,
@@ -141,18 +278,18 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
         h: 180,
         fill: appColor + "55",
         stroke: appColor,
-        strokeW: DEFAULT_STROKE_WIDTH,
+        strokeW: SlidesConstants.DEFAULT_STROKE_WIDTH,
       };
     } else {
       el = {
-        id: _elId(),
+        id: utils._elId(),
         type: "line",
         x1: 100,
         y1: 200,
         x2: 500,
         y2: 200,
         stroke: appColor,
-        strokeW: DEFAULT_LINE_STROKE_WIDTH,
+        strokeW: SlidesConstants.DEFAULT_LINE_STROKE_WIDTH,
       };
     }
     updateElements(activeSl, els => [...els, el]);
@@ -176,7 +313,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
       bg: thm.bg,
       elements: sl.elements.map(e => {
         if (e.type === "text") {
-          return { ...e, color: e.bold ? thm.hd : thm.tx };
+          return { ...e, color: e.bold ? thm.heading : thm.text };
         }
         return e;
       }),
@@ -201,7 +338,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
         setPresIdx(activeSl);
         setPresMode(true);
       } else if (id === "theme") {
-        const thm = SLIDE_THEMES.find(x => x.id === val) || SLIDE_THEMES[0];
+        const thm = SlidesConstants.SLIDE_THEMES.find(x => x.themeId === val) || SlidesConstants.SLIDE_THEMES[0];
         applyTheme(thm);
       } else if (id === "layout") {
         addSlide(val);
@@ -235,8 +372,8 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
     if (!rect) {
       return { x: 0, y: 0 };
     }
-    const scaleX = CANVAS_WIDTH / rect.width;
-    const scaleY = CANVAS_HEIGHT / rect.height;
+    const scaleX = SlidesConstants.CANVAS_WIDTH / rect.width;
+    const scaleY = SlidesConstants.CANVAS_HEIGHT / rect.height;
     return {
       x: (e.clientX - rect.left) * scaleX,
       y: (e.clientY - rect.top) * scaleY,
@@ -299,192 +436,13 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
   // ── Element rendering ─────────────────────────────────────────────────────
 
   const renderEl = el => {
-    const isSel = selId === el.id;
-    const isEdit = editId === el.id;
-
-    if (el.type === "text") {
-      const textHeight = Math.max(el.h, TEXT_MIN_HEIGHT);
-      const isDragging = dragState && dragState.elId === el.id;
-      return (
-        <g key={el.id}>
-          <foreignObject
-            x={el.x}
-            y={el.y}
-            width={el.w}
-            height={textHeight}
-            style={{
-              overflow: "visible",
-              cursor: isDragging ? "grabbing" : "grab",
-            }}
-            onMouseDown={e => onElMouseDown(el, e)}
-            onDoubleClick={e => {
-              e.stopPropagation();
-              setEditId(el.id);
-            }}
-          >
-            <div
-              contentEditable={isEdit}
-              suppressContentEditableWarning
-              onBlur={e => {
-                const newText = e.target.innerText;
-                updateElements(activeSl, els => els.map(x => {
-                  if (x.id === el.id) {
-                    return { ...x, text: newText, placeholder: false };
-                  }
-                  return x;
-                }));
-                setEditId(null);
-              }}
-              style={{
-                width: "100%",
-                minHeight: TEXT_MIN_HEIGHT,
-                fontFamily: theme.fn,
-                fontSize: el.fontSize,
-                fontWeight: el.bold ? 700 : 400,
-                color: el.color,
-                textAlign: el.align,
-                lineHeight: 1.4,
-                outline: isEdit ? `2px solid ${SELECTION_COLOR}` : "none",
-                padding: isEdit ? "4px" : 0,
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-                cursor: isEdit ? "text" : "inherit",
-                background: isEdit ? "rgba(255,255,255,0.05)" : "transparent",
-              }}
-            >
-              {el.text}
-            </div>
-          </foreignObject>
-          {isSel && !isEdit && (
-            <rect
-              x={el.x - 2}
-              y={el.y - 2}
-              width={el.w + 4}
-              height={textHeight + 4}
-              fill="none"
-              stroke={SELECTION_COLOR}
-              strokeWidth={1.5}
-              strokeDasharray={SELECTION_DASH}
-            />
-          )}
-          {isSel && !isEdit && (
-            <SelectionHandles
-              x={el.x}
-              y={el.y}
-              w={el.w}
-              h={textHeight}
-            />
-          )}
-        </g>
-      );
-    }
-
-    if (el.type === "rect") {
-      return (
-        <g
-          key={el.id}
-          onMouseDown={e => onElMouseDown(el, e)}
-          style={{ cursor: "grab" }}
-        >
-          <rect
-            x={el.x}
-            y={el.y}
-            width={el.w}
-            height={el.h}
-            fill={el.fill || "transparent"}
-            stroke={el.stroke || "#888"}
-            strokeWidth={el.strokeW || 2}
-            rx={el.rx || 0}
-          />
-          {isSel && (
-            <rect
-              x={el.x - 3}
-              y={el.y - 3}
-              width={el.w + 6}
-              height={el.h + 6}
-              fill="none"
-              stroke={SELECTION_COLOR}
-              strokeWidth={1.5}
-              strokeDasharray={SELECTION_DASH}
-            />
-          )}
-          {isSel && (
-            <SelectionHandles x={el.x} y={el.y} w={el.w} h={el.h} />
-          )}
-        </g>
-      );
-    }
-
-    if (el.type === "ellipse") {
-      const cx = el.x + el.w / 2;
-      const cy = el.y + el.h / 2;
-      return (
-        <g
-          key={el.id}
-          onMouseDown={e => onElMouseDown(el, e)}
-          style={{ cursor: "grab" }}
-        >
-          <ellipse
-            cx={cx}
-            cy={cy}
-            rx={el.w / 2}
-            ry={el.h / 2}
-            fill={el.fill || "transparent"}
-            stroke={el.stroke || "#888"}
-            strokeWidth={el.strokeW || 2}
-          />
-          {isSel && (
-            <rect
-              x={el.x - 3}
-              y={el.y - 3}
-              width={el.w + 6}
-              height={el.h + 6}
-              fill="none"
-              stroke={SELECTION_COLOR}
-              strokeWidth={1.5}
-              strokeDasharray={SELECTION_DASH}
-            />
-          )}
-          {isSel && (
-            <SelectionHandles x={el.x} y={el.y} w={el.w} h={el.h} />
-          )}
-        </g>
-      );
-    }
-
-    if (el.type === "line") {
-      return (
-        <g
-          key={el.id}
-          onMouseDown={e => onElMouseDown(el, e)}
-          style={{ cursor: "grab" }}
-        >
-          <line
-            x1={el.x1}
-            y1={el.y1}
-            x2={el.x2}
-            y2={el.y2}
-            stroke={el.stroke || "#888"}
-            strokeWidth={el.strokeW || 2}
-            strokeLinecap="round"
-          />
-          {isSel && (
-            <line
-              x1={el.x1}
-              y1={el.y1}
-              x2={el.x2}
-              y2={el.y2}
-              stroke={SELECTION_COLOR}
-              strokeWidth={el.strokeW + 4}
-              strokeOpacity={0.3}
-              strokeLinecap="round"
-            />
-          )}
-        </g>
-      );
-    }
-
-    return null;
+    const ctx = {
+      isSel:  selId === el.id,
+      isEdit: editId === el.id,
+      dragState, theme,
+      onElMouseDown, setEditId, updateElements, activeSl,
+    };
+    return renderSpec(SLIDE_SHAPES[el.type]?.(el, ctx));
   };
 
   // ── Presenter mode ────────────────────────────────────────────────────────
@@ -513,10 +471,10 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
         onClick={advanceOrExit}
       >
         <svg
-          viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
+          viewBox={`0 0 ${SlidesConstants.CANVAS_WIDTH} ${SlidesConstants.CANVAS_HEIGHT}`}
           style={{ width: "90vw", maxWidth: 1200, aspectRatio: "16/9" }}
         >
-          <rect width={CANVAS_WIDTH} height={CANVAS_HEIGHT} fill={ps.bg || "#fff"} />
+          <rect width={SlidesConstants.CANVAS_WIDTH} height={SlidesConstants.CANVAS_HEIGHT} fill={ps.bg || "#fff"} />
           {ps.elements.map(renderEl)}
         </svg>
         <div style={{ position: "fixed", bottom: 24, right: 24, display: "flex", gap: 8 }}>
@@ -566,7 +524,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
 
   // ── Editor render ─────────────────────────────────────────────────────────
 
-  const canvasBackground = theme.dk ? "#1A1A24" : "#D4D4CE";
+  const canvasBackground = theme.isDark ? "#1A1A24" : "#D4D4CE";
 
   return (
     <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
@@ -575,7 +533,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
         style={{
           width: 148,
           background: theme.surface,
-          borderRight: `1px solid ${theme.bd}`,
+          borderRight: `1px solid ${theme.border}`,
           padding: 8,
           overflowY: "auto",
           flexShrink: 0,
@@ -595,72 +553,24 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
               style={{
                 aspectRatio: "16/9",
                 background: sl.bg || "#fff",
-                border: `2px solid ${i === activeSl ? appColor : theme.bd}`,
+                border: `2px solid ${i === activeSl ? appColor : theme.border}`,
                 borderRadius: 4,
                 overflow: "hidden",
                 position: "relative",
               }}
             >
               <svg
-                viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
+                viewBox={`0 0 ${SlidesConstants.CANVAS_WIDTH} ${SlidesConstants.CANVAS_HEIGHT}`}
                 style={{ width: "100%", height: "100%", pointerEvents: "none" }}
               >
-                <rect width={CANVAS_WIDTH} height={CANVAS_HEIGHT} fill={sl.bg || "#fff"} />
-                {sl.elements.map(el => {
-                  if (el.type === "rect") {
-                    return (
-                      <rect
-                        key={el.id}
-                        x={el.x}
-                        y={el.y}
-                        width={el.w}
-                        height={el.h}
-                        fill={el.fill || "transparent"}
-                        stroke={el.stroke || "#888"}
-                        strokeWidth={el.strokeW || 2}
-                        rx={el.rx || 0}
-                      />
-                    );
-                  }
-                  if (el.type === "ellipse") {
-                    const cx = el.x + el.w / 2;
-                    const cy = el.y + el.h / 2;
-                    return (
-                      <ellipse
-                        key={el.id}
-                        cx={cx}
-                        cy={cy}
-                        rx={el.w / 2}
-                        ry={el.h / 2}
-                        fill={el.fill || "transparent"}
-                        stroke={el.stroke || "#888"}
-                        strokeWidth={el.strokeW || 2}
-                      />
-                    );
-                  }
-                  if (el.type === "text") {
-                    return (
-                      <text
-                        key={el.id}
-                        x={el.align === "center" ? el.x + el.w / 2 : el.x}
-                        y={el.y + el.fontSize * 0.8}
-                        fontSize={el.fontSize * 0.5}
-                        fontWeight={el.bold ? 700 : 400}
-                        fill={el.color}
-                        textAnchor={el.align === "center" ? "middle" : "start"}
-                      >
-                        {el.text?.slice(0, 30)}
-                      </text>
-                    );
-                  }
-                  return null;
-                })}
+                <rect width={SlidesConstants.CANVAS_WIDTH} height={SlidesConstants.CANVAS_HEIGHT} fill={sl.bg || "#fff"} />
+                {sl.elements.map(el => renderSpec(THUMB_SHAPES[el.type]?.(el)))}
               </svg>
             </div>
             <div
               style={{
                 fontSize: 9,
-                color: theme.tm,
+                color: theme.textMuted,
                 textAlign: "center",
                 marginTop: 2,
               }}
@@ -677,12 +587,12 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
               flex: 1,
               padding: "5px 0",
               fontSize: 9,
-              color: theme.ts,
-              border: `1px dashed ${theme.bd}`,
+              color: theme.textDim,
+              border: `1px dashed ${theme.border}`,
               borderRadius: theme.r6,
               cursor: "pointer",
               background: "transparent",
-              fontFamily: theme.fn,
+              fontFamily: theme.fontFamily,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -697,12 +607,12 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
               style={{
                 padding: "5px 7px",
                 fontSize: 9,
-                color: theme.er,
-                border: `1px solid ${theme.er}22`,
+                color: theme.error,
+                border: `1px solid ${theme.error}22`,
                 borderRadius: theme.r6,
                 cursor: "pointer",
                 background: "transparent",
-                fontFamily: theme.fn,
+                fontFamily: theme.fontFamily,
                 display: "flex",
                 alignItems: "center",
               }}
@@ -717,13 +627,13 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
           style={{
             marginTop: 12,
             paddingTop: 8,
-            borderTop: `1px solid ${theme.bd}`,
+            borderTop: `1px solid ${theme.border}`,
           }}
         >
           <div
             style={{
               fontSize: 9,
-              color: theme.tm,
+              color: theme.textMuted,
               marginBottom: 5,
               textTransform: "uppercase",
               letterSpacing: "0.05em",
@@ -732,9 +642,9 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
             Themes
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
-            {SLIDE_THEMES.map(thm => (
+            {SlidesConstants.SLIDE_THEMES.map(thm => (
               <div
-                key={thm.id}
+                key={thm.themeId}
                 onClick={() => applyTheme(thm)}
                 title={thm.label}
                 style={{
@@ -742,7 +652,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
                   height: 14,
                   borderRadius: 3,
                   background: thm.bg,
-                  border: `2px solid ${deckTheme.id === thm.id ? appColor : "transparent"}`,
+                  border: `2px solid ${deckTheme.themeId === thm.themeId ? appColor : "transparent"}`,
                   cursor: "pointer",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
                 }}
@@ -769,7 +679,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
       >
         <svg
           ref={canvasRef}
-          viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
+          viewBox={`0 0 ${SlidesConstants.CANVAS_WIDTH} ${SlidesConstants.CANVAS_HEIGHT}`}
           style={{
             width: "min(760px,92%)",
             aspectRatio: "16/9",
@@ -779,7 +689,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
           }}
           onMouseDown={onCanvasMouseDown}
         >
-          <rect width={CANVAS_WIDTH} height={CANVAS_HEIGHT} fill={curSlide?.bg || "#fff"} />
+          <rect width={SlidesConstants.CANVAS_WIDTH} height={SlidesConstants.CANVAS_HEIGHT} fill={curSlide?.bg || "#fff"} />
           {curSlide?.elements.map(renderEl)}
         </svg>
 
@@ -808,12 +718,12 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
                 gap: 5,
                 padding: "5px 10px",
                 borderRadius: theme.rF,
-                background: theme.el,
-                border: `1px solid ${theme.bd}`,
-                color: theme.ts,
+                background: theme.elevated,
+                border: `1px solid ${theme.border}`,
+                color: theme.textDim,
                 fontSize: 11,
                 cursor: "pointer",
-                fontFamily: theme.fn,
+                fontFamily: theme.fontFamily,
                 gap: 4,
               }}
             >
@@ -837,7 +747,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
               color: "white",
               fontSize: 11,
               cursor: "pointer",
-              fontFamily: theme.fn,
+              fontFamily: theme.fontFamily,
               fontWeight: 700,
             }}
           >
@@ -851,7 +761,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
         style={{
           width: 188,
           background: theme.surface,
-          borderLeft: `1px solid ${theme.bd}`,
+          borderLeft: `1px solid ${theme.border}`,
           padding: 12,
           flexShrink: 0,
           overflowY: "auto",
@@ -861,7 +771,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
           Slide {activeSl + 1} of {slides.length}
         </div>
         {!selEl && (
-          <div style={{ fontSize: 11, color: theme.tm, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 11, color: theme.textMuted, lineHeight: 1.5 }}>
             Click an element to select it. Double-click text to edit.
           </div>
         )}
@@ -871,7 +781,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
               style={{
                 fontSize: 10,
                 fontWeight: 700,
-                color: theme.tm,
+                color: theme.textMuted,
                 marginBottom: 8,
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
@@ -886,7 +796,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
                   <label
                     style={{
                       fontSize: 10,
-                      color: theme.tm,
+                      color: theme.textMuted,
                       display: "block",
                       marginBottom: 4,
                     }}
@@ -909,7 +819,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
                     }}
                     style={{ width: "100%" }}
                   />
-                  <span style={{ fontSize: 10, color: theme.ts }}>{selEl.fontSize}px</span>
+                  <span style={{ fontSize: 10, color: theme.textDim }}>{selEl.fontSize}px</span>
                 </div>
 
                 <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
@@ -927,10 +837,10 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
                         padding: "4px",
                         fontSize: 9,
                         borderRadius: theme.r6,
-                        border: `1px solid ${selEl.align === a ? appColor : theme.bd}`,
+                        border: `1px solid ${selEl.align === a ? appColor : theme.border}`,
                         background: selEl.align === a ? appColor + "18" : "transparent",
                         cursor: "pointer",
-                        color: selEl.align === a ? appColor : theme.ts,
+                        color: selEl.align === a ? appColor : theme.textDim,
                         textTransform: "capitalize",
                       }}
                     >
@@ -943,7 +853,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
                   <label
                     style={{
                       fontSize: 10,
-                      color: theme.tm,
+                      color: theme.textMuted,
                       display: "block",
                       marginBottom: 4,
                     }}
@@ -952,9 +862,9 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
                   </label>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                     {[
-                      deckTheme.hd,
-                      deckTheme.tx,
-                      deckTheme.ac,
+                      deckTheme.heading,
+                      deckTheme.text,
+                      deckTheme.accent,
                       "#E85252",
                       "#3BB580",
                       "#F59E0B",
@@ -975,8 +885,8 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
                           borderRadius: "50%",
                           background: c,
                           cursor: "pointer",
-                          border: `2px solid ${selEl.color === c ? theme.tx : "transparent"}`,
-                          outline: `1px solid ${theme.bd}`,
+                          border: `2px solid ${selEl.color === c ? theme.text : "transparent"}`,
+                          outline: `1px solid ${theme.border}`,
                         }}
                       />
                     ))}
@@ -991,7 +901,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
                   <label
                     style={{
                       fontSize: 10,
-                      color: theme.tm,
+                      color: theme.textMuted,
                       display: "block",
                       marginBottom: 4,
                     }}
@@ -1023,7 +933,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
                           borderRadius: 4,
                           background: c || "transparent",
                           cursor: "pointer",
-                          border: `2px solid ${selEl.fill === c ? theme.tx : theme.bd}`,
+                          border: `2px solid ${selEl.fill === c ? theme.text : theme.border}`,
                         }}
                       />
                     ))}
@@ -1036,7 +946,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
               style={{
                 marginTop: 12,
                 paddingTop: 8,
-                borderTop: `1px solid ${theme.bd}`,
+                borderTop: `1px solid ${theme.border}`,
               }}
             >
               <button
@@ -1045,8 +955,8 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
                 style={{
                   width: "100%",
                   fontSize: 11,
-                  color: theme.er,
-                  borderColor: theme.er + "44",
+                  color: theme.error,
+                  borderColor: theme.error + "44",
                 }}
               >
                 <I.Trash size={11} /> Delete element

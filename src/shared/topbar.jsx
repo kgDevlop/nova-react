@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { I } from "./icons";
 import { useT } from "./theme";
 import { AppChip } from "./atoms";
 
-// ── App top bar (back button, title, save status) ────────────────────────
+// ── App top bar (title, save status) ──────────────────────────────────────
 
-export const AppTopBar = ({ doc, onBack, appColor, saveStatus, activeWS, onTitleChange }) => {
+export const AppTopBar = ({ doc, appColor, saveStatus, activeWS, onTitleChange }) => {
   const theme = useT();
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(doc?.title || "");
@@ -44,7 +43,7 @@ export const AppTopBar = ({ doc, onBack, appColor, saveStatus, activeWS, onTitle
       style={{
         height: 44,
         background: theme.surface,
-        borderBottom: `1px solid ${theme.bd}`,
+        borderBottom: `1px solid ${theme.border}`,
         display: "flex",
         alignItems: "center",
         padding: "0 10px",
@@ -52,10 +51,6 @@ export const AppTopBar = ({ doc, onBack, appColor, saveStatus, activeWS, onTitle
         flexShrink: 0,
       }}
     >
-      <button className="nb ni" onClick={onBack}>
-        <I.ChevLeft size={15} />
-      </button>
-      <div style={{ width: 1, height: 16, background: theme.bd }} />
       <AppChip appId={doc?.type} size={26} colorOverride={appColor} />
 
       {editing && !isSingleton ? (
@@ -83,7 +78,7 @@ export const AppTopBar = ({ doc, onBack, appColor, saveStatus, activeWS, onTitle
           style={{
             fontSize: 13,
             fontWeight: 700,
-            color: theme.tx,
+            color: theme.text,
             flex: 1,
             cursor: isSingleton ? "default" : "text",
             overflow: "hidden",
@@ -102,7 +97,7 @@ export const AppTopBar = ({ doc, onBack, appColor, saveStatus, activeWS, onTitle
         <span
           style={{
             fontSize: 11,
-            color: theme.ac,
+            color: theme.accent,
             minWidth: 52,
             textAlign: "right",
             flexShrink: 0,
@@ -115,66 +110,3 @@ export const AppTopBar = ({ doc, onBack, appColor, saveStatus, activeWS, onTitle
   );
 };
 
-// ── Bottom status bar (info text, save indicator, optional zoom) ─────────
-
-export const StatusBar = ({ leftText, saveStatus, showZoom }) => {
-  const theme = useT();
-  const [zoom, setZoom] = useState(100);
-  const saveLabel = { saving: "Saving…", saved: "Saved ✓" }[saveStatus] || "";
-
-  return (
-    <div
-      style={{
-        height: 24,
-        background: theme.surface,
-        borderTop: `1px solid ${theme.bd}`,
-        display: "flex",
-        alignItems: "center",
-        padding: "0 10px",
-        gap: 10,
-        flexShrink: 0,
-      }}
-    >
-      {leftText && (
-        <span style={{ fontSize: 10, color: theme.tm }}>{leftText}</span>
-      )}
-      <div style={{ flex: 1 }} />
-      {saveLabel && (
-        <span style={{ fontSize: 10, color: theme.ac }}>{saveLabel}</span>
-      )}
-      {showZoom && (
-        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-          <button
-            className="ni"
-            onClick={() => setZoom(z => Math.max(25, z - 25))}
-            style={{
-              padding: 2,
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              display: "flex",
-            }}
-          >
-            <I.ZoomOut size={10} color={theme.tm} />
-          </button>
-          <span style={{ fontSize: 10, color: theme.tm, minWidth: 36, textAlign: "center" }}>
-            {zoom}%
-          </span>
-          <button
-            className="ni"
-            onClick={() => setZoom(z => Math.min(200, z + 25))}
-            style={{
-              padding: 2,
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              display: "flex",
-            }}
-          >
-            <I.ZoomIn size={10} color={theme.tm} />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};

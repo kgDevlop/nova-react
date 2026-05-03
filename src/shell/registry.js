@@ -1,11 +1,28 @@
-import { I } from "../shared/icons";
+// registry.js
+//
+// Maps each app id to the React component that renders its editor canvas.
+// App metadata (id, label, icon, default colour, description) lives in
+// src/shared/_constants.js under `registry.APPS`.
+//
+// To add a new app:
+//   1. Add an entry to `registry.APPS` in src/shared/_constants.js
+//   2. Add the component mapping here
+//   3. Create src/apps/<id>.jsx
 
-export const APPS=[
-  {id:"writer",    label:"Writer",    cat:"Productivity",Icon:I.FileText,dc:"#4A8FE8",desc:"Rich text documents"},
-  {id:"sheets",    label:"Sheets",    cat:"Productivity",Icon:I.Grid,    dc:"#3BB580",desc:"Spreadsheets & formulas"},
-  {id:"slides",    label:"Slides",    cat:"Productivity",Icon:I.Monitor, dc:"#E87B3A",desc:"Presentation decks"},
-  {id:"draw",      label:"Draw",      cat:"Productivity",Icon:I.PenTool, dc:"#A87BE8",desc:"Vector illustrations"},
-  {id:"calendar",  label:"Calendar",  cat:"Communication",Icon:I.Calendar,dc:"#84CC16",desc:"Event scheduling"},
-  {id:"list",      label:"List",      cat:"Productivity",Icon:I.Checklist,dc:"#14B8A6",desc:"Indented to-do lists"},
-];
-export const _app=(id)=>APPS.find(a=>a.id===id)||APPS[0];
+import { WriterEditor }   from "../apps/writer";
+import { SpreadsEditor }  from "../apps/spreads";
+import { SlidesEditor }   from "../apps/slides";
+import { DrawEditor }     from "../apps/draw";
+import { CalendarEditor } from "../apps/calendar/calendar";
+import { ListEditor }     from "../apps/list";
+
+const EDITORS = {
+  writer:   WriterEditor,
+  spreads:  SpreadsEditor,
+  slides:   SlidesEditor,
+  draw:     DrawEditor,
+  calendar: CalendarEditor,
+  list:     ListEditor,
+};
+
+export const editorFor = (id) => EDITORS[id] ?? null;

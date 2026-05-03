@@ -1,26 +1,23 @@
-import React, { useState, useEffect, useCallback, useContext, useRef } from "react";
-import { I } from "./shared/icons";
-import { TC, ThemeProvider } from "./shared/theme";
-import { NotifProvider, useNotify } from "./shared/notifications";
-import { useStyles } from "./shared/styling";
-import { useDeviceCaps, useKbd } from "./shared/hooks/system";
-import { useWSStore, useTabs, useAppColors } from "./shared/hooks/store";
-import { NovaLogo } from "./shared/atoms";
-import { Sidebar, MobSidebar, MobTopBar } from "./shared/sidebar";
-import { TabBar } from "./shared/tabbar";
-import { NewDocModal } from "./shared/modals/newdoc";
-import { NewWSModal } from "./shared/modals/newws";
-import { SettingsPanel } from "./shared/modals/settings";
-import { CommandPalette } from "./shared/modals/palette";
-import { ShortcutsModal } from "./shared/modals/shortcuts";
-import { AppShell } from "./shell/shell";
-import { HomeScreen, AppCatalogueScreen } from "./shell/home";
-import { _app } from "./shell/registry";
+import React, { useState, useEffect, useCallback, useContext } from "react";
+import { I } from "../shared/icons";
+import { TC } from "../shared/theme";
+import { useStyles } from "../shared/styling";
+import { useDeviceCaps, useKbd } from "../shared/hooks/system";
+import { useWSStore, useTabs, useAppColors, useEnabledBetas } from "../shared/hooks/store";
+import { useNavHistory } from "../shared/hooks/nav";
+import { Sidebar, MobSidebar, MobTopBar } from "../shared/left_sidebar";
+import { TabBar } from "../shared/utils_bar";
+import { NewDocModal } from "../shared/modals/new_doc_popup";
+import { NewWSModal } from "../shared/modals/newws";
+import { SettingsPanel } from "../shared/modals/nova_settings";
+import { CommandPalette } from "../shared/modals/palette";
+import { ShortcutsModal } from "../shared/modals/shortcuts";
+import { AppShell } from "./shell";
+import { HomeScreen, AppCatalogueScreen } from "./home";
+import { NovaBaseConstants } from "../shared/_constants";
+import { registry } from "../shared/_utils";
 
-// One week, used to bucket "recent" docs in stats and quota warnings.
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000; // eslint-disable-line no-unused-vars
-
-function NovaApp() {
+export function NovaRouter() {
   const { theme, t, setTheme } = useContext(TC);
   useStyles(t);
 
@@ -28,7 +25,7 @@ function NovaApp() {
   const store = useWSStore();
   const ac = useAppColors();
   const tabs = useTabs();
-  const notify = useNotify();
+  const betas = useEnabledBetas();
 
   const [view, setView] = useState("home");
   const [showND, setShowND] = useState(false);
@@ -39,84 +36,45 @@ function NovaApp() {
   const [showNewWS, setShowNewWS] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [mobQ, setMobQ] = useState("");
-
-  // ── Page nav history (back / forward) ────────────────────────────────────
-  // Tracks the last 50 "pages" — distinct {view, activeTabId} combinations.
-  const HIST_LIMIT = 50;
-  const [navHist, setNavHist] = useState(() => ({
-    stack: [{ view: "home", activeTabId: null }],
-    idx: 0,
-  }));
-  const navRestoring = useRef(false);
-  const navLastPush = useRef(0);
+  const [mobileDisabled, setMobileDisabled] = useState(() => {
+    return localStorage.getItem(NovaBaseConstants.MOBILE_DISABLED_KEY) === "1";
+  });
 
   useEffect(() => {
-    if (navRestoring.current) {
-      navRestoring.current = false;
+    localStorage.setItem(NovaBaseConstants.MOBILE_DISABLED_KEY, mobileDisabled ? "1" : "0");
+  }, [mobileDisabled]);
+
+  const isMobile = device.isMobile && !mobileDisabled;
+
+  // ── Page nav history (back / forward) ────────────────────────────────────
+  const applyEntry = useCallback(entry => {
+    if (entry.kind === "doc") {
+      const doc = store.active.docs.find(d => d.id === entry.id);
+      if (doc) {
+        tabs.openTab(doc);
+        return;
+      }
+      tabs.setActiveTabId(null);
+      setView("home");
       return;
     }
-    // Coalesce rapid state changes (e.g. opening a doc updates `view` and
-    // `activeTabId` in the same tick) into a single history entry.
-    const now = Date.now();
-    const coalesce = now - navLastPush.current < 150;
-    navLastPush.current = now;
-    setNavHist(h => {
-      const top = h.stack[h.idx];
-      if (top && top.view === view && top.activeTabId === tabs.activeTabId) {
-        return h;
-      }
-      const entry = { view, activeTabId: tabs.activeTabId };
-      if (coalesce && h.stack.length) {
-        const replaced = h.stack.slice(0, h.idx);
-        replaced.push(entry);
-        return { stack: replaced, idx: replaced.length - 1 };
-      }
-      const truncated = h.stack.slice(0, h.idx + 1);
-      truncated.push(entry);
-      const trimmed = truncated.slice(-HIST_LIMIT);
-      return { stack: trimmed, idx: trimmed.length - 1 };
-    });
-  }, [view, tabs.activeTabId]);
+    tabs.setActiveTabId(null);
+    setView(entry.id);
+  }, [store, tabs]);
 
-  const canBack = navHist.idx > 0;
-  const canForward = navHist.idx < navHist.stack.length - 1;
+  const isEntryValid = useCallback(entry => {
+    if (entry.kind === "doc") {
+      return store.active.docs.some(d => d.id === entry.id);
+    }
+    return true;
+  }, [store]);
 
-  const goBack = useCallback(() => {
-    setNavHist(h => {
-      if (h.idx <= 0) {
-        return h;
-      }
-      const target = h.stack[h.idx - 1];
-      navRestoring.current = true;
-      setView(target.view);
-      tabs.setActiveTabId(target.activeTabId);
-      return { ...h, idx: h.idx - 1 };
-    });
-  }, [tabs]);
-
-  const goForward = useCallback(() => {
-    setNavHist(h => {
-      if (h.idx >= h.stack.length - 1) {
-        return h;
-      }
-      const target = h.stack[h.idx + 1];
-      navRestoring.current = true;
-      setView(target.view);
-      tabs.setActiveTabId(target.activeTabId);
-      return { ...h, idx: h.idx + 1 };
-    });
-  }, [tabs]);
+  const nav = useNavHistory({ apply: applyEntry, isValid: isEntryValid });
 
   // ── Global shortcuts ──────────────────────────────────────────────────────
-  // ⌘N → new doc, ⌘K → command palette
   useKbd("n", () => setShowND(true));
   useKbd("k", () => setShowPalette(v => !v));
 
-  // Sync sidebar highlight with active tab so navigating tabs updates the
-  // left-rail selection without any explicit handler wiring. Calendar has no
-  // list view, so when its tab closes we fall back to home rather than
-  // leaving the sidebar pointed at a non-existent screen.
   useEffect(() => {
     if (tabs.activeDoc) {
       setView(tabs.activeDoc.type);
@@ -127,19 +85,23 @@ function NovaApp() {
 
   // ── Doc lifecycle handlers ────────────────────────────────────────────────
 
-  // Calendar is a singleton per workspace: the first time it's opened we
-  // create the underlying doc, every subsequent open reuses it. The user can
-  // never make a second calendar doc via any UI surface.
+  const openDocById = useCallback(docId => {
+    const doc = store.active.docs.find(d => d.id === docId);
+    if (!doc) return;
+    tabs.openTab(doc);
+    nav.push({ kind: "doc", id: doc.id });
+  }, [store, tabs, nav]);
+
   const openCalendarSingleton = useCallback(() => {
     const existing = store.active.docs.find(d => d.type === "calendar");
     if (existing) {
-      tabs.openTab(existing);
+      openDocById(existing.id);
       return;
     }
-    const c = ac.get(store.active.id, "calendar", _app("calendar").dc);
-    const doc = store.createDoc("calendar", "Calendar", c);
+    const doc = store.createDoc("calendar", "Calendar");
     tabs.openTab(doc);
-  }, [store, ac, tabs]);
+    nav.push({ kind: "doc", id: doc.id });
+  }, [store, tabs, nav, openDocById]);
 
   const openNewDoc = useCallback((type = null) => {
     if (type === "calendar") {
@@ -147,49 +109,45 @@ function NovaApp() {
       return;
     }
     if (type) {
-      const c = ac.get(store.active.id, type, _app(type).dc);
-      const doc = store.createDoc(type, "", c);
+      const doc = store.createDoc(type, "");
       tabs.openTab(doc);
-      notify("success", `${_app(type).label} created`);
+      nav.push({ kind: "doc", id: doc.id });
     } else {
       setNdType(null);
       setShowND(true);
     }
-  }, [store, ac, tabs, notify, openCalendarSingleton]);
+  }, [store, tabs, nav, openCalendarSingleton]);
 
   const handleCreate = useCallback((type, title, color) => {
     const doc = store.createDoc(type, title, color);
     tabs.openTab(doc);
-    notify("success", `${_app(type).label} "${doc.title}" created`);
-  }, [store, tabs, notify]);
+    nav.push({ kind: "doc", id: doc.id });
+  }, [store, tabs, nav]);
 
   const handleOpenDoc = useCallback(doc => {
-    // Always pull the freshest copy from the store — `doc` may be stale if
-    // it came from a memoised list rendered before the latest update.
-    const fresh = store.active.docs.find(d => d.id === doc.id) || doc;
-    tabs.openTab(fresh);
-  }, [store, tabs]);
+    openDocById(doc.id);
+  }, [openDocById]);
 
   const handleNav = useCallback(v => {
     if (v === "calendar") {
-      // Calendar nav opens its singleton doc directly — there is no list/home
-      // view for calendars.
       openCalendarSingleton();
       return;
     }
     setView(v);
     tabs.setActiveTabId(null);
-  }, [tabs, openCalendarSingleton]);
+    nav.push({ kind: "view", id: v });
+  }, [tabs, nav, openCalendarSingleton]);
+
+  const handleTabSelect = useCallback(id => {
+    if (id === tabs.activeTabId) return;
+    tabs.setActiveTabId(id);
+    nav.push({ kind: "doc", id });
+  }, [tabs, nav]);
 
   const handleRename = useCallback((id, title) => {
     const resolved = store.updateDoc(id, { title });
     tabs.syncTab(id, { title: resolved.title });
-    if (resolved.title === title) {
-      notify("success", "Renamed");
-    } else {
-      notify("success", `Renamed to "${resolved.title}" (name was taken)`);
-    }
-  }, [store, tabs, notify]);
+  }, [store, tabs]);
 
   const handleUpdateDoc = useCallback((id, changes) => {
     const resolved = store.updateDoc(id, changes);
@@ -202,8 +160,7 @@ function NovaApp() {
     const doc = store.active.docs.find(d => d.id === id);
     store.deleteDoc(id);
     tabs.closeTab(id);
-    notify("info", `"${doc?.title || "Document"}" deleted`);
-  }, [store, tabs, notify]);
+  }, [store, tabs]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -215,13 +172,13 @@ function NovaApp() {
         display: "flex",
         height: "100vh",
         background: t.bg,
-        fontFamily: t.fn,
+        fontFamily: t.fontFamily,
         overflow: "hidden",
         flexDirection: "column",
       }}
     >
       <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
-        {!device.isMobile && (
+        {!isMobile && (
           <Sidebar
             view={view}
             onNav={handleNav}
@@ -235,9 +192,11 @@ function NovaApp() {
             onRenameWS={store.renameWS}
             onDeleteWS={store.deleteWS}
             onSettings={() => setShowSettings(true)}
+            getAppColor={ac.get}
+            isBetaEnabled={betas.has}
           />
         )}
-        {device.isMobile && showMobSB && (
+        {isMobile && showMobSB && (
           <MobSidebar
             onClose={() => setShowMobSB(false)}
             view={view}
@@ -249,6 +208,9 @@ function NovaApp() {
             onNew={() => setShowNewWS(true)}
             onRenameWS={store.renameWS}
             onDeleteWS={store.deleteWS}
+            onSettings={() => setShowSettings(true)}
+            getAppColor={ac.get}
+            isBetaEnabled={betas.has}
           />
         )}
 
@@ -261,11 +223,11 @@ function NovaApp() {
             minWidth: 0,
           }}
         >
-          {!device.isMobile && collapsed && !isInEditor && (
+          {!isMobile && collapsed && !isInEditor && (
             <div
               style={{
                 height: 42,
-                borderBottom: `1px solid ${t.bd}`,
+                borderBottom: `1px solid ${t.border}`,
                 background: t.surface,
                 display: "flex",
                 alignItems: "center",
@@ -281,71 +243,66 @@ function NovaApp() {
               >
                 <I.ChevRight size={13} />
               </button>
-              <div style={{ width: 1, height: 16, background: t.bd }} />
-              
-              <span style={{ fontSize: 13, fontWeight: 800, color: t.tx, marginLeft: 2 }}>
+              <div style={{ width: 1, height: 16, background: t.border }} />
+              <span style={{ fontSize: 13, fontWeight: 800, color: t.text, marginLeft: 2 }}>
                 Nova
               </span>
               <div style={{ flex: 1 }} />
-              <span style={{ fontSize: 11, color: t.tm }}>
+              <span style={{ fontSize: 11, color: t.textMuted }}>
                 {store.active.emoji} {store.active.name}
               </span>
             </div>
           )}
 
-          {device.isMobile && (
+          {isMobile && (
             <MobTopBar
               onOpen={() => setShowMobSB(true)}
-              q={mobQ}
-              setQ={setMobQ}
+              onSearchClick={() => setShowPalette(true)}
+              onBack={nav.goBack}
+              onForward={nav.goForward}
+              canBack={nav.canBack}
+              canForward={nav.canForward}
+              workspace={store.active}
             />
           )}
 
-          {!device.isMobile && (
+          {!isMobile && (
             <TabBar
               tabs={tabs.tabs}
               activeTabId={tabs.activeTabId}
-              onSelect={tabs.setActiveTabId}
+              onSelect={handleTabSelect}
               onClose={tabs.closeTab}
               getAppColor={ac.get}
               activeWS={store.active}
               onSearchClick={() => setShowPalette(true)}
-              onBack={goBack}
-              onForward={goForward}
-              canBack={canBack}
-              canForward={canForward}
-            />
-          )}
-          {device.isMobile && (
-            <TabBar
-              tabs={tabs.tabs}
-              activeTabId={tabs.activeTabId}
-              onSelect={tabs.setActiveTabId}
-              onClose={tabs.closeTab}
-              getAppColor={ac.get}
-              activeWS={store.active}
+              onBack={nav.goBack}
+              onForward={nav.goForward}
+              canBack={nav.canBack}
+              canForward={nav.canForward}
             />
           )}
 
           {tabs.activeDoc ? (
             <AppShell
               doc={tabs.activeDoc}
-              onBack={() => tabs.closeTab(tabs.activeTabId)}
+              onBack={nav.goBack}
               getAppColor={ac.get}
               activeWS={store.active}
               updateDoc={handleUpdateDoc}
+              isMobile={isMobile}
+              onOpenDoc={handleOpenDoc}
             />
           ) : view === "catalogue" ? (
             <AppCatalogueScreen
               onNewDoc={openNewDoc}
               getAppColor={ac.get}
               activeWS={store.active}
+              isBetaEnabled={betas.has}
+              onToggleBeta={betas.toggle}
             />
           ) : (
             <HomeScreen
               activeWS={store.active}
-              // Calendar has no list view — coerce to home if state ever
-              // lands here (e.g. via history restoration after a tab close).
               view={view === "calendar" ? "home" : view}
               onOpen={handleOpenDoc}
               onNewDoc={openNewDoc}
@@ -353,6 +310,7 @@ function NovaApp() {
               onDelete={handleDelete}
               onRename={handleRename}
               getAppColor={ac.get}
+              isMobile={isMobile}
             />
           )}
         </div>
@@ -362,10 +320,7 @@ function NovaApp() {
       {showND && (
         <NewDocModal
           initType={ndType}
-          onClose={() => {
-            setShowND(false);
-            setNdType(null);
-          }}
+          onClose={() => { setShowND(false); setNdType(null); }}
           onCreate={handleCreate}
           getAppColor={ac.get}
           activeWS={store.active}
@@ -378,11 +333,11 @@ function NovaApp() {
           setTheme={setTheme}
           getAppColor={ac.get}
           setAppColor={ac.put}
+          delAppColor={ac.del}
           activeWS={store.active}
-          onShowShortcuts={() => {
-            setShowSettings(false);
-            setShowShortcuts(true);
-          }}
+          mobileDisabled={mobileDisabled}
+          setMobileDisabled={setMobileDisabled}
+          onShowShortcuts={() => { setShowSettings(false); setShowShortcuts(true); }}
         />
       )}
       {showNewWS && (
@@ -406,15 +361,5 @@ function NovaApp() {
         <ShortcutsModal onClose={() => setShowShortcuts(false)} />
       )}
     </div>
-  );
-}
-
-export default function NovaOffice() {
-  return (
-    <ThemeProvider>
-      <NotifProvider>
-        <NovaApp />
-      </NotifProvider>
-    </ThemeProvider>
   );
 }

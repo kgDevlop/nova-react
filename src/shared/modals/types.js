@@ -19,7 +19,7 @@
 
 /**
  * Every app identifier in the suite. Extend here when adding new apps.
- * @typedef {'writer'|'sheets'|'slides'|'draw'|'forms'|'pdf'|
+ * @typedef {'writer'|'spreads'|'slides'|'draw'|'forms'|'pdf'|
  *            'database'|'analytics'|'mail'|'calendar'|
  *            'whiteboard'|'video'|'code'|'api'} AppId
  */
@@ -36,9 +36,9 @@
 
 /**
  * @typedef {Object} AccentPreset
- * @property {AccentId} id
- * @property {string}   hex   - e.g. "#C8A253"
- * @property {string}   soft  - e.g. "rgba(200,162,83,0.12)"
+ * @property {AccentId} presetId
+ * @property {string}   hex      - e.g. "#C8A253"
+ * @property {string}   softHex  - e.g. "rgba(200,162,83,0.12)"
  */
 
 /**
@@ -50,41 +50,40 @@
 
 /**
  * The computed design token object returned by useT().
- * Keys are intentionally short (2-3 chars) to keep JSX readable.
  * @typedef {Object} TokenObject
- * @property {string}  bg      - Page background
- * @property {string}  surface - Card / panel background
- * @property {string}  sh      - Hover background
- * @property {string}  sa      - Active / selected background
- * @property {string}  el      - Elevated surface (modals, tooltips)
- * @property {string}  bd      - Default border
- * @property {string}  bs      - Strong / focus border
- * @property {string}  ac      - Accent hex
- * @property {string}  as      - Accent soft rgba
- * @property {string}  tx      - Primary text
- * @property {string}  ts      - Secondary text
- * @property {string}  tm      - Muted / placeholder text
- * @property {string}  er      - Error / destructive (#E85252)
- * @property {string}  r6      - Border radius 6 px
- * @property {string}  r10     - Border radius 10 px
- * @property {string}  r14     - Border radius 14 px
- * @property {string}  r20     - Border radius 20 px
- * @property {string}  rF      - Fully rounded (9999 px)
- * @property {string}  fn      - Font-family string
- * @property {string}  tr      - CSS transition string
- * @property {boolean} dk      - True when in dark mode
+ * @property {string}  bg            - Page background
+ * @property {string}  surface       - Card / panel background
+ * @property {string}  surfaceShade  - Hover background
+ * @property {string}  surfaceAlt    - Active / selected background
+ * @property {string}  elevated      - Elevated surface (modals, tooltips)
+ * @property {string}  border        - Default border
+ * @property {string}  borderStrong  - Strong / focus border
+ * @property {string}  accent        - Accent hex
+ * @property {string}  accentSoft    - Accent soft rgba
+ * @property {string}  text          - Primary text
+ * @property {string}  textDim       - Secondary text
+ * @property {string}  textMuted     - Muted / placeholder text
+ * @property {string}  error         - Error / destructive (#E85252)
+ * @property {string}  r6            - Border radius 6 px
+ * @property {string}  r10           - Border radius 10 px
+ * @property {string}  r14           - Border radius 14 px
+ * @property {string}  r20           - Border radius 20 px
+ * @property {string}  rF            - Fully rounded (9999 px)
+ * @property {string}  fontFamily    - Font-family string
+ * @property {string}  transition    - CSS transition string
+ * @property {boolean} isDark        - True when in dark mode
  */
 
 // ─── App Registry ────────────────────────────────────────────────────────────
 
 /**
  * @typedef {Object} AppDef
- * @property {AppId}                              id
+ * @property {AppId}                              appId
  * @property {string}                             label
- * @property {AppCategory}                        cat
+ * @property {AppCategory}                        category
  * @property {React.ComponentType<IconProps>}     Icon
- * @property {string}                             dc   - Default color hex
- * @property {string}                             desc - One-line description
+ * @property {string}                             defaultColor  - Default color hex
+ * @property {string}                             description   - One-line description
  */
 
 // ─── Workspace & Documents ───────────────────────────────────────────────────
@@ -96,7 +95,8 @@
  * @property {string}  id
  * @property {string}  title
  * @property {AppId}   type
- * @property {number}  modified  - Unix timestamp (ms)
+ * @property {Date}    created
+ * @property {Date}    modified
  * @property {boolean} starred
  * @property {string}  content
  * @property {string}  [appColor] - Per-doc color override
@@ -145,8 +145,8 @@
 
 /**
  * @typedef {Object} ToolbarDropdownOption
- * @property {string} v - value
- * @property {string} l - label
+ * @property {string} value
+ * @property {string} label
  */
 
 /**
@@ -155,13 +155,13 @@
  *
  * @typedef {Object} ToolbarItemBtn
  * @property {'btn'}                              type
- * @property {string}                             id
+ * @property {string}                             actionId
  * @property {React.ComponentType<IconProps>|null} Icon
  * @property {string}                             label
  *
  * @typedef {Object} ToolbarItemDropdown
  * @property {'dd'}                               type
- * @property {string}                             id
+ * @property {string}                             actionId
  * @property {string}                             label
  * @property {ToolbarDropdownOption[]}            opts
  *
@@ -180,7 +180,7 @@
 
 // ─── Editor Content Shapes ───────────────────────────────────────────────────
 
-// Sheets ──────────────────────────────────────────────────────────────────────
+// Spreads ─────────────────────────────────────────────────────────────────────
 
 /**
  * A single spreadsheet cell.
@@ -231,12 +231,12 @@
 
 /**
  * @typedef {Object} SlideTheme
- * @property {string} id
+ * @property {string} themeId
  * @property {string} label
  * @property {string} bg
- * @property {string} tx
- * @property {string} ac
- * @property {string} hd
+ * @property {string} text
+ * @property {string} accent
+ * @property {string} heading
  */
 
 /**

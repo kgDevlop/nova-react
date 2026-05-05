@@ -18,9 +18,9 @@ export const MonthView = ({
           border: `1px solid ${theme.border}`,
         }}
       >
-        {CalendarConstants.DAYS.map(d => (
+        {CalendarConstants.DAYS.map(dayName => (
           <div
-            key={d}
+            key={dayName}
             style={{
               background: theme.surface,
               padding: "6px 0",
@@ -30,16 +30,16 @@ export const MonthView = ({
               color: theme.textDim,
             }}
           >
-            {d}
+            {dayName}
           </div>
         ))}
-        {cells.map((day, i) => {
+        {cells.map((day, cellIndex) => {
           const dateStr   = day ? _ymd(year, month, day) : null;
           const dayEvents = dateStr ? (eventsByDate[dateStr] || []) : [];
           const today     = day && isToday(day);
           return (
             <div
-              key={i}
+              key={cellIndex}
               ref={today ? todayCellRef : null}
               onClick={() => onCellSingleClick(dateStr)}
               onDoubleClick={() => onCellDoubleClick(dateStr)}

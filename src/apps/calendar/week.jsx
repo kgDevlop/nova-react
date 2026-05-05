@@ -6,21 +6,21 @@ export const WeekView = ({
   theme, appColor, cursor, now, expand,
   onCellSingleClick, onCellDoubleClick, openEdit, calColor,
 }) => {
-  const start = new Date(cursor);
-  start.setDate(start.getDate() - start.getDay());
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-  const map  = expand(start, end);
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(start);
-    d.setDate(d.getDate() + i);
-    return d;
+  const weekStart = new Date(cursor);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  const eventsByDate = expand(weekStart, weekEnd);
+  const days = Array.from({ length: 7 }, (_, dayOffset) => {
+    const dayDate = new Date(weekStart);
+    dayDate.setDate(dayDate.getDate() + dayOffset);
+    return dayDate;
   });
 
-  const isToday = d =>
-    d.getDate() === now.getDate() &&
-    d.getMonth() === now.getMonth() &&
-    d.getFullYear() === now.getFullYear();
+  const isToday = candidateDate =>
+    candidateDate.getDate() === now.getDate() &&
+    candidateDate.getMonth() === now.getMonth() &&
+    candidateDate.getFullYear() === now.getFullYear();
 
   return (
     <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
@@ -33,11 +33,11 @@ export const WeekView = ({
           border: `1px solid ${theme.border}`,
         }}
       >
-        {days.map(d => {
-          const t = isToday(d);
+        {days.map(dayDate => {
+          const isCurrentDay = isToday(dayDate);
           return (
             <div
-              key={`h-${d.getTime()}`}
+              key={`h-${dayDate.getTime()}`}
               style={{
                 background: theme.surface,
                 padding: "8px 6px",
@@ -47,36 +47,36 @@ export const WeekView = ({
                 color: theme.textDim,
               }}
             >
-              {CalendarConstants.DAYS[d.getDay()]}
+              {CalendarConstants.DAYS[dayDate.getDay()]}
               <div
                 style={{
                   marginTop: 4,
                   fontSize: 16,
                   fontWeight: 700,
-                  color: t ? "#fff" : theme.text,
+                  color: isCurrentDay ? "#fff" : theme.text,
                   width: 26,
                   height: 26,
                   borderRadius: "50%",
-                  background: t ? appColor : "transparent",
+                  background: isCurrentDay ? appColor : "transparent",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   margin: "4px auto 0",
                 }}
               >
-                {d.getDate()}
+                {dayDate.getDate()}
               </div>
             </div>
           );
         })}
-        {days.map(d => {
-          const ymd = _ymd(d.getFullYear(), d.getMonth(), d.getDate());
-          const list = map[ymd] || [];
+        {days.map(dayDate => {
+          const dateString = _ymd(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate());
+          const dayEvents  = eventsByDate[dateString] || [];
           return (
             <div
-              key={`c-${d.getTime()}`}
-              onClick={() => onCellSingleClick(ymd)}
-              onDoubleClick={() => onCellDoubleClick(ymd)}
+              key={`c-${dayDate.getTime()}`}
+              onClick={() => onCellSingleClick(dateString)}
+              onDoubleClick={() => onCellDoubleClick(dateString)}
               style={{
                 background: theme.surface,
                 minHeight: 360,
@@ -87,8 +87,8 @@ export const WeekView = ({
                 gap: 3,
               }}
             >
-              {list.map(ev => (
-                <EventChip key={ev.id} ev={ev} theme={theme} color={calColor(ev.calId)} compact onOpen={openEdit} />
+              {dayEvents.map(event => (
+                <EventChip key={event.id} ev={event} theme={theme} color={calColor(event.calId)} compact onOpen={openEdit} />
               ))}
             </div>
           );

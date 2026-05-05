@@ -27,7 +27,7 @@ export const TabBar = ({
 
   useOut(menuRef, () => setMenuOpen(false));
 
-  const activeTab = tabs.find(t => t.id === activeTabId) || null;
+  const activeTab = tabs.find(tab => tab.id === activeTabId) || null;
 
   const navBtnStyle = enabled => ({
     display: "flex",
@@ -37,7 +37,7 @@ export const TabBar = ({
     height: 24,
     border: "none",
     background: "transparent",
-    borderRadius: theme.r6,
+    borderRadius: theme.radius6,
     cursor: enabled ? "pointer" : "default",
     color: enabled ? theme.text : theme.textMuted,
     opacity: enabled ? 1 : 0.4,
@@ -122,7 +122,7 @@ export const TabBar = ({
             alignItems: "center",
             gap: 8,
             padding: "0 11px",
-            borderRadius: theme.rF,
+            borderRadius: theme.radiusFull,
             background: theme.surfaceAlt,
             border: `1px solid ${theme.border}`,
             cursor: "pointer",
@@ -140,7 +140,7 @@ export const TabBar = ({
               color: theme.textMuted,
               background: theme.surface,
               border: `1px solid ${theme.border}`,
-              borderRadius: theme.r6,
+              borderRadius: theme.radius6,
               padding: "1px 5px",
               fontFamily: "monospace",
             }}
@@ -223,7 +223,7 @@ export const TabBar = ({
                         alignItems: "center",
                         gap: 8,
                         padding: "6px 9px",
-                        borderRadius: theme.r6,
+                        borderRadius: theme.radius6,
                         cursor: "pointer",
                         transition: theme.transition,
                         background: isActive ? theme.surfaceAlt : "transparent",

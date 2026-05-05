@@ -5,121 +5,129 @@ import { SelectionHandles, renderSpec } from "../shared/canvas_utils";
 import { SlidesConstants } from "../shared/_constants";
 import { utils, canvas_utils as canvasU } from "../shared/_utils";
 
-// Sharded map: el.type → spec-builder. Each builder returns a tree the recursive
-// renderSpec walks into JSX. ctx bundles closure state from SlidesEditor.
+// Sharded map: element.type → spec-builder. Each builder returns a tree the
+// recursive renderSpec walks into JSX. `editorContext` bundles closure state
+// from SlidesEditor.
 const SLIDE_SHAPES = {
-  text: (el, c) => {
-    const textHeight = Math.max(el.h, SlidesConstants.TEXT_MIN_HEIGHT);
-    const isDragging = c.dragState && c.dragState.elId === el.id;
+  text: (element, editorContext) => {
+    const textHeight = Math.max(element.h, SlidesConstants.TEXT_MIN_HEIGHT);
+    const isDragging = editorContext.dragState && editorContext.dragState.elId === element.id;
     return {
-      tag: "g", key: el.id,
+      tag: "g", key: element.id,
       children: [
         { tag: "foreignObject",
-          x: el.x, y: el.y, width: el.w, height: textHeight,
+          x: element.x, y: element.y, width: element.w, height: textHeight,
           style: { overflow: "visible", cursor: isDragging ? "grabbing" : "grab" },
-          onMouseDown: e => c.onElMouseDown(el, e),
-          onDoubleClick: e => { e.stopPropagation(); c.setEditId(el.id); },
+          onMouseDown: mouseDownEvent => editorContext.onElMouseDown(element, mouseDownEvent),
+          onDoubleClick: doubleClickEvent => {
+            doubleClickEvent.stopPropagation();
+            editorContext.setEditId(element.id);
+          },
           children: {
             tag: "div",
-            contentEditable: c.isEdit,
+            contentEditable: editorContext.isEdit,
             suppressContentEditableWarning: true,
-            onBlur: e => {
-              const newText = e.target.innerText;
-              c.updateElements(c.activeSl, els => els.map(x => {
-                if (x.id === el.id) return { ...x, text: newText, placeholder: false };
-                return x;
-              }));
-              c.setEditId(null);
+            onBlur: blurEvent => {
+              const newText = blurEvent.target.innerText;
+              editorContext.updateElements(editorContext.activeSl, currentElements =>
+                currentElements.map(currentElement => {
+                  if (currentElement.id === element.id) {
+                    return { ...currentElement, text: newText, placeholder: false };
+                  }
+                  return currentElement;
+                }),
+              );
+              editorContext.setEditId(null);
             },
             style: {
               width: "100%",
               minHeight: SlidesConstants.TEXT_MIN_HEIGHT,
-              fontFamily: c.theme.fontFamily,
-              fontSize: el.fontSize,
-              fontWeight: el.bold ? 700 : 400,
-              color: el.color,
-              textAlign: el.align,
+              fontFamily: editorContext.theme.fontFamily,
+              fontSize: element.fontSize,
+              fontWeight: element.bold ? 700 : 400,
+              color: element.color,
+              textAlign: element.align,
               lineHeight: 1.4,
-              outline: c.isEdit ? `2px solid ${SlidesConstants.SELECTION_COLOR}` : "none",
-              padding: c.isEdit ? "4px" : 0,
+              outline: editorContext.isEdit ? `2px solid ${SlidesConstants.SELECTION_COLOR}` : "none",
+              padding: editorContext.isEdit ? "4px" : 0,
               whiteSpace: "pre-wrap",
               wordBreak: "break-word",
-              cursor: c.isEdit ? "text" : "inherit",
-              background: c.isEdit ? "rgba(255,255,255,0.05)" : "transparent",
+              cursor: editorContext.isEdit ? "text" : "inherit",
+              background: editorContext.isEdit ? "rgba(255,255,255,0.05)" : "transparent",
             },
-            children: el.text,
+            children: element.text,
           },
         },
-        c.isSel && !c.isEdit && { tag: "rect", key: "sel",
-          x: el.x - 2, y: el.y - 2, width: el.w + 4, height: textHeight + 4,
+        editorContext.isSel && !editorContext.isEdit && { tag: "rect", key: "sel",
+          x: element.x - 2, y: element.y - 2, width: element.w + 4, height: textHeight + 4,
           fill: "none",
           stroke: SlidesConstants.SELECTION_COLOR,
           strokeWidth: 1.5,
           strokeDasharray: SlidesConstants.SELECTION_DASH },
-        c.isSel && !c.isEdit && { tag: SelectionHandles, key: "h",
-          x: el.x, y: el.y, w: el.w, h: textHeight },
+        editorContext.isSel && !editorContext.isEdit && { tag: SelectionHandles, key: "h",
+          x: element.x, y: element.y, w: element.w, h: textHeight },
       ],
     };
   },
 
-  rect: (el, c) => ({
-    tag: "g", key: el.id,
-    onMouseDown: e => c.onElMouseDown(el, e),
+  rect: (element, editorContext) => ({
+    tag: "g", key: element.id,
+    onMouseDown: mouseDownEvent => editorContext.onElMouseDown(element, mouseDownEvent),
     style: { cursor: "grab" },
     children: [
       { tag: "rect",
-        x: el.x, y: el.y, width: el.w, height: el.h,
-        fill: el.fill || "transparent",
-        stroke: el.stroke || "#888",
-        strokeWidth: el.strokeW || 2,
-        rx: el.rx || 0 },
-      c.isSel && { tag: "rect", key: "sel",
-        x: el.x - 3, y: el.y - 3, width: el.w + 6, height: el.h + 6,
+        x: element.x, y: element.y, width: element.w, height: element.h,
+        fill: element.fill || "transparent",
+        stroke: element.stroke || "#888",
+        strokeWidth: element.strokeW || 2,
+        rx: element.rx || 0 },
+      editorContext.isSel && { tag: "rect", key: "sel",
+        x: element.x - 3, y: element.y - 3, width: element.w + 6, height: element.h + 6,
         fill: "none",
         stroke: SlidesConstants.SELECTION_COLOR,
         strokeWidth: 1.5,
         strokeDasharray: SlidesConstants.SELECTION_DASH },
-      c.isSel && { tag: SelectionHandles, key: "h",
-        x: el.x, y: el.y, w: el.w, h: el.h },
+      editorContext.isSel && { tag: SelectionHandles, key: "h",
+        x: element.x, y: element.y, w: element.w, h: element.h },
     ],
   }),
 
-  ellipse: (el, c) => ({
-    tag: "g", key: el.id,
-    onMouseDown: e => c.onElMouseDown(el, e),
+  ellipse: (element, editorContext) => ({
+    tag: "g", key: element.id,
+    onMouseDown: mouseDownEvent => editorContext.onElMouseDown(element, mouseDownEvent),
     style: { cursor: "grab" },
     children: [
       { tag: "ellipse",
-        cx: el.x + el.w / 2, cy: el.y + el.h / 2,
-        rx: el.w / 2, ry: el.h / 2,
-        fill: el.fill || "transparent",
-        stroke: el.stroke || "#888",
-        strokeWidth: el.strokeW || 2 },
-      c.isSel && { tag: "rect", key: "sel",
-        x: el.x - 3, y: el.y - 3, width: el.w + 6, height: el.h + 6,
+        cx: element.x + element.w / 2, cy: element.y + element.h / 2,
+        rx: element.w / 2, ry: element.h / 2,
+        fill: element.fill || "transparent",
+        stroke: element.stroke || "#888",
+        strokeWidth: element.strokeW || 2 },
+      editorContext.isSel && { tag: "rect", key: "sel",
+        x: element.x - 3, y: element.y - 3, width: element.w + 6, height: element.h + 6,
         fill: "none",
         stroke: SlidesConstants.SELECTION_COLOR,
         strokeWidth: 1.5,
         strokeDasharray: SlidesConstants.SELECTION_DASH },
-      c.isSel && { tag: SelectionHandles, key: "h",
-        x: el.x, y: el.y, w: el.w, h: el.h },
+      editorContext.isSel && { tag: SelectionHandles, key: "h",
+        x: element.x, y: element.y, w: element.w, h: element.h },
     ],
   }),
 
-  line: (el, c) => ({
-    tag: "g", key: el.id,
-    onMouseDown: e => c.onElMouseDown(el, e),
+  line: (element, editorContext) => ({
+    tag: "g", key: element.id,
+    onMouseDown: mouseDownEvent => editorContext.onElMouseDown(element, mouseDownEvent),
     style: { cursor: "grab" },
     children: [
       { tag: "line",
-        x1: el.x1, y1: el.y1, x2: el.x2, y2: el.y2,
-        stroke: el.stroke || "#888",
-        strokeWidth: el.strokeW || 2,
+        x1: element.x1, y1: element.y1, x2: element.x2, y2: element.y2,
+        stroke: element.stroke || "#888",
+        strokeWidth: element.strokeW || 2,
         strokeLinecap: "round" },
-      c.isSel && { tag: "line", key: "sel",
-        x1: el.x1, y1: el.y1, x2: el.x2, y2: el.y2,
+      editorContext.isSel && { tag: "line", key: "sel",
+        x1: element.x1, y1: element.y1, x2: element.x2, y2: element.y2,
         stroke: SlidesConstants.SELECTION_COLOR,
-        strokeWidth: el.strokeW + 4,
+        strokeWidth: element.strokeW + 4,
         strokeOpacity: 0.3,
         strokeLinecap: "round" },
     ],
@@ -128,31 +136,31 @@ const SLIDE_SHAPES = {
 
 // Slide-thumbnail map: same shapes, no selection chrome, smaller font.
 const THUMB_SHAPES = {
-  rect: (el) => ({
-    tag: "rect", key: el.id,
-    x: el.x, y: el.y, width: el.w, height: el.h,
-    fill: el.fill || "transparent",
-    stroke: el.stroke || "#888",
-    strokeWidth: el.strokeW || 2,
-    rx: el.rx || 0,
+  rect: (element) => ({
+    tag: "rect", key: element.id,
+    x: element.x, y: element.y, width: element.w, height: element.h,
+    fill: element.fill || "transparent",
+    stroke: element.stroke || "#888",
+    strokeWidth: element.strokeW || 2,
+    rx: element.rx || 0,
   }),
-  ellipse: (el) => ({
-    tag: "ellipse", key: el.id,
-    cx: el.x + el.w / 2, cy: el.y + el.h / 2,
-    rx: el.w / 2, ry: el.h / 2,
-    fill: el.fill || "transparent",
-    stroke: el.stroke || "#888",
-    strokeWidth: el.strokeW || 2,
+  ellipse: (element) => ({
+    tag: "ellipse", key: element.id,
+    cx: element.x + element.w / 2, cy: element.y + element.h / 2,
+    rx: element.w / 2, ry: element.h / 2,
+    fill: element.fill || "transparent",
+    stroke: element.stroke || "#888",
+    strokeWidth: element.strokeW || 2,
   }),
-  text: (el) => ({
-    tag: "text", key: el.id,
-    x: el.align === "center" ? el.x + el.w / 2 : el.x,
-    y: el.y + el.fontSize * 0.8,
-    fontSize: el.fontSize * 0.5,
-    fontWeight: el.bold ? 700 : 400,
-    fill: el.color,
-    textAnchor: el.align === "center" ? "middle" : "start",
-    children: el.text?.slice(0, 30),
+  text: (element) => ({
+    tag: "text", key: element.id,
+    x: element.align === "center" ? element.x + element.w / 2 : element.x,
+    y: element.y + element.fontSize * 0.8,
+    fontSize: element.fontSize * 0.5,
+    fontWeight: element.bold ? 700 : 400,
+    fill: element.color,
+    textAnchor: element.align === "center" ? "middle" : "start",
+    children: element.text?.slice(0, 30),
   }),
 };
 
@@ -200,15 +208,15 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
 
   // ── Slide / element mutation ──────────────────────────────────────────────
 
-  // Apply `fn` to the element list of slide `slIdx` and push to history.
-  const updateElements = (slIdx, fn) => {
-    const next = slides.map((sl, i) => {
-      if (i === slIdx) {
-        return { ...sl, elements: fn(sl.elements) };
+  // Apply `transform` to the element list of slide `slideIndex` and push to history.
+  const updateElements = (slideIndex, transform) => {
+    const nextSlides = slides.map((slide, currentSlideIndex) => {
+      if (currentSlideIndex === slideIndex) {
+        return { ...slide, elements: transform(slide.elements) };
       }
-      return sl;
+      return slide;
     });
-    hist.push(next);
+    hist.push(nextSlides);
   };
 
   const addSlide = (layout = "blank") => {
@@ -217,31 +225,31 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
     setSelId(null);
   };
 
-  const dupSlide = () => {
+  const duplicateSlide = () => {
     const newSlide = {
-      ...curSlide,
       id: utils._elId(),
-      elements: curSlide.elements.map(e => ({ ...e, id: utils._elId() })),
+      ...curSlide,
+      elements: curSlide.elements.map(element => ({ ...element, id: utils._elId() })),
     };
-    const arr = [...slides];
-    arr.splice(activeSl + 1, 0, newSlide);
-    hist.push(arr);
+    const slidesAfterInsert = [...slides];
+    slidesAfterInsert.splice(activeSl + 1, 0, newSlide);
+    hist.push(slidesAfterInsert);
     setActiveSl(activeSl + 1);
   };
 
-  const delSlide = () => {
+  const deleteSlide = () => {
     if (slides.length <= 1) {
       return;
     }
-    hist.push(slides.filter((_, i) => i !== activeSl));
+    hist.push(slides.filter((_, slideIndex) => slideIndex !== activeSl));
     setActiveSl(Math.max(0, activeSl - 1));
     setSelId(null);
   };
 
-  const addEl = type => {
-    let el;
-    if (type === "text") {
-      el = {
+  const addElement = elementType => {
+    let newElement;
+    if (elementType === "text") {
+      newElement = {
         id: utils._elId(),
         type: "text",
         x: 100,
@@ -255,8 +263,8 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
         align: "left",
         placeholder: false,
       };
-    } else if (type === "rect") {
-      el = {
+    } else if (elementType === "rect") {
+      newElement = {
         id: utils._elId(),
         type: "rect",
         x: 150,
@@ -268,8 +276,8 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
         strokeW: SlidesConstants.DEFAULT_STROKE_WIDTH,
         rx: 8,
       };
-    } else if (type === "ellipse") {
-      el = {
+    } else if (elementType === "ellipse") {
+      newElement = {
         id: utils._elId(),
         type: "ellipse",
         x: 200,
@@ -281,7 +289,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
         strokeW: SlidesConstants.DEFAULT_STROKE_WIDTH,
       };
     } else {
-      el = {
+      newElement = {
         id: utils._elId(),
         type: "line",
         x1: 100,
@@ -292,30 +300,30 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
         strokeW: SlidesConstants.DEFAULT_LINE_STROKE_WIDTH,
       };
     }
-    updateElements(activeSl, els => [...els, el]);
-    setSelId(el.id);
+    updateElements(activeSl, elements => [...elements, newElement]);
+    setSelId(newElement.id);
   };
 
-  const delSel = () => {
+  const deleteSelection = () => {
     if (!selId) {
       return;
     }
-    updateElements(activeSl, els => els.filter(e => e.id !== selId));
+    updateElements(activeSl, elements => elements.filter(element => element.id !== selId));
     setSelId(null);
   };
 
-  // Apply a theme to every slide. Text recolours to hd/tx based on `bold`
-  // so headings keep their emphasis colour after a theme swap.
-  const applyTheme = thm => {
-    setDeckTheme(thm);
-    hist.push(slides.map(sl => ({
-      ...sl,
-      bg: thm.bg,
-      elements: sl.elements.map(e => {
-        if (e.type === "text") {
-          return { ...e, color: e.bold ? thm.heading : thm.text };
+  // Apply a theme to every slide. Text recolours to heading/text based on
+  // `bold` so headings keep their emphasis colour after a theme swap.
+  const applyTheme = newSlideTheme => {
+    setDeckTheme(newSlideTheme);
+    hist.push(slides.map(slide => ({
+      ...slide,
+      bg: newSlideTheme.bg,
+      elements: slide.elements.map(element => {
+        if (element.type === "text") {
+          return { ...element, color: element.bold ? newSlideTheme.heading : newSlideTheme.text };
         }
-        return e;
+        return element;
       }),
     })));
   };
@@ -323,25 +331,25 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
   // ── Toolbar wiring ────────────────────────────────────────────────────────
 
   useEffect(() => {
-    registerActions((id, val) => {
-      if (id === "addText") {
-        addEl("text");
-      } else if (id === "addRect") {
-        addEl("rect");
-      } else if (id === "addEllipse") {
-        addEl("ellipse");
-      } else if (id === "delSel") {
-        delSel();
-      } else if (id === "dupSlide") {
-        dupSlide();
-      } else if (id === "present") {
+    registerActions((actionId, actionValue) => {
+      if (actionId === "addText") {
+        addElement("text");
+      } else if (actionId === "addRectangle") {
+        addElement("rect");
+      } else if (actionId === "addEllipse") {
+        addElement("ellipse");
+      } else if (actionId === "deleteSelection") {
+        deleteSelection();
+      } else if (actionId === "duplicateSlide") {
+        duplicateSlide();
+      } else if (actionId === "startPresentation") {
         setPresIdx(activeSl);
         setPresMode(true);
-      } else if (id === "theme") {
-        const thm = SlidesConstants.SLIDE_THEMES.find(x => x.themeId === val) || SlidesConstants.SLIDE_THEMES[0];
-        applyTheme(thm);
-      } else if (id === "layout") {
-        addSlide(val);
+      } else if (actionId === "slideTheme") {
+        const matchingTheme = SlidesConstants.SLIDE_THEMES.find(slideTheme => slideTheme.themeId === actionValue) || SlidesConstants.SLIDE_THEMES[0];
+        applyTheme(matchingTheme);
+      } else if (actionId === "slideLayout") {
+        addSlide(actionValue);
       }
     });
   }); // eslint-disable-line
@@ -349,17 +357,17 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
 
   useEffect(() => {
-    const handler = e => {
-      if (e.key === "Delete" || e.key === "Backspace") {
+    const onKeyDown = keyDownEvent => {
+      if (keyDownEvent.key === "Delete" || keyDownEvent.key === "Backspace") {
         // Don't intercept Backspace while editing a text element.
         if (selId && editId !== selId) {
-          delSel();
+          deleteSelection();
         }
       }
     };
-    window.addEventListener("keydown", handler);
+    window.addEventListener("keydown", onKeyDown);
     return () => {
-      window.removeEventListener("keydown", handler);
+      window.removeEventListener("keydown", onKeyDown);
     };
   }, [selId, editId]); // eslint-disable-line
 
@@ -387,45 +395,45 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
     }
   };
 
-  const onElMouseDown = (el, e) => {
-    e.stopPropagation();
+  const onElMouseDown = (element, mouseDownEvent) => {
+    mouseDownEvent.stopPropagation();
     // Don't start a drag while editing the text inside this element.
-    if (editId === el.id) {
+    if (editId === element.id) {
       return;
     }
-    setSelId(el.id);
-    const { x, y } = getSVGCoords(e);
+    setSelId(element.id);
+    const { x, y } = getSVGCoords(mouseDownEvent);
     setDragState({
-      elId: el.id,
+      elId: element.id,
       startX: x,
       startY: y,
-      origX: el.x ?? el.x1 ?? 0,
-      origY: el.y ?? el.y1 ?? 0,
+      origX: element.x ?? element.x1 ?? 0,
+      origY: element.y ?? element.y1 ?? 0,
     });
   };
 
-  const onCanvasMouseMove = e => {
+  const onCanvasMouseMove = mouseMoveEvent => {
     if (!dragState) {
       return;
     }
-    const { x, y } = getSVGCoords(e);
-    const dx = x - dragState.startX;
-    const dy = y - dragState.startY;
-    updateElements(activeSl, els => els.map(el => {
-      if (el.id !== dragState.elId) {
-        return el;
+    const { x, y } = getSVGCoords(mouseMoveEvent);
+    const deltaX = x - dragState.startX;
+    const deltaY = y - dragState.startY;
+    updateElements(activeSl, elements => elements.map(element => {
+      if (element.id !== dragState.elId) {
+        return element;
       }
-      if (el.type === "line") {
-        // Preserve line length: shift both endpoints by (dx, dy).
+      if (element.type === "line") {
+        // Preserve line length: shift both endpoints by (deltaX, deltaY).
         return {
-          ...el,
-          x1: dragState.origX + dx,
-          y1: dragState.origY + dy,
-          x2: (el.x2 - el.x1) + dragState.origX + dx,
-          y2: (el.y2 - el.y1) + dragState.origY + dy,
+          ...element,
+          x1: dragState.origX + deltaX,
+          y1: dragState.origY + deltaY,
+          x2: (element.x2 - element.x1) + dragState.origX + deltaX,
+          y2: (element.y2 - element.y1) + dragState.origY + deltaY,
         };
       }
-      return { ...el, x: dragState.origX + dx, y: dragState.origY + dy };
+      return { ...element, x: dragState.origX + deltaX, y: dragState.origY + deltaY };
     }));
   };
 
@@ -435,23 +443,23 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
 
   // ── Element rendering ─────────────────────────────────────────────────────
 
-  const renderEl = el => {
-    const ctx = {
-      isSel:  selId === el.id,
-      isEdit: editId === el.id,
+  const renderElement = element => {
+    const editorContext = {
+      isSel:  selId === element.id,
+      isEdit: editId === element.id,
       dragState, theme,
       onElMouseDown, setEditId, updateElements, activeSl,
     };
-    return renderSpec(SLIDE_SHAPES[el.type]?.(el, ctx));
+    return renderSpec(SLIDE_SHAPES[element.type]?.(element, editorContext));
   };
 
   // ── Presenter mode ────────────────────────────────────────────────────────
 
   if (presMode) {
-    const ps = slides[presIdx] || slides[0];
+    const presentingSlide = slides[presIdx] || slides[0];
     const advanceOrExit = () => {
       if (presIdx < slides.length - 1) {
-        setPresIdx(i => i + 1);
+        setPresIdx(currentIndex => currentIndex + 1);
       } else {
         setPresMode(false);
       }
@@ -462,7 +470,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
           position: "fixed",
           inset: 0,
           zIndex: 9999,
-          background: ps.bg || "#fff",
+          background: presentingSlide.bg || "#fff",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -474,16 +482,16 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
           viewBox={`0 0 ${SlidesConstants.CANVAS_WIDTH} ${SlidesConstants.CANVAS_HEIGHT}`}
           style={{ width: "90vw", maxWidth: 1200, aspectRatio: "16/9" }}
         >
-          <rect width={SlidesConstants.CANVAS_WIDTH} height={SlidesConstants.CANVAS_HEIGHT} fill={ps.bg || "#fff"} />
-          {ps.elements.map(renderEl)}
+          <rect width={SlidesConstants.CANVAS_WIDTH} height={SlidesConstants.CANVAS_HEIGHT} fill={presentingSlide.bg || "#fff"} />
+          {presentingSlide.elements.map(renderElement)}
         </svg>
         <div style={{ position: "fixed", bottom: 24, right: 24, display: "flex", gap: 8 }}>
           <button
             className="nb ng"
             style={{ background: "rgba(0,0,0,0.5)", color: "#fff", border: "none" }}
-            onClick={e => {
-              e.stopPropagation();
-              setPresIdx(i => Math.max(0, i - 1));
+            onClick={prevClickEvent => {
+              prevClickEvent.stopPropagation();
+              setPresIdx(currentIndex => Math.max(0, currentIndex - 1));
             }}
           >
             <I.ChevLeft size={14} />
@@ -500,8 +508,8 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
           <button
             className="nb ng"
             style={{ background: "rgba(0,0,0,0.5)", color: "#fff", border: "none" }}
-            onClick={e => {
-              e.stopPropagation();
+            onClick={nextClickEvent => {
+              nextClickEvent.stopPropagation();
               advanceOrExit();
             }}
           >
@@ -539,11 +547,11 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
           flexShrink: 0,
         }}
       >
-        {slides.map((sl, i) => (
+        {slides.map((slide, slideIndex) => (
           <div
-            key={sl.id}
+            key={slide.id}
             onClick={() => {
-              setActiveSl(i);
+              setActiveSl(slideIndex);
               setSelId(null);
               setEditId(null);
             }}
@@ -552,8 +560,8 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
             <div
               style={{
                 aspectRatio: "16/9",
-                background: sl.bg || "#fff",
-                border: `2px solid ${i === activeSl ? appColor : theme.border}`,
+                background: slide.bg || "#fff",
+                border: `2px solid ${slideIndex === activeSl ? appColor : theme.border}`,
                 borderRadius: 4,
                 overflow: "hidden",
                 position: "relative",
@@ -563,8 +571,8 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
                 viewBox={`0 0 ${SlidesConstants.CANVAS_WIDTH} ${SlidesConstants.CANVAS_HEIGHT}`}
                 style={{ width: "100%", height: "100%", pointerEvents: "none" }}
               >
-                <rect width={SlidesConstants.CANVAS_WIDTH} height={SlidesConstants.CANVAS_HEIGHT} fill={sl.bg || "#fff"} />
-                {sl.elements.map(el => renderSpec(THUMB_SHAPES[el.type]?.(el)))}
+                <rect width={SlidesConstants.CANVAS_WIDTH} height={SlidesConstants.CANVAS_HEIGHT} fill={slide.bg || "#fff"} />
+                {slide.elements.map(element => renderSpec(THUMB_SHAPES[element.type]?.(element)))}
               </svg>
             </div>
             <div
@@ -589,7 +597,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
               fontSize: 9,
               color: theme.textDim,
               border: `1px dashed ${theme.border}`,
-              borderRadius: theme.r6,
+              borderRadius: theme.radius6,
               cursor: "pointer",
               background: "transparent",
               fontFamily: theme.fontFamily,
@@ -603,13 +611,13 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
           </button>
           {slides.length > 1 && (
             <button
-              onClick={delSlide}
+              onClick={deleteSlide}
               style={{
                 padding: "5px 7px",
                 fontSize: 9,
                 color: theme.error,
                 border: `1px solid ${theme.error}22`,
-                borderRadius: theme.r6,
+                borderRadius: theme.radius6,
                 cursor: "pointer",
                 background: "transparent",
                 fontFamily: theme.fontFamily,
@@ -690,7 +698,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
           onMouseDown={onCanvasMouseDown}
         >
           <rect width={SlidesConstants.CANVAS_WIDTH} height={SlidesConstants.CANVAS_HEIGHT} fill={curSlide?.bg || "#fff"} />
-          {curSlide?.elements.map(renderEl)}
+          {curSlide?.elements.map(renderElement)}
         </svg>
 
         {/* Floating add buttons */}
@@ -708,16 +716,16 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
             ["text", "T", I.TypeT],
             ["rect", "Rect", I.Square],
             ["ellipse", "Circle", I.Globe],
-          ].map(([type, label, Ico]) => (
+          ].map(([elementType, label, ElementIcon]) => (
             <button
-              key={type}
-              onClick={() => addEl(type)}
+              key={elementType}
+              onClick={() => addElement(elementType)}
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 5,
                 padding: "5px 10px",
-                borderRadius: theme.rF,
+                borderRadius: theme.radiusFull,
                 background: theme.elevated,
                 border: `1px solid ${theme.border}`,
                 color: theme.textDim,
@@ -727,7 +735,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
                 gap: 4,
               }}
             >
-              <Ico size={12} />
+              <ElementIcon size={12} />
               {label}
             </button>
           ))}
@@ -741,7 +749,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
               alignItems: "center",
               gap: 5,
               padding: "5px 10px",
-              borderRadius: theme.rF,
+              borderRadius: theme.radiusFull,
               background: appColor,
               border: "none",
               color: "white",
@@ -836,7 +844,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
                         flex: 1,
                         padding: "4px",
                         fontSize: 9,
-                        borderRadius: theme.r6,
+                        borderRadius: theme.radius6,
                         border: `1px solid ${selEl.align === a ? appColor : theme.border}`,
                         background: selEl.align === a ? appColor + "18" : "transparent",
                         cursor: "pointer",
@@ -950,7 +958,7 @@ export const SlidesEditor = ({ appColor, doc, t: theme, onContentChange, registe
               }}
             >
               <button
-                onClick={delSel}
+                onClick={deleteSelection}
                 className="nb ng"
                 style={{
                   width: "100%",

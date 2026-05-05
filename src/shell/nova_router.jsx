@@ -49,7 +49,7 @@ export function NovaRouter() {
   // ── Page nav history (back / forward) ────────────────────────────────────
   const applyEntry = useCallback(entry => {
     if (entry.kind === "doc") {
-      const doc = store.active.docs.find(d => d.id === entry.id);
+      const doc = store.active.docs.find(workspaceDoc => workspaceDoc.id === entry.id);
       if (doc) {
         tabs.openTab(doc);
         return;
@@ -64,7 +64,7 @@ export function NovaRouter() {
 
   const isEntryValid = useCallback(entry => {
     if (entry.kind === "doc") {
-      return store.active.docs.some(d => d.id === entry.id);
+      return store.active.docs.some(workspaceDoc => workspaceDoc.id === entry.id);
     }
     return true;
   }, [store]);
@@ -73,7 +73,7 @@ export function NovaRouter() {
 
   // ── Global shortcuts ──────────────────────────────────────────────────────
   useKbd("n", () => setShowND(true));
-  useKbd("k", () => setShowPalette(v => !v));
+  useKbd("k", () => setShowPalette(currentlyOpen => !currentlyOpen));
 
   useEffect(() => {
     if (tabs.activeDoc) {
@@ -86,14 +86,14 @@ export function NovaRouter() {
   // ── Doc lifecycle handlers ────────────────────────────────────────────────
 
   const openDocById = useCallback(docId => {
-    const doc = store.active.docs.find(d => d.id === docId);
+    const doc = store.active.docs.find(workspaceDoc => workspaceDoc.id === docId);
     if (!doc) return;
     tabs.openTab(doc);
     nav.push({ kind: "doc", id: doc.id });
   }, [store, tabs, nav]);
 
   const openCalendarSingleton = useCallback(() => {
-    const existing = store.active.docs.find(d => d.type === "calendar");
+    const existing = store.active.docs.find(workspaceDoc => workspaceDoc.type === "calendar");
     if (existing) {
       openDocById(existing.id);
       return;
@@ -128,14 +128,14 @@ export function NovaRouter() {
     openDocById(doc.id);
   }, [openDocById]);
 
-  const handleNav = useCallback(v => {
-    if (v === "calendar") {
+  const handleNav = useCallback(viewName => {
+    if (viewName === "calendar") {
       openCalendarSingleton();
       return;
     }
-    setView(v);
+    setView(viewName);
     tabs.setActiveTabId(null);
-    nav.push({ kind: "view", id: v });
+    nav.push({ kind: "view", id: viewName });
   }, [tabs, nav, openCalendarSingleton]);
 
   const handleTabSelect = useCallback(id => {
@@ -157,7 +157,7 @@ export function NovaRouter() {
   }, [store, tabs]);
 
   const handleDelete = useCallback(id => {
-    const doc = store.active.docs.find(d => d.id === id);
+    const doc = store.active.docs.find(workspaceDoc => workspaceDoc.id === id);
     store.deleteDoc(id);
     tabs.closeTab(id);
   }, [store, tabs]);
@@ -184,7 +184,7 @@ export function NovaRouter() {
             onNav={handleNav}
             onNewDoc={openNewDoc}
             collapsed={collapsed}
-            onToggle={() => setCollapsed(v => !v)}
+            onToggle={() => setCollapsed(currentlyCollapsed => !currentlyCollapsed)}
             ws={store.ws}
             active={store.active}
             onSwitch={store.setActiveId}

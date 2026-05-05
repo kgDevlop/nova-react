@@ -11,12 +11,12 @@ import { LeftSidebarConstants } from "./_constants";
 // `txt === "Delete"` is required before the confirm button enables.
 const DeleteWSConfirm = ({ ws, onCancel, onConfirm }) => {
   const theme = useT();
-  const [txt, setTxt] = useState("");
-  const ok = txt === "Delete";
-  const ref = useRef(null);
+  const [confirmText, setConfirmText] = useState("");
+  const isConfirmed = confirmText === "Delete";
+  const inputRef = useRef(null);
 
   useEffect(() => {
-    ref.current?.focus();
+    inputRef.current?.focus();
   }, []);
 
   const docCount = ws.docs.length;
@@ -25,8 +25,8 @@ const DeleteWSConfirm = ({ ws, onCancel, onConfirm }) => {
   return (
     <div
       className="novl"
-      onClick={e => {
-        if (e.target === e.currentTarget) {
+      onClick={overlayClickEvent => {
+        if (overlayClickEvent.target === overlayClickEvent.currentTarget) {
           onCancel();
         }
       }}
@@ -37,7 +37,7 @@ const DeleteWSConfirm = ({ ws, onCancel, onConfirm }) => {
             style={{
               width: 36,
               height: 36,
-              borderRadius: theme.r10,
+              borderRadius: theme.radius10,
               background: "rgba(232,82,82,0.12)",
               display: "flex",
               alignItems: "center",
@@ -61,16 +61,16 @@ const DeleteWSConfirm = ({ ws, onCancel, onConfirm }) => {
           Type <strong style={{ color: theme.text, fontFamily: "monospace" }}>Delete</strong> to confirm:
         </label>
         <input
-          ref={ref}
+          ref={inputRef}
           className="ninput"
           placeholder="Delete"
-          value={txt}
-          onChange={e => setTxt(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === "Enter" && ok) {
+          value={confirmText}
+          onChange={confirmTextChangeEvent => setConfirmText(confirmTextChangeEvent.target.value)}
+          onKeyDown={confirmKeyDownEvent => {
+            if (confirmKeyDownEvent.key === "Enter" && isConfirmed) {
               onConfirm();
             }
-            if (e.key === "Escape") {
+            if (confirmKeyDownEvent.key === "Escape") {
               onCancel();
             }
           }}
@@ -84,12 +84,12 @@ const DeleteWSConfirm = ({ ws, onCancel, onConfirm }) => {
           <button
             className="nb np"
             style={{
-              background: ok ? theme.error : theme.border,
+              background: isConfirmed ? theme.error : theme.border,
               color: "#fff",
-              cursor: ok ? "pointer" : "not-allowed",
-              opacity: ok ? 1 : 0.5,
+              cursor: isConfirmed ? "pointer" : "not-allowed",
+              opacity: isConfirmed ? 1 : 0.5,
             }}
-            disabled={!ok}
+            disabled={!isConfirmed}
             onClick={onConfirm}
           >
             <I.Trash size={12} /> Delete workspace
@@ -108,64 +108,64 @@ const DeleteWSConfirm = ({ ws, onCancel, onConfirm }) => {
 // doesn't blow away the list underneath.
 const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed }) => {
   const theme = useT();
-  const [open, setOpen] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [draft, setDraft] = useState("");
-  const [confirmWS, setConfirmWS] = useState(null);
-  const ref = useRef(null);
-  const editRef = useRef(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [editingWorkspaceId, setEditingWorkspaceId] = useState(null);
+  const [nameDraft, setNameDraft] = useState("");
+  const [workspacePendingDelete, setWorkspacePendingDelete] = useState(null);
+  const switcherRef = useRef(null);
+  const editInputRef = useRef(null);
 
-  useOut(ref, () => {
-    if (!confirmWS) {
-      setOpen(false);
+  useOut(switcherRef, () => {
+    if (!workspacePendingDelete) {
+      setIsOpen(false);
     }
   });
 
   useEffect(() => {
-    if (editId) {
-      editRef.current?.focus();
+    if (editingWorkspaceId) {
+      editInputRef.current?.focus();
     }
-  }, [editId]);
+  }, [editingWorkspaceId]);
 
-  const startEdit = (workspace, e) => {
-    e.stopPropagation();
-    setEditId(workspace.id);
-    setDraft(workspace.name);
+  const startEdit = (workspace, renameClickEvent) => {
+    renameClickEvent.stopPropagation();
+    setEditingWorkspaceId(workspace.id);
+    setNameDraft(workspace.name);
   };
 
   const commitEdit = () => {
-    onRename?.(editId, draft);
-    setEditId(null);
+    onRename?.(editingWorkspaceId, nameDraft);
+    setEditingWorkspaceId(null);
   };
 
   const cancelEdit = () => {
-    setEditId(null);
-    setDraft("");
+    setEditingWorkspaceId(null);
+    setNameDraft("");
   };
 
   const activeDocCount = active.docs.length;
   const activeDocLabel = `document${activeDocCount !== 1 ? "s" : ""}`;
 
   return (
-    <div ref={ref} style={{ position: "relative", margin: "0 2px 12px", userSelect: "none" }}>
+    <div ref={switcherRef} style={{ position: "relative", margin: "0 2px 12px", userSelect: "none" }}>
       <div
-        onClick={() => setOpen(v => !v)}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = theme.surfaceShade;
+        onClick={() => setIsOpen(currentlyOpen => !currentlyOpen)}
+        onMouseEnter={mouseEnterEvent => {
+          mouseEnterEvent.currentTarget.style.background = theme.surfaceShade;
         }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = open ? theme.surfaceAlt : "transparent";
+        onMouseLeave={mouseLeaveEvent => {
+          mouseLeaveEvent.currentTarget.style.background = isOpen ? theme.surfaceAlt : "transparent";
         }}
         style={{
           display: "flex",
           alignItems: "center",
           gap: 8,
           padding: "7px 9px",
-          borderRadius: theme.r10,
+          borderRadius: theme.radius10,
           cursor: "pointer",
           transition: theme.transition,
-          background: open ? theme.surfaceAlt : "transparent",
-          border: `1px solid ${open ? theme.borderStrong : "transparent"}`,
+          background: isOpen ? theme.surfaceAlt : "transparent",
+          border: `1px solid ${isOpen ? theme.borderStrong : "transparent"}`,
           justifyContent: collapsed ? "center" : "flex-start",
         }}
       >
@@ -173,7 +173,7 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
           style={{
             width: 22,
             height: 22,
-            borderRadius: theme.r6,
+            borderRadius: theme.radius6,
             background: active.color + "25",
             display: "flex",
             alignItems: "center",
@@ -208,7 +208,7 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
         )}
       </div>
 
-      {open && (
+      {isOpen && (
         <div
           className="nmenu"
           style={{
@@ -233,7 +233,7 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
           </div>
 
           {ws.map(workspace => {
-            const isEditing = editId === workspace.id;
+            const isEditing = editingWorkspaceId === workspace.id;
             const isActive = workspace.id === active.id;
             return (
               <div
@@ -247,7 +247,7 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
                 onClick={() => {
                   if (!isEditing) {
                     onSwitch(workspace.id);
-                    setOpen(false);
+                    setIsOpen(false);
                   }
                 }}
               >
@@ -255,7 +255,7 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
                   style={{
                     width: 18,
                     height: 18,
-                    borderRadius: theme.r6,
+                    borderRadius: theme.radius6,
                     background: workspace.color + "25",
                     display: "flex",
                     alignItems: "center",
@@ -268,17 +268,17 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
                 </div>
                 {isEditing ? (
                   <input
-                    ref={editRef}
+                    ref={editInputRef}
                     className="ninput"
                     style={{ flex: 1, fontSize: 12, padding: "3px 7px" }}
-                    value={draft}
-                    onChange={e => setDraft(e.target.value)}
-                    onClick={e => e.stopPropagation()}
-                    onKeyDown={e => {
-                      if (e.key === "Enter") {
+                    value={nameDraft}
+                    onChange={nameChangeEvent => setNameDraft(nameChangeEvent.target.value)}
+                    onClick={inputClickEvent => inputClickEvent.stopPropagation()}
+                    onKeyDown={editKeyDownEvent => {
+                      if (editKeyDownEvent.key === "Enter") {
                         commitEdit();
                       }
-                      if (e.key === "Escape") {
+                      if (editKeyDownEvent.key === "Escape") {
                         cancelEdit();
                       }
                     }}
@@ -301,7 +301,7 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
                       className="nb ni"
                       style={{ padding: 3, opacity: 0.6 }}
                       title="Rename"
-                      onClick={e => startEdit(workspace, e)}
+                      onClick={renameClickEvent => startEdit(workspace, renameClickEvent)}
                     >
                       <I.Pencil size={10} />
                     </button>
@@ -310,9 +310,9 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
                         className="nb ni"
                         style={{ padding: 3, opacity: 0.6, color: theme.error }}
                         title="Delete"
-                        onClick={e => {
-                          e.stopPropagation();
-                          setConfirmWS(workspace);
+                        onClick={deleteClickEvent => {
+                          deleteClickEvent.stopPropagation();
+                          setWorkspacePendingDelete(workspace);
                         }}
                       >
                         <I.Trash size={10} />
@@ -330,7 +330,7 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
             className="nmi"
             onClick={() => {
               onNew();
-              setOpen(false);
+              setIsOpen(false);
             }}
           >
             <I.Plus size={12} /> New workspace
@@ -338,14 +338,14 @@ const WSSwitcher = ({ ws, active, onSwitch, onNew, onRename, onDelete, collapsed
         </div>
       )}
 
-      {confirmWS && (
+      {workspacePendingDelete && (
         <DeleteWSConfirm
-          ws={confirmWS}
-          onCancel={() => setConfirmWS(null)}
+          ws={workspacePendingDelete}
+          onCancel={() => setWorkspacePendingDelete(null)}
           onConfirm={() => {
-            onDelete?.(confirmWS.id);
-            setConfirmWS(null);
-            setOpen(false);
+            onDelete?.(workspacePendingDelete.id);
+            setWorkspacePendingDelete(null);
+            setIsOpen(false);
           }}
         />
       )}
@@ -426,7 +426,7 @@ export const Sidebar = ({
               padding: 8,
               background: theme.accentSoft,
               color: theme.accent,
-              borderRadius: theme.r10,
+              borderRadius: theme.radius10,
             }}
           >
             <I.Plus size={15} />
@@ -528,7 +528,7 @@ export const MobSidebar = ({
     <div style={{ position: "fixed", inset: 0, zIndex: 400 }} onClick={onClose}>
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)" }} />
       <div
-        onClick={e => e.stopPropagation()}
+        onClick={drawerClickEvent => drawerClickEvent.stopPropagation()}
         style={{
           position: "absolute",
           right: 0,
@@ -652,7 +652,7 @@ export const MobTopBar = ({ onOpen, onSearchClick, onBack, onForward, canBack, c
     height: 28,
     border: "none",
     background: "transparent",
-    borderRadius: theme.r6,
+    borderRadius: theme.radius6,
     cursor: enabled ? "pointer" : "default",
     color: enabled ? theme.text : theme.textMuted,
     opacity: enabled ? 1 : 0.4,

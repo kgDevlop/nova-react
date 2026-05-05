@@ -48,52 +48,52 @@ export const registry = { _app };
 const _uid = () => `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
 /**
- * Build a Date that is `ms` milliseconds in the past.
- * @param {number} ms - Offset in milliseconds.
- * @returns {Date} A Date `ms` ago from now.
+ * Build a Date that is `millisecondsAgo` milliseconds in the past.
+ * @param {number} millisecondsAgo - Offset in milliseconds.
+ * @returns {Date} A Date `millisecondsAgo` ago from now.
  */
-const _ago = (ms) => new Date(Date.now() - ms);
+const _ago = (millisecondsAgo) => new Date(Date.now() - millisecondsAgo);
 
 /**
  * Format a timestamp as a human-readable relative time. Falls back to a
  * short "Mon D" date string for anything older than a week.
- * @param {Date|number} d - Timestamp or Date.
+ * @param {Date|number} timestamp - Timestamp or Date.
  * @returns {string} e.g. "Just now", "5m ago", "Apr 12".
  */
-const _rel = (d) => {
-  const diff = Date.now() - d;
-  const m = Math.floor(diff / 6e4);
-  const h = Math.floor(diff / 36e5);
-  const dy = Math.floor(diff / 864e5);
+const _rel = (timestamp) => {
+  const millisecondsSince = Date.now() - timestamp;
+  const minutesSince = Math.floor(millisecondsSince / 6e4);
+  const hoursSince   = Math.floor(millisecondsSince / 36e5);
+  const daysSince    = Math.floor(millisecondsSince / 864e5);
 
-  if (m < 1) {
+  if (minutesSince < 1) {
     return "Just now";
   }
-  if (m < 60) {
-    return `${m}m ago`;
+  if (minutesSince < 60) {
+    return `${minutesSince}m ago`;
   }
-  if (h < 24) {
-    return `${h}h ago`;
+  if (hoursSince < 24) {
+    return `${hoursSince}h ago`;
   }
-  if (dy < 7) {
-    return `${dy}d ago`;
+  if (daysSince < 7) {
+    return `${daysSince}d ago`;
   }
-  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
 /**
  * Filter docs by a case-insensitive title substring match. Empty queries
  * return the input unchanged.
  * @param {Array<{title:string}>} docs
- * @param {string} q - Search query.
+ * @param {string} searchQuery - Search query.
  * @returns {Array} Subset of `docs` whose title matches.
  */
-const _filterQ = (docs, q) => {
-  const lq = q.trim().toLowerCase();
-  if (!lq) {
+const _filterQ = (docs, searchQuery) => {
+  const lowerQuery = searchQuery.trim().toLowerCase();
+  if (!lowerQuery) {
     return docs;
   }
-  return docs.filter(d => d.title.toLowerCase().includes(lq));
+  return docs.filter(doc => doc.title.toLowerCase().includes(lowerQuery));
 };
 
 /**
@@ -101,104 +101,108 @@ const _filterQ = (docs, q) => {
  * value "starred", or anything else (returns all browseable). Calendar docs
  * are always excluded since calendar is a singleton.
  * @param {Array<{type:string,starred:boolean}>} docs
- * @param {string} v - View id.
+ * @param {string} viewName - View id.
  * @returns {Array} Filtered docs.
  */
-const _filterV = (docs, v) => {
-  const browseable = docs.filter(d => d.type !== "calendar");
-  if (UtilsConstants.APPS.map(a => a.appId).includes(v)) {
-    return browseable.filter(d => d.type === v);
+const _filterV = (docs, viewName) => {
+  const browseableDocs = docs.filter(doc => doc.type !== "calendar");
+  if (UtilsConstants.APPS.map(app => app.appId).includes(viewName)) {
+    return browseableDocs.filter(doc => doc.type === viewName);
   }
-  if (v === "starred") {
-    return browseable.filter(d => d.starred);
+  if (viewName === "starred") {
+    return browseableDocs.filter(doc => doc.starred);
   }
-  return browseable;
+  return browseableDocs;
 };
 
 /**
  * Sort docs (returns a new array) by one of "modified" | "name" | type.
  * @param {Array} docs
- * @param {string} by - Sort key.
+ * @param {string} sortKey - Sort key.
  * @returns {Array} Sorted copy.
  */
-const _sortD = (docs, by) => {
-  return [...docs].sort((a, b) => {
-    if (by === "modified") {
-      return b.modified - a.modified;
+const _sortD = (docs, sortKey) => {
+  return [...docs].sort((firstDoc, secondDoc) => {
+    if (sortKey === "modified") {
+      return secondDoc.modified - firstDoc.modified;
     }
-    if (by === "name") {
-      return a.title.localeCompare(b.title);
+    if (sortKey === "name") {
+      return firstDoc.title.localeCompare(secondDoc.title);
     }
-    return a.type.localeCompare(b.type);
+    return firstDoc.type.localeCompare(secondDoc.type);
   });
 };
 
 /**
  * Look up the human-readable title for a view id; falls back to "Home".
- * @param {string} v - View id.
+ * @param {string} viewName - View id.
  * @returns {string} Display title.
  */
-const _vtitle = (v) => UtilsConstants.VIEW_TITLES[v] ?? "Home";
+const _vtitle = (viewName) => UtilsConstants.VIEW_TITLES[viewName] ?? "Home";
 
 /**
  * Build full doc records from partial defs, filling in id / starred / content.
- * @param {Array<object>} defs - Partial doc shapes.
+ * @param {Array<object>} partialDocs - Partial doc shapes.
  * @returns {Array<object>} Hydrated doc records.
  */
-const _mk = (defs) => defs.map(d => ({ id: _uid(), starred: false, content: "", ...d }));
+const _mk = (partialDocs) => partialDocs.map(partialDoc => ({
+  id: _uid(),
+  starred: false,
+  content: "",
+  ...partialDoc,
+}));
 
 /**
  * Build the auto-generated default title for a new doc of the given type.
- * @param {string} type - App id.
+ * @param {string} appType - App id.
  * @returns {string} e.g. "Writer — Apr 12, 2025".
  */
-const _autoName = (type) => {
-  const def = _app(type);
+const _autoName = (appType) => {
+  const appDef = _app(appType);
   const now = new Date();
-  const date = now.toLocaleDateString("en-US", {
+  const dateLabel = now.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
-  return `${def.label} — ${date}`;
+  return `${appDef.label} — ${dateLabel}`;
 };
 
 /**
  * Pick a non-conflicting title within (type, docs), suffixing " (n)" as
- * needed. Strips any existing " (n)" suffix on `desired` so duplicates
+ * needed. Strips any existing " (n)" suffix on `desiredTitle` so duplicates
  * don't pile up.
  * @param {Array<{type:string,id:string,title:string}>} docs
- * @param {string} type - App id; only docs of this type collide.
- * @param {string} desired - Proposed title.
+ * @param {string} appType - App id; only docs of this type collide.
+ * @param {string} desiredTitle - Proposed title.
  * @param {string|null} [excludeId=null] - Skip this doc when checking
  *        collisions (used during rename so a doc doesn't conflict with itself).
  * @returns {string} Unique title.
  */
-const _uniqueTitle = (docs, type, desired, excludeId = null) => {
-  const taken = new Set(
+const _uniqueTitle = (docs, appType, desiredTitle, excludeId = null) => {
+  const takenTitles = new Set(
     docs
-      .filter(d => d.type === type && d.id !== excludeId)
-      .map(d => d.title),
+      .filter(doc => doc.type === appType && doc.id !== excludeId)
+      .map(doc => doc.title),
   );
 
-  if (!taken.has(desired)) {
-    return desired;
+  if (!takenTitles.has(desiredTitle)) {
+    return desiredTitle;
   }
 
-  const base = desired.replace(/ \(\d+\)$/, "");
-  let n = 2;
-  while (taken.has(`${base} (${n})`)) {
-    n++;
-  }
-  return `${base} (${n})`;
+  const baseTitle = desiredTitle.replace(/ \(\d+\)$/, "");
+  let suffix = 2;
+  for (; takenTitles.has(`${baseTitle} (${suffix})`); suffix++) {}
+  return `${baseTitle} (${suffix})`;
 };
 
 /**
- * Generate a short random id for a canvas/slide element. Shorter than `_uid`
- * since collisions only need to be unique within a single doc.
- * @returns {string} 6-character base-36 id.
+ * Generate a random id for a canvas/slide/list element. Uses crypto.randomUUID
+ * for collision resistance — the previous 6-char base-36 form started colliding
+ * around tens of thousands of ids.
+ * @returns {string} UUID v4.
  */
-const _elId = () => Math.random().toString(36).slice(2, 8);
+const _elId = () => crypto.randomUUID();
 
 export const utils = {
   _uid,
@@ -221,79 +225,79 @@ export const utils = {
 
 /**
  * Convert a 0-based column index to spreadsheet letters (0 → A, 26 → AA).
- * @param {number} n - 0-based column index.
+ * @param {number} columnIndex - 0-based column index.
  * @returns {string} Spreadsheet column letters.
  */
-const _colLetter = (n) => {
-  let s = "";
-  let i = n + 1;
-  while (i > 0) {
-    s = String.fromCharCode(64 + (i % 26 || 26)) + s;
-    i = Math.floor((i - 1) / 26);
+const _colLetter = (columnIndex) => {
+  let columnLetters = "";
+  let remaining = columnIndex + 1;
+  for (; remaining > 0;) {
+    columnLetters = String.fromCharCode(64 + (remaining % 26 || 26)) + columnLetters;
+    remaining = Math.floor((remaining - 1) / 26);
   }
-  return s;
+  return columnLetters;
 };
 
 /**
  * Build the A1-style key for a (row, col) coordinate. Both indices are 0-based.
- * @param {number} r - Row index (0-based).
- * @param {number} c - Column index (0-based).
+ * @param {number} rowIndex - Row index (0-based).
+ * @param {number} columnIndex - Column index (0-based).
  * @returns {string} e.g. "A1", "B12".
  */
-const _cellKey = (r, c) => `${_colLetter(c)}${r + 1}`;
+const _cellKey = (rowIndex, columnIndex) => `${_colLetter(columnIndex)}${rowIndex + 1}`;
 
 /**
  * Parse an A1-style cell ref into a 0-indexed `{row, col}` object.
- * @param {string} ref - e.g. "A1", "BC42".
+ * @param {string} cellRef - e.g. "A1", "BC42".
  * @returns {{row:number, col:number}|null} Parsed coords, or null on bad input.
  */
-const _parseRef = (ref) => {
-  const m = ref.match(/^([A-Z]+)(\d+)$/i);
-  if (!m) {
+const _parseRef = (cellRef) => {
+  const refMatch = cellRef.match(/^([A-Z]+)(\d+)$/i);
+  if (!refMatch) {
     return null;
   }
-  const col = m[1]
+  const columnIndex = refMatch[1]
     .toUpperCase()
     .split("")
-    .reduce((a, ch) => a * 26 + ch.charCodeAt(0) - 64, 0) - 1;
-  return { row: parseInt(m[2]) - 1, col };
+    .reduce((accumulated, letter) => accumulated * 26 + letter.charCodeAt(0) - 64, 0) - 1;
+  return { row: parseInt(refMatch[2]) - 1, col: columnIndex };
 };
 
 /**
  * Resolve a comma-separated arg list (mixing single refs and A1:B2 ranges)
  * into an array of numeric values; non-numeric cells are skipped.
- * @param {string} argStr - Raw comma-separated arg string.
+ * @param {string} argString - Raw comma-separated arg string.
  * @param {Object<string,{display?:any, raw?:any}>} cells - Cell map keyed by A1 ref.
  * @returns {number[]} Numeric values found in the resolved range.
  */
-const _rangeVals = (argStr, cells) => {
-  const results = [];
-  for (const rawArg of argStr.split(",")) {
-    const arg = rawArg.trim();
-    const rng = arg.match(/^([A-Z]+\d+):([A-Z]+\d+)$/i);
-    if (rng) {
-      const s = _parseRef(rng[1]);
-      const e = _parseRef(rng[2]);
-      if (s && e) {
-        for (let r = s.row; r <= e.row; r++) {
-          for (let c = s.col; c <= e.col; c++) {
-            const cell = cells[_cellKey(r, c)];
-            const v = parseFloat(cell?.display ?? cell?.raw);
-            if (!isNaN(v)) {
-              results.push(v);
+const _rangeVals = (argString, cells) => {
+  const numericValues = [];
+  for (const rawArg of argString.split(",")) {
+    const trimmedArg = rawArg.trim();
+    const rangeMatch = trimmedArg.match(/^([A-Z]+\d+):([A-Z]+\d+)$/i);
+    if (rangeMatch) {
+      const rangeStart = _parseRef(rangeMatch[1]);
+      const rangeEnd   = _parseRef(rangeMatch[2]);
+      if (rangeStart && rangeEnd) {
+        for (let rowIndex = rangeStart.row; rowIndex <= rangeEnd.row; rowIndex++) {
+          for (let columnIndex = rangeStart.col; columnIndex <= rangeEnd.col; columnIndex++) {
+            const cell = cells[_cellKey(rowIndex, columnIndex)];
+            const cellValue = parseFloat(cell?.display ?? cell?.raw);
+            if (!isNaN(cellValue)) {
+              numericValues.push(cellValue);
             }
           }
         }
       }
     } else {
-      const cell = cells[arg];
-      const v = parseFloat(cell?.display ?? cell?.raw);
-      if (!isNaN(v)) {
-        results.push(v);
+      const cell = cells[trimmedArg];
+      const cellValue = parseFloat(cell?.display ?? cell?.raw);
+      if (!isNaN(cellValue)) {
+        numericValues.push(cellValue);
       }
     }
   }
-  return results;
+  return numericValues;
 };
 
 /**
@@ -313,61 +317,62 @@ const _evalFormula = (formula, cells) => {
   if (!formula || !formula.toString().startsWith("=")) {
     return formula;
   }
-  const expr = formula.toString().slice(1).trim();
+  const expression = formula.toString().slice(1).trim();
 
   try {
-    const fnMatch = expr.match(/^([A-Z]+)\((.+)\)$/i);
-    if (fnMatch) {
-      const fn = fnMatch[1].toUpperCase();
-      const args = fnMatch[2];
-      const vals = _rangeVals(args, cells);
+    const functionMatch = expression.match(/^([A-Z]+)\((.+)\)$/i);
+    if (functionMatch) {
+      const functionName = functionMatch[1].toUpperCase();
+      const argsString   = functionMatch[2];
+      const numericValues = _rangeVals(argsString, cells);
 
-      if (fn === "SUM") {
-        return vals.reduce((a, b) => a + b, 0);
+      if (functionName === "SUM") {
+        return numericValues.reduce((sum, value) => sum + value, 0);
       }
-      if (fn === "AVERAGE" || fn === "AVG") {
-        if (!vals.length) {
+      if (functionName === "AVERAGE" || functionName === "AVG") {
+        if (!numericValues.length) {
           return 0;
         }
-        return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 1e6) / 1e6;
+        const sum = numericValues.reduce((accumulated, value) => accumulated + value, 0);
+        return Math.round(sum / numericValues.length * 1e6) / 1e6;
       }
-      if (fn === "MIN") {
-        return vals.length ? Math.min(...vals) : "";
+      if (functionName === "MIN") {
+        return numericValues.length ? Math.min(...numericValues) : "";
       }
-      if (fn === "MAX") {
-        return vals.length ? Math.max(...vals) : "";
+      if (functionName === "MAX") {
+        return numericValues.length ? Math.max(...numericValues) : "";
       }
-      if (fn === "COUNT") {
-        return vals.length;
+      if (functionName === "COUNT") {
+        return numericValues.length;
       }
-      if (fn === "COUNTA") {
-        return args
+      if (functionName === "COUNTA") {
+        return argsString
           .split(",")
-          .flatMap(a => (a.trim() ? [cells[a.trim()]].filter(Boolean) : []))
+          .flatMap(rawArg => (rawArg.trim() ? [cells[rawArg.trim()]].filter(Boolean) : []))
           .length;
       }
-      if (fn === "ROUND") {
-        const [v, d] = vals;
-        const factor = Math.pow(10, d || 0);
-        return Math.round(v * factor) / factor;
+      if (functionName === "ROUND") {
+        const [valueToRound, decimalPlaces] = numericValues;
+        const factor = Math.pow(10, decimalPlaces || 0);
+        return Math.round(valueToRound * factor) / factor;
       }
     }
 
-    const withVals = expr.replace(/[A-Z]+\d+/gi, ref => {
-      const cell = cells[ref.toUpperCase()];
+    const expressionWithValues = expression.replace(/[A-Z]+\d+/gi, refToken => {
+      const cell = cells[refToken.toUpperCase()];
       if (!cell) {
         return "0";
       }
-      const v = cell.display !== undefined ? cell.display : cell.raw;
-      const n = parseFloat(v);
-      return isNaN(n) ? "0" : n;
+      const cellRawValue = cell.display !== undefined ? cell.display : cell.raw;
+      const cellNumber   = parseFloat(cellRawValue);
+      return isNaN(cellNumber) ? "0" : cellNumber;
     });
     // eslint-disable-next-line no-new-func
-    const result = Function('"use strict";return(' + withVals + ')')();
-    if (typeof result === "number") {
-      return Math.round(result * 1e9) / 1e9;
+    const evaluated = Function('"use strict";return(' + expressionWithValues + ')')();
+    if (typeof evaluated === "number") {
+      return Math.round(evaluated * 1e9) / 1e9;
     }
-    return result;
+    return evaluated;
   } catch {
     return "#ERR!";
   }

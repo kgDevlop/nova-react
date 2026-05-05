@@ -5,27 +5,28 @@ import { utils } from "../_utils";
 
 // ── Colour helpers ──────────────────────────────────────────────────────────
 
-const _toRgb = hex => {
-  const h = (hex || "").replace("#", "");
-  const n = h.length === 3
-    ? h.split("").map(c => c + c).join("")
-    : h.padEnd(6, "0").slice(0, 6);
+const _toRgb = hexColor => {
+  const stripped = (hexColor || "").replace("#", "");
+  const normalized = stripped.length === 3
+    ? stripped.split("").map(character => character + character).join("")
+    : stripped.padEnd(6, "0").slice(0, 6);
   return [
-    parseInt(n.slice(0, 2), 16),
-    parseInt(n.slice(2, 4), 16),
-    parseInt(n.slice(4, 6), 16),
+    parseInt(normalized.slice(0, 2), 16),
+    parseInt(normalized.slice(2, 4), 16),
+    parseInt(normalized.slice(4, 6), 16),
   ];
 };
 
-const _rgba = (hex, alpha) => {
-  const [r, g, b] = _toRgb(hex);
-  return `rgba(${r},${g},${b},${alpha})`;
+const _rgba = (hexColor, alpha) => {
+  const [red, green, blue] = _toRgb(hexColor);
+  return `rgba(${red},${green},${blue},${alpha})`;
 };
 
-// `t.text` / `t.border` etc. may already be valid hex from buildTokens;
+// `theme.text` / `theme.border` etc. may already be valid hex from buildTokens;
 // `accentSoft` is the only token that's stored as rgba(). Coerce non-hex
 // values to a sensible hex so input[type=color] doesn't reject them.
-const _asHex = v => (typeof v === "string" && v.startsWith("#") ? v : "#000000");
+const _asHex = candidateValue =>
+  (typeof candidateValue === "string" && candidateValue.startsWith("#") ? candidateValue : "#000000");
 
 // All eleven user-tunable palette tokens. `accentSoft` is auto-derived
 // from `accent` because input[type=color] can't express alpha.
@@ -47,16 +48,16 @@ const FIELDS = [
 
 export const CustomSchemeModal = ({ onClose, onSave }) => {
   // Snapshot the current token object once on mount so the seed values don't
-  // shift while the user is editing (the live `t` mutates as preview updates).
-  const tLive = useT();
-  const tSeedRef = useRef(tLive);
-  const t = tSeedRef.current;
+  // shift while the user is editing (the live tokens mutate as preview updates).
+  const liveTokens = useT();
+  const seedTokensRef = useRef(liveTokens);
+  const seedTokens = seedTokensRef.current;
   const { setPreviewPalette } = usePreviewPalette();
 
   const [name, setName] = useState("My theme");
-  const [isDark, setIsDark] = useState(!!t.isDark);
+  const [isDark, setIsDark] = useState(!!seedTokens.isDark);
   const [colors, setColors] = useState(() =>
-    Object.fromEntries(FIELDS.map(f => [f.key, _asHex(t[f.key])])),
+    Object.fromEntries(FIELDS.map(field => [field.key, _asHex(seedTokens[field.key])])),
   );
   const inputRef = useRef(null);
 
@@ -81,13 +82,13 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
 
   // Esc closes (and the unmount effect above reverts the preview).
   useEffect(() => {
-    const onKey = e => {
-      if (e.key === "Escape") {
+    const onKeyDown = keyDownEvent => {
+      if (keyDownEvent.key === "Escape") {
         onClose();
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
   useEffect(() => {
@@ -110,13 +111,14 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
     onClose();
   };
 
-  const setColor = (k, v) => setColors(p => ({ ...p, [k]: v }));
+  const setColor = (paletteKey, hexColor) =>
+    setColors(currentColors => ({ ...currentColors, [paletteKey]: hexColor }));
 
   return (
     <div
       className="novl"
-      onClick={e => {
-        if (e.target === e.currentTarget) {
+      onClick={overlayClickEvent => {
+        if (overlayClickEvent.target === overlayClickEvent.currentTarget) {
           onClose();
         }
       }}
@@ -125,10 +127,10 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
         {/* ── Header ── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
           <div>
-            <h2 style={{ fontSize: 17, fontWeight: 800, color: t.text, letterSpacing: "-0.02em" }}>
+            <h2 style={{ fontSize: 17, fontWeight: 800, color: seedTokens.text, letterSpacing: "-0.02em" }}>
               Create custom theme
             </h2>
-            <p style={{ fontSize: 11, color: t.textDim, marginTop: 2 }}>
+            <p style={{ fontSize: 11, color: seedTokens.textDim, marginTop: 2 }}>
               Edit any colour — the app updates live. Cancel or press Esc to revert.
             </p>
           </div>
@@ -142,7 +144,7 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
           <div style={{ flex: 1 }}>
             <label
               style={{
-                fontSize: 10, fontWeight: 700, color: t.textDim,
+                fontSize: 10, fontWeight: 700, color: seedTokens.textDim,
                 letterSpacing: "0.05em", textTransform: "uppercase",
                 display: "block", marginBottom: 7,
               }}
@@ -153,16 +155,16 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
               ref={inputRef}
               className="ninput"
               value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Enter" && name.trim()) submit();
+              onChange={nameChangeEvent => setName(nameChangeEvent.target.value)}
+              onKeyDown={nameKeyDownEvent => {
+                if (nameKeyDownEvent.key === "Enter" && name.trim()) submit();
               }}
             />
           </div>
           <div style={{ width: 150 }}>
             <label
               style={{
-                fontSize: 10, fontWeight: 700, color: t.textDim,
+                fontSize: 10, fontWeight: 700, color: seedTokens.textDim,
                 letterSpacing: "0.05em", textTransform: "uppercase",
                 display: "block", marginBottom: 7,
               }}
@@ -170,27 +172,27 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
               Base mode
             </label>
             <div style={{ display: "flex", gap: 5 }}>
-              {[["dark", "Dark"], ["light", "Light"]].map(([k, l]) => {
-                const active = (k === "dark") === isDark;
+              {[["dark", "Dark"], ["light", "Light"]].map(([modeId, modeLabel]) => {
+                const active = (modeId === "dark") === isDark;
                 return (
                   <button
-                    key={k}
-                    onClick={() => setIsDark(k === "dark")}
+                    key={modeId}
+                    onClick={() => setIsDark(modeId === "dark")}
                     style={{
                       flex: 1,
                       padding: "8px 6px",
-                      borderRadius: t.r10,
+                      borderRadius: seedTokens.radius10,
                       cursor: "pointer",
-                      border: `1px solid ${active ? t.accent + "66" : t.border}`,
-                      background: active ? t.accentSoft : "transparent",
-                      color: active ? t.text : t.textDim,
+                      border: `1px solid ${active ? seedTokens.accent + "66" : seedTokens.border}`,
+                      background: active ? seedTokens.accentSoft : "transparent",
+                      color: active ? seedTokens.text : seedTokens.textDim,
                       fontSize: 11,
                       fontWeight: 600,
-                      fontFamily: t.fontFamily,
+                      fontFamily: seedTokens.fontFamily,
                       outline: "none",
                     }}
                   >
-                    {l}
+                    {modeLabel}
                   </button>
                 );
               })}
@@ -207,16 +209,16 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
             marginBottom: 18,
           }}
         >
-          {FIELDS.map(f => (
+          {FIELDS.map(field => (
             <label
-              key={f.key}
+              key={field.key}
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
                 padding: "7px 9px",
-                borderRadius: t.r10,
-                border: `1px solid ${t.border}`,
+                borderRadius: seedTokens.radius10,
+                border: `1px solid ${seedTokens.border}`,
                 cursor: "pointer",
               }}
             >
@@ -224,9 +226,9 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
                 style={{
                   width: 24,
                   height: 24,
-                  borderRadius: t.r6,
-                  background: colors[f.key],
-                  border: `1px solid ${t.border}`,
+                  borderRadius: seedTokens.radius6,
+                  background: colors[field.key],
+                  border: `1px solid ${seedTokens.border}`,
                   flexShrink: 0,
                   position: "relative",
                   overflow: "hidden",
@@ -234,8 +236,8 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
               >
                 <input
                   type="color"
-                  value={colors[f.key]}
-                  onChange={e => setColor(f.key, e.target.value)}
+                  value={colors[field.key]}
+                  onChange={colorChangeEvent => setColor(field.key, colorChangeEvent.target.value)}
                   style={{
                     position: "absolute",
                     inset: 0,
@@ -249,9 +251,9 @@ export const CustomSchemeModal = ({ onClose, onSave }) => {
                 />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{f.label}</div>
-                <div style={{ fontSize: 9, color: t.textMuted, fontFamily: "monospace" }}>
-                  {colors[f.key].toUpperCase()}
+                <div style={{ fontSize: 11, fontWeight: 600, color: seedTokens.text }}>{field.label}</div>
+                <div style={{ fontSize: 9, color: seedTokens.textMuted, fontFamily: "monospace" }}>
+                  {colors[field.key].toUpperCase()}
                 </div>
               </div>
             </label>

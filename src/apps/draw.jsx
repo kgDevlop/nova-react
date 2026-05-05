@@ -133,7 +133,7 @@ const DRAW_SHAPES = {
             suppressContentEditableWarning: true,
             onDoubleClick: e => {
               e.stopPropagation();
-              if (c.tool === "select") c.setEditId(el.id);
+              if (c.tool === "selectTool") c.setEditId(el.id);
             },
             onBlur: e => {
               c.hist.push(c.elements.map(x => {
@@ -208,7 +208,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
 
-  const [tool, setTool] = useState("select");
+  const [tool, setTool] = useState("selectTool");
   const [selId, setSelId] = useState(null);
   const [editId, setEditId] = useState(null);
   // In-progress drawing: { type, x1, y1, x2, y2, pts: [] }
@@ -247,55 +247,55 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
 
   useEffect(() => {
-    const h = e => {
+    const onKeyDown = keyDownEvent => {
       // Don't intercept keys while the user is typing into an input or
       // an inline-edited text element.
-      if (e.target.tagName === "INPUT" || e.target.contentEditable === "true") {
+      if (keyDownEvent.target.tagName === "INPUT" || keyDownEvent.target.contentEditable === "true") {
         return;
       }
-      DrawConstants.DRAW_TOOLS.forEach(dt => {
-        if (e.key.toUpperCase() === dt.key) {
-          setTool(dt.toolId);
+      DrawConstants.DRAW_TOOLS.forEach(drawTool => {
+        if (keyDownEvent.key.toUpperCase() === drawTool.key) {
+          setTool(drawTool.toolId);
           setSelId(null);
         }
       });
-      if (e.key === "Delete" || e.key === "Backspace") {
+      if (keyDownEvent.key === "Delete" || keyDownEvent.key === "Backspace") {
         // Don't delete the element while its text is being edited.
         if (selId && editId !== selId) {
-          hist.push(elements.filter(x => x.id !== selId));
+          hist.push(elements.filter(element => element.id !== selId));
           setSelId(null);
         }
       }
     };
-    window.addEventListener("keydown", h);
+    window.addEventListener("keydown", onKeyDown);
     return () => {
-      window.removeEventListener("keydown", h);
+      window.removeEventListener("keydown", onKeyDown);
     };
   }, [selId, editId, elements]); // eslint-disable-line
 
   // ── Toolbar action wiring ─────────────────────────────────────────────────
 
   useEffect(() => {
-    registerActions((id, val) => {
-      DrawConstants.DRAW_TOOLS.forEach(dt => {
-        if (dt.toolId === id) {
-          setTool(id);
+    registerActions((actionId, actionValue) => {
+      DrawConstants.DRAW_TOOLS.forEach(drawTool => {
+        if (drawTool.toolId === actionId) {
+          setTool(actionId);
         }
       });
-      if (id === "delSel" && selId) {
-        hist.push(elements.filter(x => x.id !== selId));
+      if (actionId === "deleteSelection" && selId) {
+        hist.push(elements.filter(element => element.id !== selId));
         setSelId(null);
       }
-      if (id === "export") {
-        const svgEl = svgRef.current;
-        if (!svgEl) {
+      if (actionId === "exportSvg") {
+        const svgElement = svgRef.current;
+        if (!svgElement) {
           return;
         }
-        const blob = new Blob([svgEl.outerHTML], { type: "image/svg+xml" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "nova-draw.svg";
-        a.click();
+        const svgBlob = new Blob([svgElement.outerHTML], { type: "image/svg+xml" });
+        const downloadLink = document.createElement("a");
+        downloadLink.href = URL.createObjectURL(svgBlob);
+        downloadLink.download = "nova-draw.svg";
+        downloadLink.click();
       }
     });
   }); // eslint-disable-line
@@ -317,19 +317,29 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
 
   // ── Canvas mouse handlers ─────────────────────────────────────────────────
 
-  const onSVGMouseDown = e => {
-    const { x, y } = getSVGPt(e);
-    if (tool === "select") {
+  // Drawing element types are stored short ("rect", "line"...) since they
+  // mirror SVG tags; tool ids are descriptive ("rectangleTool"...) for clarity.
+  const ELEMENT_TYPE_BY_TOOL = {
+    rectangleTool: "rect",
+    ellipseTool:   "ellipse",
+    lineTool:      "line",
+    textTool:      "text",
+    penTool:       "pen",
+  };
+
+  const onSVGMouseDown = mouseDownEvent => {
+    const { x, y } = getSVGPt(mouseDownEvent);
+    if (tool === "selectTool") {
       // Clicking blank canvas clears selection / exits text editing.
       setSelId(null);
       setEditId(null);
       return;
     }
-    if (tool === "pen") {
+    if (tool === "penTool") {
       setDrawing({ type: "pen", pts: [{ x, y }] });
       return;
     }
-    setDrawing({ type: tool, x1: x, y1: y, x2: x, y2: y });
+    setDrawing({ type: ELEMENT_TYPE_BY_TOOL[tool], x1: x, y1: y, x2: x, y2: y });
   };
 
   const onSVGMouseMove = e => {
@@ -473,7 +483,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
 
   const onElMouseDown = (el, e) => {
     e.stopPropagation();
-    if (tool !== "select") {
+    if (tool !== "selectTool") {
       return;
     }
     // Don't start a drag while inline-editing text — the user is clicking
@@ -528,10 +538,10 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
   // ── Render: persisted elements ────────────────────────────────────────────
 
   const renderElement = el => {
-    const isSel = selId === el.id && tool === "select";
+    const isSel = selId === el.id && tool === "selectTool";
     // Cursor depends on tool + drag state.
     let cursor;
-    if (tool === "select") {
+    if (tool === "selectTool") {
       cursor = dragging && dragging.id === el.id ? "grabbing" : "grab";
     } else {
       cursor = "crosshair";
@@ -564,21 +574,21 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
           flexShrink: 0,
         }}
       >
-        {DrawConstants.DRAW_TOOLS.map(dt => (
+        {DrawConstants.DRAW_TOOLS.map(drawTool => (
           <button
-            key={dt.toolId}
-            title={`${dt.label} (${dt.key})`}
+            key={drawTool.toolId}
+            title={`${drawTool.label} (${drawTool.key})`}
             onClick={() => {
-              setTool(dt.toolId);
+              setTool(drawTool.toolId);
               setSelId(null);
               setEditId(null);
             }}
             style={{
               width: 34,
               height: 34,
-              borderRadius: theme.r6,
-              border: `1px solid ${tool === dt.toolId ? appColor + "66" : theme.border}`,
-              background: tool === dt.toolId ? appColor + "18" : "transparent",
+              borderRadius: theme.radius6,
+              border: `1px solid ${tool === drawTool.toolId ? appColor + "66" : theme.border}`,
+              background: tool === drawTool.toolId ? appColor + "18" : "transparent",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -586,7 +596,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
               transition: theme.transition,
             }}
           >
-            <dt.Icon size={14} color={tool === dt.toolId ? appColor : theme.textDim} />
+            <drawTool.Icon size={14} color={tool === drawTool.toolId ? appColor : theme.textDim} />
           </button>
         ))}
         <div style={{ flex: 1 }} />
@@ -671,7 +681,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
               style={{
                 width: 28,
                 height: 28,
-                borderRadius: theme.r6,
+                borderRadius: theme.radius6,
                 background: fill,
                 border: `1px solid ${theme.border}`,
                 cursor: "pointer",
@@ -683,7 +693,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
               style={{
                 width: 28,
                 height: 28,
-                borderRadius: theme.r6,
+                borderRadius: theme.radius6,
                 background: "transparent",
                 border: `3px solid ${stroke}`,
                 cursor: "pointer",
@@ -785,7 +795,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
                 alignItems: "center",
                 justifyContent: "center",
                 width: 18, height: 18,
-                borderRadius: theme.r6,
+                borderRadius: theme.radius6,
                 border: `1px solid ${theme.border}`,
                 background: "transparent",
                 color: theme.textDim,
@@ -807,7 +817,7 @@ export const DrawEditor = ({ appColor, doc, t: theme, onContentChange, registerA
                   alignItems: "center",
                   gap: 6,
                   padding: "4px 6px",
-                  borderRadius: theme.r6,
+                  borderRadius: theme.radius6,
                   cursor: "pointer",
                   background: isActive ? appColor + "18" : "transparent",
                   border: `1px solid ${isActive ? appColor + "44" : "transparent"}`,

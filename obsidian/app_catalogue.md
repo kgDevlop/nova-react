@@ -29,4 +29,4 @@ AppCatalogueScreen({
 
 - [[home]] — the doc-grid alternative landing view.
 - [[new_doc_popup]] — the smaller modal-flavoured app picker.
-- [[issues]] — open work items for this surface.
+- [[Releases]] — open work items for this surface.

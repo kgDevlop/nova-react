@@ -21,8 +21,11 @@ import { NovaBaseConstants } from "../_constants";
 // the navigation direction so back/forward never strand the user on a missing
 // page.
 
-const sameEntry = (a, b) =>
-  Boolean(a) && Boolean(b) && a.kind === b.kind && a.id === b.id;
+const sameEntry = (firstEntry, secondEntry) =>
+  Boolean(firstEntry)
+  && Boolean(secondEntry)
+  && firstEntry.kind === secondEntry.kind
+  && firstEntry.id === secondEntry.id;
 
 export const useNavHistory = ({ apply, isValid, initial }) => {
   const [state, setState] = useState(() => ({
@@ -37,8 +40,8 @@ export const useNavHistory = ({ apply, isValid, initial }) => {
 
   // Latest callbacks via ref so the hook's own functions can stay referentially
   // stable while still calling the freshest closure.
-  const cbRef = useRef({ apply, isValid });
-  cbRef.current = { apply, isValid };
+  const callbacksRef = useRef({ apply, isValid });
+  callbacksRef.current = { apply, isValid };
 
   // Tag the initial browser entry so popstate on first interaction sees a
   // recognisable state object.
@@ -52,34 +55,34 @@ export const useNavHistory = ({ apply, isValid, initial }) => {
   // matches the current page (prevents duplicate entries from repeated clicks
   // on an already-active sidebar item).
   const push = useCallback(entry => {
-    const prev = stateRef.current;
-    if (sameEntry(prev.entries[prev.idx], entry)) {
+    const prevState = stateRef.current;
+    if (sameEntry(prevState.entries[prevState.idx], entry)) {
       return;
     }
-    const truncated = prev.entries.slice(0, prev.idx + 1);
-    truncated.push(entry);
-    const trimmed = truncated.slice(-NovaBaseConstants.HIST_LIMIT);
-    const newIdx = trimmed.length - 1;
-    const next = { entries: trimmed, idx: newIdx };
-    stateRef.current = next;
+    const truncatedEntries = prevState.entries.slice(0, prevState.idx + 1);
+    truncatedEntries.push(entry);
+    const trimmedEntries = truncatedEntries.slice(-NovaBaseConstants.HIST_LIMIT);
+    const newIdx = trimmedEntries.length - 1;
+    const nextState = { entries: trimmedEntries, idx: newIdx };
+    stateRef.current = nextState;
     window.history.pushState({ navIdx: newIdx }, "");
-    setState(next);
+    setState(nextState);
   }, []);
 
   // Replace the current entry in place — useful when the active page changed
   // implicitly (e.g. closing a tab promotes a neighbour) and the stack should
   // reflect that without growing.
   const replace = useCallback(entry => {
-    const prev = stateRef.current;
-    if (sameEntry(prev.entries[prev.idx], entry)) {
+    const prevState = stateRef.current;
+    if (sameEntry(prevState.entries[prevState.idx], entry)) {
       return;
     }
-    const entries = prev.entries.slice();
-    entries[prev.idx] = entry;
-    const next = { entries, idx: prev.idx };
-    stateRef.current = next;
-    window.history.replaceState({ navIdx: prev.idx }, "");
-    setState(next);
+    const entries = prevState.entries.slice();
+    entries[prevState.idx] = entry;
+    const nextState = { entries, idx: prevState.idx };
+    stateRef.current = nextState;
+    window.history.replaceState({ navIdx: prevState.idx }, "");
+    setState(nextState);
   }, []);
 
   // Back/forward delegate to the browser. The popstate handler is the single
@@ -94,38 +97,38 @@ export const useNavHistory = ({ apply, isValid, initial }) => {
   }, []);
 
   useEffect(() => {
-    const onPop = e => {
-      const target = e.state?.navIdx;
-      if (typeof target !== "number") {
+    const onPopState = popStateEvent => {
+      const targetIdx = popStateEvent.state?.navIdx;
+      if (typeof targetIdx !== "number") {
         return;
       }
-      const prev = stateRef.current;
-      const clamped = Math.max(0, Math.min(prev.entries.length - 1, target));
-      if (clamped === prev.idx) {
+      const prevState = stateRef.current;
+      const clampedIdx = Math.max(0, Math.min(prevState.entries.length - 1, targetIdx));
+      if (clampedIdx === prevState.idx) {
         return;
       }
       // Skip past invalid entries (deleted docs) in the travel direction so
       // the user never lands on a missing page.
-      const dir = clamped > prev.idx ? 1 : -1;
-      let i = clamped;
-      while (
-        i >= 0 &&
-        i < prev.entries.length &&
-        !cbRef.current.isValid(prev.entries[i])
-      ) {
-        i += dir;
-      }
-      if (i < 0 || i >= prev.entries.length) {
+      const direction = clampedIdx > prevState.idx ? 1 : -1;
+      let walkIdx = clampedIdx;
+      for (
+        ;
+        walkIdx >= 0
+        && walkIdx < prevState.entries.length
+        && !callbacksRef.current.isValid(prevState.entries[walkIdx]);
+        walkIdx += direction
+      ) {}
+      if (walkIdx < 0 || walkIdx >= prevState.entries.length) {
         return;
       }
-      cbRef.current.apply(prev.entries[i]);
-      const next = { entries: prev.entries, idx: i };
-      stateRef.current = next;
-      setState(next);
+      callbacksRef.current.apply(prevState.entries[walkIdx]);
+      const nextState = { entries: prevState.entries, idx: walkIdx };
+      stateRef.current = nextState;
+      setState(nextState);
     };
-    window.addEventListener("popstate", onPop);
+    window.addEventListener("popstate", onPopState);
     return () => {
-      window.removeEventListener("popstate", onPop);
+      window.removeEventListener("popstate", onPopState);
     };
   }, []);
 

@@ -17,8 +17,8 @@ export const CommandPalette = ({
 }) => {
   const theme = useT();
   const { isMobile } = useDeviceCaps();
-  const [q, setQ] = useState("");
-  const [sel, setSel] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -28,19 +28,19 @@ export const CommandPalette = ({
   // ── Match scoring ─────────────────────────────────────────────────────────
   // Higher = better match. Empty query returns 1 so unfiltered lists keep
   // their original order.
-  const score = (str, query) => {
-    if (!query) {
+  const computeScore = (sourceText, queryText) => {
+    if (!queryText) {
       return 1;
     }
-    const sl = str.toLowerCase();
-    const ql = query.toLowerCase();
-    if (sl === ql) {
+    const lowerSource = sourceText.toLowerCase();
+    const lowerQuery  = queryText.toLowerCase();
+    if (lowerSource === lowerQuery) {
       return 100;
     }
-    if (sl.startsWith(ql)) {
+    if (lowerSource.startsWith(lowerQuery)) {
       return 80;
     }
-    if (sl.includes(ql)) {
+    if (lowerSource.includes(lowerQuery)) {
       return 50;
     }
     return 0;
@@ -48,19 +48,19 @@ export const CommandPalette = ({
 
   // ── Command sources ───────────────────────────────────────────────────────
 
-  const APP_CMDS = PaletteConstants.APPS.map(a => {
+  const APP_CMDS = PaletteConstants.APPS.map(app => {
     // Calendar is a workspace-wide singleton — phrase the entry as Open, not New.
-    const isSingleton = a.appId === "calendar";
+    const isSingleton = app.appId === "calendar";
     return {
       type: "app",
-      id: `new:${a.appId}`,
-      label: isSingleton ? `Open ${a.label}` : `New ${a.label}`,
+      id: `new:${app.appId}`,
+      label: isSingleton ? `Open ${app.label}` : `New ${app.label}`,
       sub: isSingleton
-        ? `Open the workspace ${a.label.toLowerCase()}`
-        : `Create a new ${a.label} document`,
-      appId: a.appId,
+        ? `Open the workspace ${app.label.toLowerCase()}`
+        : `Create a new ${app.label} document`,
+      appId: app.appId,
       action: () => {
-        onNewDoc(a.appId);
+        onNewDoc(app.appId);
         onClose();
       },
     };
@@ -69,49 +69,49 @@ export const CommandPalette = ({
   const NAV_CMDS = [
     {
       type: "nav",
-      id: "nh",
+      id: "navHome",
       label: "Go to Home",
       sub: "Back to the home screen",
       action: () => { onNav("home"); onClose(); },
     },
     {
       type: "nav",
-      id: "ns",
+      id: "navStarred",
       label: "Starred documents",
       sub: "View starred documents",
       action: () => { onNav("starred"); onClose(); },
     },
     {
       type: "nav",
-      id: "nc",
+      id: "navCatalogue",
       label: "Catalogue",
       sub: `See all ${PaletteConstants.APPS.length} Nova apps`,
       action: () => { onNav("catalogue"); onClose(); },
     },
     {
       type: "nav",
-      id: "set",
+      id: "openSettings",
       label: "Open Settings",
       sub: "Appearance and app colours",
       action: () => { setShowSettings(true); onClose(); },
     },
     {
       type: "nav",
-      id: "kbd",
+      id: "openShortcuts",
       label: "Keyboard shortcuts",
       sub: "See all keyboard shortcuts",
       action: () => { setShowShortcuts(true); onClose(); },
     },
   ];
 
-  const DOC_CMDS = docs.slice(0, 80).map(d => ({
+  const DOC_CMDS = docs.slice(0, 80).map(workspaceDoc => ({
     type: "doc",
-    id: `doc:${d.id}`,
-    label: d.title,
-    sub: `${registryU._app(d.type).label} · ${utils._rel(d.modified)}`,
-    appId: d.type,
+    id: `doc:${workspaceDoc.id}`,
+    label: workspaceDoc.title,
+    sub: `${registryU._app(workspaceDoc.type).label} · ${utils._rel(workspaceDoc.modified)}`,
+    appId: workspaceDoc.type,
     action: () => {
-      onOpenDoc(d);
+      onOpenDoc(workspaceDoc);
       onClose();
     },
   }));
@@ -119,41 +119,41 @@ export const CommandPalette = ({
   // ── Result list ───────────────────────────────────────────────────────────
   // With a query: rank everything by score and trim to 14.
   // Without: show a small recent slice plus all nav commands.
-  const all = [...DOC_CMDS, ...APP_CMDS, ...NAV_CMDS];
+  const allCommands = [...DOC_CMDS, ...APP_CMDS, ...NAV_CMDS];
   let results;
-  if (q.trim()) {
-    results = all
-      .map(c => ({ ...c, _s: score(c.label, q) }))
-      .filter(c => c._s > 0)
-      .sort((a, b) => b._s - a._s)
+  if (searchQuery.trim()) {
+    results = allCommands
+      .map(command => ({ ...command, score: computeScore(command.label, searchQuery) }))
+      .filter(scoredCommand => scoredCommand.score > 0)
+      .sort((firstScored, secondScored) => secondScored.score - firstScored.score)
       .slice(0, 14);
   } else {
     results = [...DOC_CMDS.slice(0, 5), ...APP_CMDS.slice(0, 5), ...NAV_CMDS];
   }
 
-  const handleKey = e => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setSel(s => Math.min(s + 1, results.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setSel(s => Math.max(s - 1, 0));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      results[Math.min(sel, results.length - 1)]?.action?.();
-    } else if (e.key === "Escape") {
+  const handleKey = paletteKeyDownEvent => {
+    if (paletteKeyDownEvent.key === "ArrowDown") {
+      paletteKeyDownEvent.preventDefault();
+      setSelectedIndex(currentIndex => Math.min(currentIndex + 1, results.length - 1));
+    } else if (paletteKeyDownEvent.key === "ArrowUp") {
+      paletteKeyDownEvent.preventDefault();
+      setSelectedIndex(currentIndex => Math.max(currentIndex - 1, 0));
+    } else if (paletteKeyDownEvent.key === "Enter") {
+      paletteKeyDownEvent.preventDefault();
+      results[Math.min(selectedIndex, results.length - 1)]?.action?.();
+    } else if (paletteKeyDownEvent.key === "Escape") {
       onClose();
     }
   };
 
   const groupLabel = { app: "Create", nav: "Navigate", doc: "Recent" };
-  let lastG = null;
+  let previousGroup = null;
 
   return (
     <div
       className="novl"
-      onClick={e => {
-        if (e.target === e.currentTarget) {
+      onClick={overlayClickEvent => {
+        if (overlayClickEvent.target === overlayClickEvent.currentTarget) {
           onClose();
         }
       }}
@@ -162,7 +162,7 @@ export const CommandPalette = ({
         style={{
           background: theme.elevated,
           border: `1px solid ${theme.borderStrong}`,
-          borderRadius: theme.r20,
+          borderRadius: theme.radius20,
           width: "100%",
           maxWidth: 560,
           overflow: "hidden",
@@ -184,10 +184,10 @@ export const CommandPalette = ({
           <I.Search size={16} color={theme.textDim} />
           <input
             ref={inputRef}
-            value={q}
-            onChange={e => {
-              setQ(e.target.value);
-              setSel(0);
+            value={searchQuery}
+            onChange={searchChangeEvent => {
+              setSearchQuery(searchChangeEvent.target.value);
+              setSelectedIndex(0);
             }}
             onKeyDown={handleKey}
             placeholder="Search docs, create, navigate…"
@@ -218,7 +218,7 @@ export const CommandPalette = ({
                 color: theme.textMuted,
                 background: theme.surfaceAlt,
                 border: `1px solid ${theme.border}`,
-                borderRadius: theme.r6,
+                borderRadius: theme.radius6,
                 padding: "1px 5px",
                 flexShrink: 0,
               }}
@@ -232,15 +232,15 @@ export const CommandPalette = ({
         <div style={{ maxHeight: 380, overflowY: "auto" }}>
           {results.length === 0 && (
             <div style={{ padding: "24px 16px", textAlign: "center", fontSize: 12, color: theme.textMuted }}>
-              No results for "{q}"
+              No results for "{searchQuery}"
             </div>
           )}
-          {results.map((item, i) => {
-            const showG = item.type !== lastG;
-            lastG = item.type;
+          {results.map((command, commandIndex) => {
+            const showGroupHeader = command.type !== previousGroup;
+            previousGroup = command.type;
             return (
-              <React.Fragment key={item.id}>
-                {showG && (
+              <React.Fragment key={command.id}>
+                {showGroupHeader && (
                   <div
                     style={{
                       fontSize: 9,
@@ -251,32 +251,32 @@ export const CommandPalette = ({
                       textTransform: "uppercase",
                     }}
                   >
-                    {groupLabel[item.type] || item.type}
+                    {groupLabel[command.type] || command.type}
                   </div>
                 )}
                 <div
-                  onClick={item.action}
-                  onMouseEnter={() => setSel(i)}
+                  onClick={command.action}
+                  onMouseEnter={() => setSelectedIndex(commandIndex)}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: 10,
                     padding: "7px 12px",
                     margin: "0 4px",
-                    borderRadius: theme.r10,
+                    borderRadius: theme.radius10,
                     cursor: "pointer",
-                    background: i === sel ? theme.surfaceAlt : "transparent",
+                    background: commandIndex === selectedIndex ? theme.surfaceAlt : "transparent",
                     transition: "background 0.1s",
                   }}
                 >
-                  {item.appId ? (
-                    <AppChip appId={item.appId} size={28} />
+                  {command.appId ? (
+                    <AppChip appId={command.appId} size={28} />
                   ) : (
                     <div
                       style={{
                         width: 28,
                         height: 28,
-                        borderRadius: theme.r6,
+                        borderRadius: theme.radius6,
                         background: theme.surfaceAlt,
                         display: "flex",
                         alignItems: "center",
@@ -297,7 +297,7 @@ export const CommandPalette = ({
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {item.label}
+                      {command.label}
                     </div>
                     <div
                       style={{
@@ -308,17 +308,17 @@ export const CommandPalette = ({
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {item.sub}
+                      {command.sub}
                     </div>
                   </div>
-                  {i === sel && (
+                  {commandIndex === selectedIndex && (
                     <kbd
                       style={{
                         fontSize: 9,
                         color: theme.textMuted,
                         background: theme.surfaceAlt,
                         border: `1px solid ${theme.border}`,
-                        borderRadius: theme.r6,
+                        borderRadius: theme.radius6,
                         padding: "1px 5px",
                         flexShrink: 0,
                       }}

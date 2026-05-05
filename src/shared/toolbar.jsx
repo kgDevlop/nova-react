@@ -6,9 +6,9 @@ import { ToolbarConstants } from "./_constants";
 
 export const ToolbarRow = ({ appId, onAction, appColor }) => {
   const theme = useT();
-  const cfg = ToolbarConstants.TOOLBARS[appId] || [];
+  const toolbarItems = ToolbarConstants.TOOLBARS[appId] || [];
 
-  if (cfg.length === 0) return null;
+  if (toolbarItems.length === 0) return null;
 
   return (
     <div
@@ -24,11 +24,11 @@ export const ToolbarRow = ({ appId, onAction, appColor }) => {
         overflowX: "auto",
       }}
     >
-      {cfg.map((item, i) => {
-        if (item.type === "sep") {
+      {toolbarItems.map((toolbarItem, itemIndex) => {
+        if (toolbarItem.type === "separator") {
           return (
             <div
-              key={i}
+              key={itemIndex}
               style={{
                 width: 1,
                 height: 16,
@@ -40,14 +40,14 @@ export const ToolbarRow = ({ appId, onAction, appColor }) => {
           );
         }
 
-        if (item.type === "spacer") {
-          return <div key={i} style={{ flex: 1 }} />;
+        if (toolbarItem.type === "spacer") {
+          return <div key={itemIndex} style={{ flex: 1 }} />;
         }
 
-        if (item.type === "label") {
+        if (toolbarItem.type === "label") {
           return (
             <span
-              key={i}
+              key={itemIndex}
               style={{
                 fontSize: 10,
                 color: theme.textMuted,
@@ -56,23 +56,23 @@ export const ToolbarRow = ({ appId, onAction, appColor }) => {
                 flexShrink: 0,
               }}
             >
-              {item.text}
+              {toolbarItem.text}
             </span>
           );
         }
 
-        if (item.type === "dd") {
+        if (toolbarItem.type === "dropdown") {
           return (
             <select
-              key={item.actionId}
-              onChange={e => onAction?.(item.actionId, e.target.value)}
+              key={toolbarItem.actionId}
+              onChange={changeEvent => onAction?.(toolbarItem.actionId, changeEvent.target.value)}
               style={{
                 background: theme.surface,
                 border: `1px solid ${theme.border}`,
                 color: theme.textDim,
                 fontFamily: theme.fontFamily,
                 fontSize: 11,
-                borderRadius: theme.r6,
+                borderRadius: theme.radius6,
                 padding: "2px 10px 2px 5px",
                 cursor: "pointer",
                 outline: "none",
@@ -81,39 +81,39 @@ export const ToolbarRow = ({ appId, onAction, appColor }) => {
                 flexShrink: 0,
               }}
             >
-              {item.opts?.map(o => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
+              {toolbarItem.options?.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
           );
         }
 
-        if (item.type === "btn") {
+        if (toolbarItem.type === "button") {
           // Text-only buttons (no Icon) get horizontal padding instead of a fixed square.
-          const isText = !item.Icon && item.label;
+          const isTextButton = !toolbarItem.Icon && toolbarItem.label;
           return (
             <button
-              key={item.actionId}
-              title={item.label}
-              onClick={() => onAction?.(item.actionId)}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = theme.surfaceAlt;
-                e.currentTarget.style.color = theme.text;
+              key={toolbarItem.actionId}
+              title={toolbarItem.label}
+              onClick={() => onAction?.(toolbarItem.actionId)}
+              onMouseEnter={mouseEnterEvent => {
+                mouseEnterEvent.currentTarget.style.background = theme.surfaceAlt;
+                mouseEnterEvent.currentTarget.style.color = theme.text;
               }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = theme.textDim;
+              onMouseLeave={mouseLeaveEvent => {
+                mouseLeaveEvent.currentTarget.style.background = "transparent";
+                mouseLeaveEvent.currentTarget.style.color = theme.textDim;
               }}
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: isText ? undefined : 28,
+                width: isTextButton ? undefined : 28,
                 height: 28,
-                padding: isText ? "0 8px" : 0,
-                borderRadius: theme.r6,
+                padding: isTextButton ? "0 8px" : 0,
+                borderRadius: theme.radius6,
                 border: "none",
                 cursor: "pointer",
                 background: "transparent",
@@ -125,7 +125,7 @@ export const ToolbarRow = ({ appId, onAction, appColor }) => {
                 fontFamily: theme.fontFamily,
               }}
             >
-              {item.Icon ? <item.Icon size={14} /> : item.label}
+              {toolbarItem.Icon ? <toolbarItem.Icon size={14} /> : toolbarItem.label}
             </button>
           );
         }

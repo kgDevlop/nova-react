@@ -69,21 +69,21 @@ export const SpreadsEditor = ({
     return val?.toString() || "";
   };
 
-  const _setCellProp = (key, prop, val) => {
-    setCells(p => ({ ...p, [key]: { ...p[key], [prop]: val } }));
+  const _setCellProp = (cellKey, propName, propValue) => {
+    setCells(prevCells => ({ ...prevCells, [cellKey]: { ...prevCells[cellKey], [propName]: propValue } }));
   };
 
-  const _toggleBorder = (key, side) => {
-    setCells(p => {
-      const cur = p[key]?.borders || { t: true, r: true, b: true, l: true };
-      const next = { ...cur, [side]: !cur[side] };
-      return { ...p, [key]: { ...p[key], borders: next } };
+  const _toggleBorder = (cellKey, sideName) => {
+    setCells(prevCells => {
+      const currentBorders = prevCells[cellKey]?.borders || { t: true, r: true, b: true, l: true };
+      const nextBorders    = { ...currentBorders, [sideName]: !currentBorders[sideName] };
+      return { ...prevCells, [cellKey]: { ...prevCells[cellKey], borders: nextBorders } };
     });
   };
 
-  const _setBordersAll = (key, on) => {
-    const next = { t: on, r: on, b: on, l: on };
-    setCells(p => ({ ...p, [key]: { ...p[key], borders: next } }));
+  const _setBordersAll = (cellKey, allBordersOn) => {
+    const nextBorders = { t: allBordersOn, r: allBordersOn, b: allBordersOn, l: allBordersOn };
+    setCells(prevCells => ({ ...prevCells, [cellKey]: { ...prevCells[cellKey], borders: nextBorders } }));
   };
 
   const _commitEdit = (key, val) => {
@@ -181,25 +181,25 @@ export const SpreadsEditor = ({
   }, [activeKey]);
 
   useEffect(() => {
-    registerActions((id, val) => {
-      const key = activeKeyRef.current;
-      if (!key) {
+    registerActions((actionId, actionValue) => {
+      const cellKey = activeKeyRef.current;
+      if (!cellKey) {
         return;
       }
-      if (id === "dollar") {
-        setCells(p => ({ ...p, [key]: { ...p[key], fmt: "$" } }));
-      } else if (id === "pct") {
-        setCells(p => ({ ...p, [key]: { ...p[key], fmt: "pct" } }));
-      } else if (id === "bold") {
-        setCells(p => ({ ...p, [key]: { ...p[key], bold: !p[key]?.bold } }));
-      } else if (id === "italic") {
-        setCells(p => ({ ...p, [key]: { ...p[key], italic: !p[key]?.italic } }));
-      } else if (id === "aL") {
-        setCells(p => ({ ...p, [key]: { ...p[key], align: "left" } }));
-      } else if (id === "aC") {
-        setCells(p => ({ ...p, [key]: { ...p[key], align: "center" } }));
-      } else if (id === "aR") {
-        setCells(p => ({ ...p, [key]: { ...p[key], align: "right" } }));
+      if (actionId === "formatCurrency") {
+        setCells(prevCells => ({ ...prevCells, [cellKey]: { ...prevCells[cellKey], fmt: "$" } }));
+      } else if (actionId === "formatPercent") {
+        setCells(prevCells => ({ ...prevCells, [cellKey]: { ...prevCells[cellKey], fmt: "pct" } }));
+      } else if (actionId === "bold") {
+        setCells(prevCells => ({ ...prevCells, [cellKey]: { ...prevCells[cellKey], bold: !prevCells[cellKey]?.bold } }));
+      } else if (actionId === "italic") {
+        setCells(prevCells => ({ ...prevCells, [cellKey]: { ...prevCells[cellKey], italic: !prevCells[cellKey]?.italic } }));
+      } else if (actionId === "alignLeft") {
+        setCells(prevCells => ({ ...prevCells, [cellKey]: { ...prevCells[cellKey], align: "left" } }));
+      } else if (actionId === "alignCenter") {
+        setCells(prevCells => ({ ...prevCells, [cellKey]: { ...prevCells[cellKey], align: "center" } }));
+      } else if (actionId === "alignRight") {
+        setCells(prevCells => ({ ...prevCells, [cellKey]: { ...prevCells[cellKey], align: "right" } }));
       }
     });
   }, []); // eslint-disable-line
@@ -220,7 +220,7 @@ export const SpreadsEditor = ({
         style={{
           width: 22,
           height: 22,
-          borderRadius: theme.r6,
+          borderRadius: theme.radius6,
           border: selected ? `2px solid ${appColor}` : `1px solid ${theme.border}`,
           background: isNone ? "transparent" : value,
           cursor: "pointer",
@@ -282,7 +282,7 @@ export const SpreadsEditor = ({
                 color: isActive ? theme.text : theme.textDim,
                 border: isActive ? `1px solid ${theme.border}` : "none",
                 borderBottom: "none",
-                borderRadius: `${theme.r6} ${theme.r6} 0 0`,
+                borderRadius: `${theme.radius6} ${theme.radius6} 0 0`,
               }}
             >
               {s}
@@ -328,7 +328,7 @@ export const SpreadsEditor = ({
             color: theme.textDim,
             background: theme.surfaceAlt,
             padding: "2px 8px",
-            borderRadius: theme.r6,
+            borderRadius: theme.radius6,
             cursor: "pointer",
           }}
           onClick={() => startEdit(activeKey)}
@@ -490,7 +490,7 @@ export const SpreadsEditor = ({
                           <input
                             ref={editInputRef}
                             value={editVal}
-                            onChange={e => setEditVal(e.target.value)}
+                            onChange={cellEditChangeEvent => setEditVal(cellEditChangeEvent.target.value)}
                             onKeyDown={handleEditKeyDown}
                             onBlur={() => _commitEdit(editKey, editVal)}
                             style={{
@@ -590,7 +590,7 @@ export const SpreadsEditor = ({
                 style={{
                   fontSize: 11,
                   padding: "5px 8px",
-                  borderRadius: theme.r6,
+                  borderRadius: theme.radius6,
                   border: `1px solid ${on ? appColor : theme.border}`,
                   background: on ? appColor + "15" : "transparent",
                   color: on ? appColor : theme.text,
@@ -645,7 +645,7 @@ export const SpreadsEditor = ({
         <div style={{ fontSize: 10, color: theme.textMuted, marginBottom: 4 }}>Size</div>
         <select
           value={activeCell.fontSize || 12}
-          onChange={e => _setCellProp(activeKey, "fontSize", Number(e.target.value))}
+          onChange={fontSizeChangeEvent => _setCellProp(activeKey, "fontSize", Number(fontSizeChangeEvent.target.value))}
           style={{
             width: "100%",
             background: theme.surface,
@@ -653,7 +653,7 @@ export const SpreadsEditor = ({
             color: theme.text,
             fontSize: 12,
             fontFamily: theme.fontFamily,
-            borderRadius: theme.r6,
+            borderRadius: theme.radius6,
             padding: "5px 8px",
             outline: "none",
             marginBottom: 10,
@@ -669,7 +669,7 @@ export const SpreadsEditor = ({
             style={{
               flex: 1,
               padding: "6px 0",
-              borderRadius: theme.r6,
+              borderRadius: theme.radius6,
               border: `1px solid ${activeCell.bold ? appColor : theme.border}`,
               background: activeCell.bold ? appColor + "15" : "transparent",
               color: activeCell.bold ? appColor : theme.text,
@@ -686,7 +686,7 @@ export const SpreadsEditor = ({
             style={{
               flex: 1,
               padding: "6px 0",
-              borderRadius: theme.r6,
+              borderRadius: theme.radius6,
               border: `1px solid ${activeCell.italic ? appColor : theme.border}`,
               background: activeCell.italic ? appColor + "15" : "transparent",
               color: activeCell.italic ? appColor : theme.text,

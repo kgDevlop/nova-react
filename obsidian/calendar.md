@@ -48,7 +48,7 @@ nulls keep a stable shape across months.
 
 ## Open work
 
-See [[issues]]. Notably:
+See [[Releases]]. Notably:
 
 - Day / Week / Year views still need rendering polish.
 - Event creation + editing are stubbed.

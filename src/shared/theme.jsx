@@ -46,7 +46,9 @@ export function buildTokens(config, opts = {}) {
   }
 
   const isDark = resolvedMode !== "light";
-  const accent = ThemeConstants.ACCENT_PRESETS.find(p => p.presetId === config.accentId) ?? ThemeConstants.ACCENT_PRESETS[0];
+  const accentPreset =
+    ThemeConstants.ACCENT_PRESETS.find(preset => preset.presetId === config.accentId)
+    ?? ThemeConstants.ACCENT_PRESETS[0];
 
   // A non-classic colour scheme replaces the entire palette. mode + accent
   // remain in state so flipping back to "classic" restores them. Custom
@@ -55,20 +57,20 @@ export function buildTokens(config, opts = {}) {
   // `previewPalette` is a transient override used by the custom-theme
   // modal — when set, it bypasses any saved scheme so the user sees their
   // edits immediately without persisting half-finished schemes.
-  const scheme =
-    ThemeConstants.COLOR_SCHEMES.find(s => s.schemeId === config.schemeId) ??
-    customSchemes.find(s => s.schemeId === config.schemeId);
-  const palette = previewPalette ?? scheme?.palette;
+  const colorScheme =
+    ThemeConstants.COLOR_SCHEMES.find(scheme => scheme.schemeId === config.schemeId) ??
+    customSchemes.find(scheme => scheme.schemeId === config.schemeId);
+  const palette = previewPalette ?? colorScheme?.palette;
 
   // Per-app palette: scheme can supply 8 themed colours; fall back to the
   // global APP_COLORS for Classic, or [accent×8] for custom/preview palettes
   // that have no explicit list.
-  const accentColor = palette?.accent ?? accent.hex;
+  const accentColor = palette?.accent ?? accentPreset.hex;
   let appColors;
   if (previewPalette) {
     appColors = Array(8).fill(accentColor);
-  } else if (scheme?.appColors) {
-    appColors = scheme.appColors;
+  } else if (colorScheme?.appColors) {
+    appColors = colorScheme.appColors;
   } else if (palette) {
     appColors = Array(8).fill(accentColor);
   } else {
@@ -77,8 +79,8 @@ export function buildTokens(config, opts = {}) {
   // Resolve a default colour for a given app id by looking up its index in
   // the registry. Falls back to the first slot for unknown ids.
   const appColorFor = appId => {
-    const idx = ThemeConstants.APPS.findIndex(a => a.appId === appId);
-    return appColors[(idx < 0 ? 0 : idx) % appColors.length];
+    const appIndex = ThemeConstants.APPS.findIndex(app => app.appId === appId);
+    return appColors[(appIndex < 0 ? 0 : appIndex) % appColors.length];
   };
 
   return {
@@ -92,8 +94,8 @@ export function buildTokens(config, opts = {}) {
     border:       palette?.border       ?? (isDark ? "#1D1D28" : "#E4E4DC"),
     borderStrong: palette?.borderStrong ?? (isDark ? "#28283A" : "#CACACC"),
     // Accent
-    accent:       palette?.accent       ?? accent.hex,
-    accentSoft:   palette?.accentSoft   ?? accent.softHex,
+    accent:       palette?.accent       ?? accentPreset.hex,
+    accentSoft:   palette?.accentSoft   ?? accentPreset.softHex,
     // Text
     text:         palette?.text         ?? (isDark ? "#EAEAF2" : "#111118"),
     textDim:      palette?.textDim      ?? (isDark ? "#7878A0" : "#6060A0"),
@@ -102,19 +104,19 @@ export function buildTokens(config, opts = {}) {
     appColors,
     appColorFor,
     // Semantic
-    error:      "#E85252",
+    error:       "#E85252",
     // Radii
-    r6:  "6px",
-    r10: "10px",
-    r14: "14px",
-    r20: "20px",
-    rF:  "9999px",
+    radius6:     "6px",
+    radius10:    "10px",
+    radius14:    "14px",
+    radius20:    "20px",
+    radiusFull:  "9999px",
     // Typography
-    fontFamily: '"Plus Jakarta Sans",system-ui,sans-serif',
+    fontFamily:  '"Plus Jakarta Sans",system-ui,sans-serif',
     // Motion
-    transition: "0.18s cubic-bezier(0.4,0,0.2,1)",
+    transition:  "0.18s cubic-bezier(0.4,0,0.2,1)",
     // Flag
-    isDark:     palette?.isDark ?? isDark,
+    isDark:      palette?.isDark ?? isDark,
   };
 }
 
@@ -237,15 +239,23 @@ export function ThemeProvider({ children }) {
     }
   }, [customSchemes]);
 
-  const addCustomScheme = useCallback(scheme => {
-    setCustomSchemes(p => [...p.filter(s => s.schemeId !== scheme.schemeId), scheme]);
+  const addCustomScheme = useCallback(newScheme => {
+    setCustomSchemes(currentSchemes =>
+      [...currentSchemes.filter(scheme => scheme.schemeId !== newScheme.schemeId), newScheme],
+    );
   }, []);
 
-  const deleteCustomScheme = useCallback(schemeId => {
-    setCustomSchemes(p => p.filter(s => s.schemeId !== schemeId));
+  const deleteCustomScheme = useCallback(schemeIdToRemove => {
+    setCustomSchemes(currentSchemes =>
+      currentSchemes.filter(scheme => scheme.schemeId !== schemeIdToRemove),
+    );
     // If the deleted scheme was active, fall back to "classic" so the UI
     // doesn't end up showing a vanished selection.
-    setTheme(p => (p.schemeId === schemeId ? { ...p, schemeId: "classic" } : p));
+    setTheme(currentTheme =>
+      currentTheme.schemeId === schemeIdToRemove
+        ? { ...currentTheme, schemeId: "classic" }
+        : currentTheme,
+    );
   }, []);
 
   /** @type {import('./modals/types').TokenObject} */

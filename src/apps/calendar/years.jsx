@@ -2,28 +2,28 @@ import React from "react";
 import { CalendarConstants } from "../../shared/_constants";
 import { _ymd, buildMonthCells } from "./shared";
 
-const MiniMonthCard = ({ y, m, theme, appColor, now, map, calColor, onPick, isCurrent, refProp }) => {
-  const cells = buildMonthCells(y, m);
+const MiniMonthCard = ({ y: year, m: monthIndex, theme, appColor, now, map: eventsByDate, calColor, onPick, isCurrent, refProp }) => {
+  const cells = buildMonthCells(year, monthIndex);
   return (
     <div
       ref={refProp}
-      onClick={() => onPick(y, m)}
+      onClick={() => onPick(year, monthIndex)}
       style={{
         background: theme.surface,
         border: `1px solid ${theme.border}`,
-        borderRadius: theme.r10,
+        borderRadius: theme.radius10,
         padding: 10,
         cursor: "pointer",
         fontFamily: theme.fontFamily,
       }}
     >
       <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, marginBottom: 8 }}>
-        {CalendarConstants.MONTHS[m]}
+        {CalendarConstants.MONTHS[monthIndex]}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 1 }}>
-        {CalendarConstants.DAYS_MINI.map((d, i) => (
+        {CalendarConstants.DAYS_MINI.map((dayInitial, dayInitialIndex) => (
           <div
-            key={`yh-${i}`}
+            key={`yh-${dayInitialIndex}`}
             style={{
               fontSize: 9,
               color: theme.textMuted,
@@ -32,26 +32,26 @@ const MiniMonthCard = ({ y, m, theme, appColor, now, map, calColor, onPick, isCu
               padding: "2px 0",
             }}
           >
-            {d}
+            {dayInitial}
           </div>
         ))}
-        {cells.map((d, i) => {
-          const ymd    = d ? _ymd(y, m, d) : null;
-          const dayEvs = ymd ? (map[ymd] || []) : [];
-          const isT =
-            d != null &&
-            d === now.getDate() &&
-            m === now.getMonth() &&
-            y === now.getFullYear();
+        {cells.map((day, cellIndex) => {
+          const dateString  = day ? _ymd(year, monthIndex, day) : null;
+          const dayEvents   = dateString ? (eventsByDate[dateString] || []) : [];
+          const isCurrentDay =
+            day != null &&
+            day === now.getDate() &&
+            monthIndex === now.getMonth() &&
+            year === now.getFullYear();
           return (
             <div
-              key={`yc-${i}`}
+              key={`yc-${cellIndex}`}
               style={{
                 height: 26,
                 fontSize: 10,
-                fontWeight: isT ? 700 : 500,
-                color: isT ? "#fff" : d ? theme.text : "transparent",
-                background: isT ? appColor : "transparent",
+                fontWeight: isCurrentDay ? 700 : 500,
+                color: isCurrentDay ? "#fff" : day ? theme.text : "transparent",
+                background: isCurrentDay ? appColor : "transparent",
                 borderRadius: "50%",
                 display: "flex",
                 flexDirection: "column",
@@ -60,17 +60,17 @@ const MiniMonthCard = ({ y, m, theme, appColor, now, map, calColor, onPick, isCu
                 position: "relative",
               }}
             >
-              {d || ""}
-              {dayEvs.length > 0 && (
+              {day || ""}
+              {dayEvents.length > 0 && (
                 <div style={{ display: "flex", gap: 1, position: "absolute", bottom: 1 }}>
-                  {dayEvs.slice(0, 3).map((ev, k) => (
+                  {dayEvents.slice(0, 3).map((event, eventIndex) => (
                     <span
-                      key={k}
+                      key={eventIndex}
                       style={{
                         width: 3,
                         height: 3,
                         borderRadius: "50%",
-                        background: calColor(ev.calId),
+                        background: calColor(event.calId),
                       }}
                     />
                   ))}
@@ -95,18 +95,18 @@ export const YearView = ({ theme, appColor, year, now, expand, calColor, onPickM
       gap: 14,
     }}
   >
-    {Array.from({ length: 12 }, (_, m) => {
-      const isCurrent = year === now.getFullYear() && m === now.getMonth();
-      const map = expand(new Date(year, m, 1), new Date(year, m + 1, 0));
+    {Array.from({ length: 12 }, (_, monthIndex) => {
+      const isCurrent     = year === now.getFullYear() && monthIndex === now.getMonth();
+      const eventsByDate  = expand(new Date(year, monthIndex, 1), new Date(year, monthIndex + 1, 0));
       return (
         <MiniMonthCard
-          key={`mm-${year}-${m}`}
+          key={`mm-${year}-${monthIndex}`}
           y={year}
-          m={m}
+          m={monthIndex}
           theme={theme}
           appColor={appColor}
           now={now}
-          map={map}
+          map={eventsByDate}
           calColor={calColor}
           onPick={onPickMonth}
           isCurrent={isCurrent}

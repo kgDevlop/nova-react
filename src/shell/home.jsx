@@ -10,32 +10,32 @@ import { utils, registry as registryU } from "../shared/_utils";
 
 const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeWS }) => {
   const theme = useT();
-  const def = registryU._app(doc.type);
+  const appDef = registryU._app(doc.type);
   // Always resolve dynamically so theme/scheme changes flow through to old
   // docs too. Pre-existing `doc.appColor` values from older builds are ignored.
-  const c = getAppColor(activeWS.id, doc.type, theme.appColorFor(doc.type));
-  const soft = c + (theme.isDark ? "1A" : "22");
+  const accentColor = getAppColor(activeWS.id, doc.type, theme.appColorFor(doc.type));
+  const softAccent  = accentColor + (theme.isDark ? "1A" : "22");
 
-  const [menu, setMenu] = useState(false);
-  const [ren, setRen] = useState(false);
-  const [draft, setDraft] = useState(doc.title);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(doc.title);
 
-  const mRef = useRef(null);
-  const iRef = useRef(null);
+  const menuRef = useRef(null);
+  const renameInputRef = useRef(null);
 
-  useOut(mRef, () => setMenu(false));
+  useOut(menuRef, () => setMenuOpen(false));
 
   useEffect(() => {
-    if (ren) {
-      iRef.current?.focus();
+    if (isRenaming) {
+      renameInputRef.current?.focus();
     }
-  }, [ren]);
+  }, [isRenaming]);
 
-  const commit = () => {
-    if (draft.trim() && draft !== doc.title) {
-      onRename(doc.id, draft.trim());
+  const commitRename = () => {
+    if (titleDraft.trim() && titleDraft !== doc.title) {
+      onRename(doc.id, titleDraft.trim());
     }
-    setRen(false);
+    setIsRenaming(false);
   };
 
   return (
@@ -43,7 +43,7 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
       className="ncard"
       onClick={() => {
         // Don't open the doc while the user is renaming or has the menu open.
-        if (!ren && !menu) {
+        if (!isRenaming && !menuOpen) {
           onOpen(doc);
         }
       }}
@@ -55,16 +55,16 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
         flexDirection: "column",
         gap: 10,
         position: "relative",
-        zIndex: menu ? 50 : undefined,
+        zIndex: menuOpen ? 50 : undefined,
       }}
     >
       {/* Preview block — fake content lines tinted with the app color */}
       <div
         style={{
           height: 62,
-          borderRadius: theme.r10,
-          background: soft,
-          border: `1px solid ${c}18`,
+          borderRadius: theme.radius10,
+          background: softAccent,
+          border: `1px solid ${accentColor}18`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -82,45 +82,45 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
             gap: 4,
           }}
         >
-          {HomeConstants.CARD_PREVIEW_BAR_WIDTHS.map((w, i) => (
+          {HomeConstants.CARD_PREVIEW_BAR_WIDTHS.map((widthPercent, barIndex) => (
             <div
-              key={i}
+              key={barIndex}
               style={{
                 height: 4,
                 borderRadius: 2,
-                background: c,
-                opacity: 0.12 + i * 0.04,
-                width: `${w}%`,
+                background: accentColor,
+                opacity: 0.12 + barIndex * 0.04,
+                width: `${widthPercent}%`,
               }}
             />
           ))}
         </div>
-        <def.Icon
+        <appDef.Icon
           size={18}
-          color={c}
+          color={accentColor}
           style={{ position: "relative", zIndex: 1, opacity: 0.55 }}
         />
       </div>
 
       {/* Row 1 — name */}
       <div style={{ minWidth: 0 }}>
-        {ren ? (
+        {isRenaming ? (
           <input
-            ref={iRef}
+            ref={renameInputRef}
             className="ninput"
             style={{ fontSize: 12, padding: "2px 6px", fontWeight: 600 }}
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === "Enter") {
-                commit();
+            value={titleDraft}
+            onChange={titleChangeEvent => setTitleDraft(titleChangeEvent.target.value)}
+            onKeyDown={titleKeyDownEvent => {
+              if (titleKeyDownEvent.key === "Enter") {
+                commitRename();
               }
-              if (e.key === "Escape") {
-                setRen(false);
+              if (titleKeyDownEvent.key === "Escape") {
+                setIsRenaming(false);
               }
             }}
-            onBlur={commit}
-            onClick={e => e.stopPropagation()}
+            onBlur={commitRename}
+            onClick={inputClickEvent => inputClickEvent.stopPropagation()}
           />
         ) : (
           <div
@@ -143,8 +143,8 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
 
       {/* Row 2 — details (type chip + timestamp) and tile actions */}
       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-        <span className="nbadge" style={{ background: soft, color: c }}>
-          {def.label}
+        <span className="nbadge" style={{ background: softAccent, color: accentColor }}>
+          {appDef.label}
         </span>
         <span
           style={{
@@ -166,11 +166,11 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
               background: doc.starred ? theme.accent + "1F" : theme.surfaceAlt,
               color: doc.starred ? theme.accent : theme.textMuted,
               border: `1px solid ${doc.starred ? theme.accent + "55" : theme.border}`,
-              borderRadius: theme.r6,
+              borderRadius: theme.radius6,
             }}
             title={doc.starred ? "Unstar" : "Star"}
-            onClick={e => {
-              e.stopPropagation();
+            onClick={starClickEvent => {
+              starClickEvent.stopPropagation();
               onStar(doc.id);
             }}
           >
@@ -181,7 +181,7 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
             />
           </button>
 
-          <div ref={mRef} style={{ position: "relative" }}>
+          <div ref={menuRef} style={{ position: "relative" }}>
             <button
               className="nb"
               style={{
@@ -189,23 +189,23 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
                 background: theme.surfaceAlt,
                 color: theme.textDim,
                 border: `1px solid ${theme.border}`,
-                borderRadius: theme.r6,
+                borderRadius: theme.radius6,
               }}
-              onClick={e => {
-                e.stopPropagation();
-                setMenu(v => !v);
+              onClick={menuClickEvent => {
+                menuClickEvent.stopPropagation();
+                setMenuOpen(currentlyOpen => !currentlyOpen);
               }}
             >
               <I.Dots size={11} color={theme.textDim} />
             </button>
-            {menu && (
-              <div className="nmenu" onClick={e => e.stopPropagation()}>
+            {menuOpen && (
+              <div className="nmenu" onClick={menuItemClickEvent => menuItemClickEvent.stopPropagation()}>
                 <div
                   className="nmi"
                   onClick={() => {
-                    setMenu(false);
-                    setDraft(doc.title);
-                    setRen(true);
+                    setMenuOpen(false);
+                    setTitleDraft(doc.title);
+                    setIsRenaming(true);
                   }}
                 >
                   <I.Pencil size={12} /> Rename
@@ -213,7 +213,7 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
                 <div
                   className="nmi"
                   onClick={() => {
-                    setMenu(false);
+                    setMenuOpen(false);
                     onStar(doc.id);
                   }}
                 >
@@ -226,7 +226,7 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
                 <div
                   className="nmi danger"
                   onClick={() => {
-                    setMenu(false);
+                    setMenuOpen(false);
                     onDelete(doc.id);
                   }}
                 >
@@ -245,9 +245,9 @@ const DocTile = ({ doc, onOpen, onStar, onDelete, onRename, getAppColor, activeW
 
 const DocRow = ({ doc, onOpen, onStar, onDelete, getAppColor, activeWS }) => {
   const theme = useT();
-  const def = registryU._app(doc.type);
-  const c = getAppColor(activeWS.id, doc.type, theme.appColorFor(doc.type));
-  const soft = c + (theme.isDark ? "1A" : "22");
+  const appDef     = registryU._app(doc.type);
+  const accentColor = getAppColor(activeWS.id, doc.type, theme.appColorFor(doc.type));
+  const softAccent  = accentColor + (theme.isDark ? "1A" : "22");
 
   return (
     <div
@@ -262,7 +262,7 @@ const DocRow = ({ doc, onOpen, onStar, onDelete, getAppColor, activeWS }) => {
         animation: "fadeUp 0.22s ease both",
       }}
     >
-      <AppChip appId={doc.type} size={30} colorOverride={c} />
+      <AppChip appId={doc.type} size={30} colorOverride={accentColor} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
@@ -282,9 +282,9 @@ const DocRow = ({ doc, onOpen, onStar, onDelete, getAppColor, activeWS }) => {
       </div>
       <span
         className="nbadge"
-        style={{ background: soft, color: c, flexShrink: 0 }}
+        style={{ background: softAccent, color: accentColor, flexShrink: 0 }}
       >
-        {def.label}
+        {appDef.label}
       </span>
       <button
         className="nb ni"
@@ -293,8 +293,8 @@ const DocRow = ({ doc, onOpen, onStar, onDelete, getAppColor, activeWS }) => {
           padding: 3,
           flexShrink: 0,
         }}
-        onClick={e => {
-          e.stopPropagation();
+        onClick={starClickEvent => {
+          starClickEvent.stopPropagation();
           onStar(doc.id);
         }}
       >
@@ -307,8 +307,8 @@ const DocRow = ({ doc, onOpen, onStar, onDelete, getAppColor, activeWS }) => {
       <button
         className="nb ni"
         style={{ padding: 3, flexShrink: 0 }}
-        onClick={e => {
-          e.stopPropagation();
+        onClick={deleteClickEvent => {
+          deleteClickEvent.stopPropagation();
           onDelete(doc.id);
         }}
       >
@@ -332,9 +332,9 @@ export const HomeScreen = ({
   isMobile,
 }) => {
   const theme = useT();
-  const [q, setQ] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [sort, setSort] = useState("modified");
-  const [vm, setVm] = useState("grid");
+  const [viewMode, setViewMode] = useState("grid");
   const [favOnly, setFavOnly] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -355,43 +355,43 @@ export const HomeScreen = ({
   const gridRef = useRef(null);
   const [maxCols, setMaxCols] = useState(6);
   useEffect(() => {
-    const el = gridRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(([entry]) => {
-      const w = entry.contentRect.width;
-      setMaxCols(Math.max(2, Math.min(8, Math.floor((w + 9) / (HomeConstants.GRID_MIN_CARD_PX + 9)))));
+    const gridElement = gridRef.current;
+    if (!gridElement || typeof ResizeObserver === "undefined") return;
+    const resizeObserver = new ResizeObserver(([resizeEntry]) => {
+      const measuredWidth = resizeEntry.contentRect.width;
+      setMaxCols(Math.max(2, Math.min(8, Math.floor((measuredWidth + 9) / (HomeConstants.GRID_MIN_CARD_PX + 9)))));
     });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [vm]);
+    resizeObserver.observe(gridElement);
+    return () => resizeObserver.disconnect();
+  }, [viewMode]);
 
   const [savedCols, setSavedCols] = useState(() => {
     if (typeof window === "undefined") return 0;
-    const v = Number(window.localStorage.getItem(HomeConstants.GRID_COLS_KEY));
-    return Number.isFinite(v) && v >= 2 ? v : 0;
+    const storedCols = Number(window.localStorage.getItem(HomeConstants.GRID_COLS_KEY));
+    return Number.isFinite(storedCols) && storedCols >= 2 ? storedCols : 0;
   });
   const defaultCols = Math.max(2, Math.round((2 + maxCols) / 2));
   const cols = savedCols ? Math.min(Math.max(savedCols, 2), maxCols) : defaultCols;
   const [sliderPos, setSliderPos] = useState(cols);
   useEffect(() => {
-    setSliderPos(p => Math.min(Math.max(p, 2), maxCols));
+    setSliderPos(currentSliderPos => Math.min(Math.max(currentSliderPos, 2), maxCols));
   }, [maxCols]);
 
   const visible = useMemo(() => {
-    let docs = utils._filterV(activeWS.docs, view);
-    if (favOnly) docs = docs.filter(d => d.starred);
-    return utils._sortD(utils._filterQ(docs, q), sort);
-  }, [activeWS.docs, view, q, sort, favOnly]);
+    let filteredDocs = utils._filterV(activeWS.docs, view);
+    if (favOnly) filteredDocs = filteredDocs.filter(workspaceDoc => workspaceDoc.starred);
+    return utils._sortD(utils._filterQ(filteredDocs, searchQuery), sort);
+  }, [activeWS.docs, view, searchQuery, sort, favOnly]);
 
   // Quick-start tiles: all apps on home, just the current app on a filtered view.
   // Calendar is a singleton and lives outside the doc-creation flow.
-  let qt;
+  let quickStartAppIds;
   if (view === "home") {
-    qt = HomeConstants.APPS.filter(a => a.appId !== "calendar").map(a => a.appId);
-  } else if (HomeConstants.APPS.map(a => a.appId).includes(view)) {
-    qt = [view];
+    quickStartAppIds = HomeConstants.APPS.filter(app => app.appId !== "calendar").map(app => app.appId);
+  } else if (HomeConstants.APPS.map(app => app.appId).includes(view)) {
+    quickStartAppIds = [view];
   } else {
-    qt = null;
+    quickStartAppIds = null;
   }
 
   return (
@@ -423,7 +423,7 @@ export const HomeScreen = ({
         </div>
       )}
 
-      {qt && !isMobile && (
+      {quickStartAppIds && !isMobile && (
         <div
           style={{
             marginBottom: 26,
@@ -443,21 +443,21 @@ export const HomeScreen = ({
             Quick start
           </div>
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-            {qt.map(type => {
-              const def = registryU._app(type);
-              const c = getAppColor(activeWS.id, type, theme.appColorFor(type));
+            {quickStartAppIds.map(appId => {
+              const appDef     = registryU._app(appId);
+              const accentColor = getAppColor(activeWS.id, appId, theme.appColorFor(appId));
               return (
                 <button
-                  key={type}
-                  onClick={() => onNewDoc(type)}
+                  key={appId}
+                  onClick={() => onNewDoc(appId)}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
                     padding: "8px 13px",
-                    borderRadius: theme.r14,
-                    background: c + (theme.isDark ? "1A" : "22"),
-                    border: `1px solid ${c}22`,
+                    borderRadius: theme.radius14,
+                    background: accentColor + (theme.isDark ? "1A" : "22"),
+                    border: `1px solid ${accentColor}22`,
                     cursor: "pointer",
                     transition: theme.transition,
                     fontFamily: theme.fontFamily,
@@ -466,14 +466,14 @@ export const HomeScreen = ({
                     fontSize: 12,
                     fontWeight: 700,
                   }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = c + "55";
+                  onMouseEnter={mouseEnterEvent => {
+                    mouseEnterEvent.currentTarget.style.borderColor = accentColor + "55";
                   }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = c + "22";
+                  onMouseLeave={mouseLeaveEvent => {
+                    mouseLeaveEvent.currentTarget.style.borderColor = accentColor + "22";
                   }}
                 >
-                  <def.Icon size={13} color={c} /> New {def.label}
+                  <appDef.Icon size={13} color={accentColor} /> New {appDef.label}
                 </button>
               );
             })}
@@ -496,21 +496,21 @@ export const HomeScreen = ({
           {visible.length} doc{visible.length !== 1 ? "s" : ""}
         </span>
         <div style={{ display: "flex", gap: 2 }}>
-          {[["grid", I.Grid], ["list", I.List]].map(([m, Ico]) => (
+          {[["grid", I.Grid], ["list", I.List]].map(([viewModeOption, ViewModeIcon]) => (
             <button
-              key={m}
+              key={viewModeOption}
               className="nb ni"
               style={{
-                color: vm === m ? theme.text : theme.textMuted,
-                background: vm === m ? theme.surfaceAlt : "transparent",
+                color: viewMode === viewModeOption ? theme.text : theme.textMuted,
+                background: viewMode === viewModeOption ? theme.surfaceAlt : "transparent",
               }}
-              onClick={() => setVm(m)}
+              onClick={() => setViewMode(viewModeOption)}
             >
-              <Ico size={13} />
+              <ViewModeIcon size={13} />
             </button>
           ))}
         </div>
-        {vm === "grid" && !isMobile && (
+        {viewMode === "grid" && !isMobile && (
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <input
               type="range"
@@ -519,13 +519,13 @@ export const HomeScreen = ({
               step="any"
               value={sliderPos}
               title={`${cols} per row`}
-              onChange={e => {
-                const v = Number(e.target.value);
-                setSliderPos(v);
-                const snapped = Math.min(Math.max(Math.round(v), 2), maxCols);
-                setSavedCols(snapped);
+              onChange={sliderChangeEvent => {
+                const sliderValue = Number(sliderChangeEvent.target.value);
+                setSliderPos(sliderValue);
+                const snappedCols = Math.min(Math.max(Math.round(sliderValue), 2), maxCols);
+                setSavedCols(snappedCols);
                 if (typeof window !== "undefined") {
-                  window.localStorage.setItem(HomeConstants.GRID_COLS_KEY, String(snapped));
+                  window.localStorage.setItem(HomeConstants.GRID_COLS_KEY, String(snappedCols));
                 }
               }}
               style={{ width: 115, accentColor: theme.accent, cursor: "pointer" }}
@@ -538,7 +538,7 @@ export const HomeScreen = ({
               className="nb"
               title={favOnly ? "Show all" : "Show favorites only"}
               aria-pressed={favOnly}
-              onClick={() => setFavOnly(v => !v)}
+              onClick={() => setFavOnly(currentFavOnly => !currentFavOnly)}
               style={{
                 padding: "6px 10px",
                 fontSize: 11,
@@ -546,7 +546,7 @@ export const HomeScreen = ({
                 background: favOnly ? theme.accent + "1F" : theme.surface,
                 color: favOnly ? theme.accent : theme.textDim,
                 border: `1px solid ${favOnly ? theme.accent + "55" : theme.border}`,
-                borderRadius: theme.r10,
+                borderRadius: theme.radius10,
               }}
             >
               <I.Star size={11} fill={favOnly ? theme.accent : "none"} color={favOnly ? theme.accent : theme.textDim} />
@@ -554,14 +554,14 @@ export const HomeScreen = ({
             </button>
             <select
               value={sort}
-              onChange={e => setSort(e.target.value)}
+              onChange={desktopSortChangeEvent => setSort(desktopSortChangeEvent.target.value)}
               style={{
                 background: theme.surface,
                 border: `1px solid ${theme.border}`,
                 color: theme.textDim,
                 fontFamily: theme.fontFamily,
                 fontSize: 11,
-                borderRadius: theme.r10,
+                borderRadius: theme.radius10,
                 padding: "6px 23px 6px 9px",
                 cursor: "pointer",
                 outline: "none",
@@ -591,11 +591,11 @@ export const HomeScreen = ({
               className="ninput"
               style={{ paddingLeft: 27, paddingRight: isMobile ? 28 : 12, fontSize: 12 }}
               placeholder="Search…"
-              value={q}
-              onChange={e => setQ(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Escape" && isMobile) {
-                  setQ("");
+              value={searchQuery}
+              onChange={searchChangeEvent => setSearchQuery(searchChangeEvent.target.value)}
+              onKeyDown={searchKeyDownEvent => {
+                if (searchKeyDownEvent.key === "Escape" && isMobile) {
+                  setSearchQuery("");
                   setSearchOpen(false);
                 }
               }}
@@ -603,7 +603,7 @@ export const HomeScreen = ({
             {isMobile && (
               <button
                 onClick={() => {
-                  setQ("");
+                  setSearchQuery("");
                   setSearchOpen(false);
                 }}
                 title="Close search"
@@ -618,7 +618,7 @@ export const HomeScreen = ({
                   color: theme.textMuted,
                   display: "flex",
                   padding: 4,
-                  borderRadius: theme.r6,
+                  borderRadius: theme.radius6,
                 }}
               >
                 <I.X size={11} />
@@ -632,13 +632,13 @@ export const HomeScreen = ({
               className="nb ni"
               title={favOnly ? "Show all" : "Show favorites only"}
               aria-pressed={favOnly}
-              onClick={() => setFavOnly(v => !v)}
+              onClick={() => setFavOnly(currentFavOnly => !currentFavOnly)}
               style={{
                 padding: 7,
                 background: favOnly ? theme.accent + "1F" : theme.surface,
                 color: favOnly ? theme.accent : theme.textDim,
                 border: `1px solid ${favOnly ? theme.accent + "55" : theme.border}`,
-                borderRadius: theme.r10,
+                borderRadius: theme.radius10,
               }}
             >
               <I.Star size={13} fill={favOnly ? theme.accent : "none"} color={favOnly ? theme.accent : theme.textDim} />
@@ -652,7 +652,7 @@ export const HomeScreen = ({
                   background: theme.surface,
                   color: theme.textDim,
                   border: `1px solid ${theme.border}`,
-                  borderRadius: theme.r10,
+                  borderRadius: theme.radius10,
                   pointerEvents: "none",
                 }}
                 tabIndex={-1}
@@ -661,7 +661,7 @@ export const HomeScreen = ({
               </button>
               <select
                 value={sort}
-                onChange={e => setSort(e.target.value)}
+                onChange={sortChangeEvent => setSort(sortChangeEvent.target.value)}
                 aria-label="Sort"
                 style={{
                   position: "absolute",
@@ -686,7 +686,7 @@ export const HomeScreen = ({
                 style={{
                   padding: 7,
                   border: `1px solid ${theme.border}`,
-                  borderRadius: theme.r10,
+                  borderRadius: theme.radius10,
                   background: theme.surface,
                 }}
               >
@@ -709,7 +709,7 @@ export const HomeScreen = ({
             style={{
               width: 52,
               height: 52,
-              borderRadius: theme.r20,
+              borderRadius: theme.radius20,
               background: theme.surfaceAlt,
               display: "flex",
               alignItems: "center",
@@ -720,15 +720,15 @@ export const HomeScreen = ({
             <I.File size={20} color={theme.textMuted} />
           </div>
           <p style={{ fontSize: 14, fontWeight: 700, color: theme.textDim, marginBottom: 5 }}>
-            {q ? `No results for "${q}"` : "No documents yet"}
+            {searchQuery ? `No results for "${searchQuery}"` : "No documents yet"}
           </p>
           <p style={{ fontSize: 12, color: theme.textMuted, marginBottom: 18 }}>
-            {q ? "Try a different search term" : "Create your first document to get started"}
+            {searchQuery ? "Try a different search term" : "Create your first document to get started"}
           </p>
-          {!q && (
+          {!searchQuery && (
             <button
               className="nb np"
-              onClick={() => onNewDoc(HomeConstants.APPS.some(a => a.appId === view) ? view : undefined)}
+              onClick={() => onNewDoc(HomeConstants.APPS.some(app => app.appId === view) ? view : undefined)}
             >
               <I.Plus size={13} /> New document
             </button>
@@ -736,7 +736,7 @@ export const HomeScreen = ({
         </div>
       )}
 
-      {visible.length > 0 && vm === "grid" && (
+      {visible.length > 0 && viewMode === "grid" && (
         <TileGrid
           gridRef={gridRef}
           cols={isMobile ? undefined : cols}
@@ -758,7 +758,7 @@ export const HomeScreen = ({
         </TileGrid>
       )}
 
-      {visible.length > 0 && vm === "list" && (
+      {visible.length > 0 && viewMode === "list" && (
         <div
           style={{
             display: "flex",
@@ -788,7 +788,7 @@ export const HomeScreen = ({
 
 export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS, isBetaEnabled, onToggleBeta }) => {
   const theme = useT();
-  const cats = [...new Set(HomeConstants.APPS.map(a => a.category))];
+  const categories = [...new Set(HomeConstants.APPS.map(app => app.category))];
 
   return (
     <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "26px 22px 48px" }}>
@@ -809,12 +809,12 @@ export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS, isBetaEnab
         </p>
       </div>
 
-      {cats.map((cat, ci) => (
+      {categories.map((category, categoryIndex) => (
         <div
-          key={cat}
+          key={category}
           style={{
             marginBottom: 28,
-            animation: `fadeUp 0.3s ease ${ci * 0.06}s both`,
+            animation: `fadeUp 0.3s ease ${categoryIndex * 0.06}s both`,
           }}
         >
           <div
@@ -827,34 +827,34 @@ export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS, isBetaEnab
               marginBottom: 10,
             }}
           >
-            {cat}
+            {category}
           </div>
           <TileGrid min={210}>
-            {HomeConstants.APPS.filter(a => a.category === cat).map(app => {
-              const c = getAppColor(activeWS.id, app.appId, theme.appColorFor(app.appId));
-              const soft = c + (theme.isDark ? "1A" : "22");
-              const isBeta = app.status === "beta";
-              const enabled = isBeta && isBetaEnabled?.(app.appId);
+            {HomeConstants.APPS.filter(app => app.category === category).map(app => {
+              const accentColor = getAppColor(activeWS.id, app.appId, theme.appColorFor(app.appId));
+              const softAccent  = accentColor + (theme.isDark ? "1A" : "22");
+              const isBeta      = app.status === "beta";
+              const enabled     = isBeta && isBetaEnabled?.(app.appId);
               return (
                 <div
                   key={app.appId}
                   onClick={() => onNewDoc(app.appId)}
                   style={{
                     padding: 15,
-                    borderRadius: theme.r14,
+                    borderRadius: theme.radius14,
                     border: `1px solid ${theme.border}`,
                     background: theme.surface,
                     cursor: "pointer",
                     transition: theme.transition,
                     position: "relative",
                   }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = c + "44";
-                    e.currentTarget.style.background = theme.surfaceShade;
+                  onMouseEnter={mouseEnterEvent => {
+                    mouseEnterEvent.currentTarget.style.borderColor = accentColor + "44";
+                    mouseEnterEvent.currentTarget.style.background = theme.surfaceShade;
                   }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = theme.border;
-                    e.currentTarget.style.background = theme.surface;
+                  onMouseLeave={mouseLeaveEvent => {
+                    mouseLeaveEvent.currentTarget.style.borderColor = theme.border;
+                    mouseLeaveEvent.currentTarget.style.background = theme.surface;
                   }}
                 >
                   <span
@@ -873,15 +873,15 @@ export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS, isBetaEnab
                     style={{
                       width: 40,
                       height: 40,
-                      borderRadius: theme.r10,
-                      background: soft,
+                      borderRadius: theme.radius10,
+                      background: softAccent,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       marginBottom: 10,
                     }}
                   >
-                    <app.Icon size={18} color={c} />
+                    <app.Icon size={18} color={accentColor} />
                   </div>
                   <div
                     style={{
@@ -898,8 +898,8 @@ export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS, isBetaEnab
                   </div>
                   {isBeta && (
                     <div
-                      onClick={e => {
-                        e.stopPropagation();
+                      onClick={betaToggleClickEvent => {
+                        betaToggleClickEvent.stopPropagation();
                         onToggleBeta?.(app.appId);
                       }}
                       style={{
@@ -922,7 +922,7 @@ export const AppCatalogueScreen = ({ onNewDoc, getAppColor, activeWS, isBetaEnab
                           width: 26,
                           height: 15,
                           borderRadius: 999,
-                          background: enabled ? c : theme.border,
+                          background: enabled ? accentColor : theme.border,
                           position: "relative",
                           transition: theme.transition,
                           flexShrink: 0,

@@ -116,11 +116,11 @@ export const WriterEditor = ({
   };
 
   const combinedHTML = () => {
-    return allEditors().map(e => e.innerHTML).join("");
+    return allEditors().map(editorElement => editorElement.innerHTML).join("");
   };
 
   const combinedText = () => {
-    return allEditors().map(e => e.innerText || "").join("\n");
+    return allEditors().map(editorElement => editorElement.innerText || "").join("\n");
   };
 
   const updateCounts = () => {
@@ -145,27 +145,25 @@ export const WriterEditor = ({
   // when a block moves to a new page, focus stays on the old (now-empty) page
   // unless we explicitly chase the container to wherever it ended up.
   const rebalance = () => {
-    const sel = window.getSelection();
+    const selection = window.getSelection();
     let cursorContainer = null;
     let cursorOffset = 0;
-    if (sel && sel.rangeCount > 0) {
-      const range = sel.getRangeAt(0);
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
       cursorContainer = range.startContainer;
       cursorOffset = range.startOffset;
     }
 
     let needsMorePages = false;
-    let i = 0;
-    while (i < pageCount) {
+    for (let i = 0; i < pageCount; i++) {
       const editor = pageRefs.current[i];
       if (!editor) {
-        i++;
         continue;
       }
 
       // Push trailing blocks forward while this page overflows. Always leave
       // at least one child so the page never becomes empty mid-loop.
-      while (editor.scrollHeight > contentHeight + 1 && editor.children.length > 1) {
+      for (; editor.scrollHeight > contentHeight + 1 && editor.children.length > 1;) {
         const lastBlock = editor.lastElementChild;
         const nextEditor = pageRefs.current[i + 1];
         if (!nextEditor) {
@@ -182,7 +180,7 @@ export const WriterEditor = ({
       // Stop the moment a pulled block makes us overflow — and put it back.
       const nextEditor = pageRefs.current[i + 1];
       if (nextEditor) {
-        while (nextEditor.firstElementChild) {
+        for (; nextEditor.firstElementChild;) {
           const candidate = nextEditor.firstElementChild;
           editor.appendChild(candidate);
           if (editor.scrollHeight > contentHeight + 1) {
@@ -191,7 +189,6 @@ export const WriterEditor = ({
           }
         }
       }
-      i++;
     }
 
     if (needsMorePages) {
@@ -223,7 +220,7 @@ export const WriterEditor = ({
     if (!container || !document.contains(container)) {
       return;
     }
-    const pageIdx = pageRefs.current.findIndex(e => e && e.contains(container));
+    const pageIdx = pageRefs.current.findIndex(pageElement => pageElement && pageElement.contains(container));
     if (pageIdx < 0) {
       return;
     }
@@ -238,9 +235,9 @@ export const WriterEditor = ({
       const safeOffset = Math.min(offset, containerLength);
       range.setStart(container, safeOffset);
       range.collapse(true);
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
       savedSelection.current = range.cloneRange();
     } catch {
       // Ignore range errors from rapid edits — next input will recompute.
@@ -286,44 +283,44 @@ export const WriterEditor = ({
   // ── Selection bookkeeping ─────────────────────────────────────────────────
 
   const handleBlur = () => {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
       return;
     }
-    const node = sel.anchorNode;
+    const node = selection.anchorNode;
     // Only persist the selection if it's inside one of our editor pages —
     // otherwise we'd capture clicks into the toolbar/modal.
-    const insideEditor = allEditors().some(e => e.contains(node));
+    const insideEditor = allEditors().some(editorElement => editorElement.contains(node));
     if (insideEditor) {
-      savedSelection.current = sel.getRangeAt(0).cloneRange();
+      savedSelection.current = selection.getRangeAt(0).cloneRange();
     }
   };
 
-  const handleFocus = idx => {
-    activePageIdx.current = idx;
+  const handleFocus = pageIndex => {
+    activePageIdx.current = pageIndex;
   };
 
   // Restore the last known caret position so toolbar clicks/menu actions
   // act on the user's prior selection rather than the now-blurred editor.
   const restoreSelection = () => {
     activeEditor()?.focus();
-    const ssc = savedSelection.current;
-    if (!ssc) {
+    const savedRange = savedSelection.current;
+    if (!savedRange) {
       return false;
     }
-    const sel = window.getSelection();
-    if (sel) {
-      sel.removeAllRanges();
-      sel.addRange(ssc);
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(savedRange);
     }
     return true;
   };
 
   // execCommand is deprecated but is still the most reliable way to apply
   // inline formatting inside contentEditable across browsers.
-  const execCmd = (cmd, val = null) => {
+  const execCmd = (commandName, commandValue = null) => {
     restoreSelection();
-    document.execCommand(cmd, false, val);
+    document.execCommand(commandName, false, commandValue);
   };
 
   // ── Block manipulation helpers ────────────────────────────────────────────
@@ -331,18 +328,16 @@ export const WriterEditor = ({
   // Walk up from the selection's anchor and return the nearest ancestor
   // matching one of the given tag names — stops at the editor boundary.
   const nearestAncestor = tagNames => {
-    const sel = window.getSelection();
-    if (!sel || !sel.rangeCount) {
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) {
       return null;
     }
     const tags = tagNames.map(t => t.toUpperCase());
     const editor = activeEditor();
-    let node = sel.anchorNode;
-    while (node && node !== editor) {
+    for (let node = selection.anchorNode; node && node !== editor; node = node.parentNode) {
       if (node.nodeType === 1 && tags.includes(node.tagName)) {
         return node;
       }
-      node = node.parentNode;
     }
     return null;
   };
@@ -372,9 +367,7 @@ export const WriterEditor = ({
     if (blocks.length === 0) {
       // Collapsed selection — find the top-level block ancestor of the caret.
       let node = range.startContainer;
-      while (node && node.parentNode !== editor) {
-        node = node.parentNode;
-      }
+      for (; node && node.parentNode !== editor; node = node.parentNode) {}
       if (node && node !== editor) {
         blocks.push(node);
       }
@@ -388,11 +381,11 @@ export const WriterEditor = ({
   //   • Mixed / non-list blocks              → wrap in target list.
   const toggleList = listTag => {
     restoreSelection();
-    const sel = window.getSelection();
-    if (!sel || !sel.rangeCount) {
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) {
       return;
     }
-    const range = sel.getRangeAt(0);
+    const range = selection.getRangeAt(0);
     const otherTag = listTag === "UL" ? "OL" : "UL";
     const listTagLc = listTag.toLowerCase();
 
@@ -401,20 +394,20 @@ export const WriterEditor = ({
       return;
     }
 
-    const allInList = blocks.every(b => b.tagName === listTag);
+    const allInList = blocks.every(block => block.tagName === listTag);
     let lastInserted = null;
 
     blocks.forEach(block => {
       if (allInList) {
         // Unwrap each <li> back into a <p>.
-        const frag = document.createDocumentFragment();
-        Array.from(block.querySelectorAll("li")).forEach(li => {
-          const p = document.createElement("p");
-          p.innerHTML = li.innerHTML || "<br>";
-          frag.appendChild(p);
-          lastInserted = p;
+        const fragment = document.createDocumentFragment();
+        Array.from(block.querySelectorAll("li")).forEach(listItem => {
+          const paragraphElement = document.createElement("p");
+          paragraphElement.innerHTML = listItem.innerHTML || "<br>";
+          fragment.appendChild(paragraphElement);
+          lastInserted = paragraphElement;
         });
-        block.replaceWith(frag);
+        block.replaceWith(fragment);
       } else if (block.tagName === otherTag) {
         // Convert OL ↔ UL by swapping the wrapper element.
         const newList = document.createElement(listTagLc);
@@ -433,11 +426,11 @@ export const WriterEditor = ({
       } else {
         // Plain block → wrap in a single-item list.
         const list = document.createElement(listTagLc);
-        const li = document.createElement("li");
-        li.innerHTML = block.innerHTML || "<br>";
-        list.appendChild(li);
+        const listItem = document.createElement("li");
+        listItem.innerHTML = block.innerHTML || "<br>";
+        list.appendChild(listItem);
         block.replaceWith(list);
-        lastInserted = li;
+        lastInserted = listItem;
       }
     });
 
@@ -452,24 +445,24 @@ export const WriterEditor = ({
 
   const toggleBlockquote = () => {
     restoreSelection();
-    const sel = window.getSelection();
-    if (!sel || !sel.rangeCount) {
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) {
       return;
     }
-    const range = sel.getRangeAt(0);
+    const range = selection.getRangeAt(0);
     const blocks = blocksInRange(range);
     if (!blocks.length) {
       return;
     }
 
-    const allBQ = blocks.every(b => b.tagName === "BLOCKQUOTE");
+    const allBlockquote = blocks.every(block => block.tagName === "BLOCKQUOTE");
     let lastInserted = null;
     blocks.forEach(block => {
-      const wrapperTag = allBQ ? "p" : "blockquote";
-      const el = document.createElement(wrapperTag);
-      el.innerHTML = block.innerHTML || "<br>";
-      block.replaceWith(el);
-      lastInserted = el;
+      const wrapperTag = allBlockquote ? "p" : "blockquote";
+      const wrapperElement = document.createElement(wrapperTag);
+      wrapperElement.innerHTML = block.innerHTML || "<br>";
+      block.replaceWith(wrapperElement);
+      lastInserted = wrapperElement;
     });
     if (lastInserted) {
       collapseSelectionToEndOf(lastInserted);
@@ -481,24 +474,30 @@ export const WriterEditor = ({
 
   // Replace each block-level ancestor of the selection with the chosen tag.
   // Falls back to native formatBlock when no blocks were resolved.
-  const applyBlockType = type => {
+  const applyBlockType = blockTypeValue => {
     restoreSelection();
-    const tagMap = { p: "p", h1: "h1", h2: "h2", h3: "h3", code: "pre" };
-    const newTag = tagMap[type] || "p";
-    const sel = window.getSelection();
-    if (!sel || !sel.rangeCount) {
+    const tagByBlockType = {
+      paragraph: "p",
+      heading1:  "h1",
+      heading2:  "h2",
+      heading3:  "h3",
+      code:      "pre",
+    };
+    const newTag = tagByBlockType[blockTypeValue] || "p";
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) {
       return;
     }
-    const range = sel.getRangeAt(0);
-    const blocks = blocksInRange(range);
+    const selectionRange = selection.getRangeAt(0);
+    const blocks = blocksInRange(selectionRange);
     if (!blocks.length) {
       execCmd("formatBlock", newTag);
       return;
     }
     blocks.forEach(block => {
-      const el = document.createElement(newTag);
-      el.innerHTML = block.innerHTML || "<br>";
-      block.replaceWith(el);
+      const replacementElement = document.createElement(newTag);
+      replacementElement.innerHTML = block.innerHTML || "<br>";
+      block.replaceWith(replacementElement);
     });
     rebalance();
     onContentChange(combinedHTML());
@@ -509,18 +508,18 @@ export const WriterEditor = ({
     const range = document.createRange();
     range.selectNodeContents(node);
     range.collapse(false);
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
     savedSelection.current = range.cloneRange();
   };
 
   // ── Link insertion ────────────────────────────────────────────────────────
 
   const openLinkModal = () => {
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) {
-      linkRangeRef.current = sel.getRangeAt(0).cloneRange();
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      linkRangeRef.current = selection.getRangeAt(0).cloneRange();
     } else if (savedSelection.current) {
       linkRangeRef.current = savedSelection.current.cloneRange();
     }
@@ -541,11 +540,11 @@ export const WriterEditor = ({
     // Auto-prefix bare URLs so "example.com" still produces a working link.
     const fullUrl = url.startsWith("http") ? url : `https://${url}`;
     activeEditor()?.focus();
-    const sel = window.getSelection();
-    if (sel && linkRangeRef.current) {
-      sel.removeAllRanges();
-      sel.addRange(linkRangeRef.current);
-      if (sel.isCollapsed) {
+    const selection = window.getSelection();
+    if (selection && linkRangeRef.current) {
+      selection.removeAllRanges();
+      selection.addRange(linkRangeRef.current);
+      if (selection.isCollapsed) {
         // Empty selection: insert the URL as both text and href.
         document.execCommand("insertHTML", false, `<a href="${fullUrl}">${fullUrl}</a>`);
       } else {
@@ -564,40 +563,40 @@ export const WriterEditor = ({
   // Dispatch a toolbar action by id. Recreated each render so closures see
   // the latest state (pageCount, etc.); ref below keeps the registered
   // handler pointing at the latest version.
-  const dispatchAction = (id, val) => {
-    if (id === "bold") {
+  const dispatchAction = (actionId, actionValue) => {
+    if (actionId === "bold") {
       execCmd("bold");
-    } else if (id === "italic") {
+    } else if (actionId === "italic") {
       execCmd("italic");
-    } else if (id === "underline") {
+    } else if (actionId === "underline") {
       execCmd("underline");
-    } else if (id === "alignL") {
+    } else if (actionId === "alignLeft") {
       execCmd("justifyLeft");
-    } else if (id === "alignC") {
+    } else if (actionId === "alignCenter") {
       execCmd("justifyCenter");
-    } else if (id === "alignR") {
+    } else if (actionId === "alignRight") {
       execCmd("justifyRight");
-    } else if (id === "ul") {
+    } else if (actionId === "bulletList") {
       toggleList("UL");
-    } else if (id === "ol") {
+    } else if (actionId === "numberedList") {
       toggleList("OL");
-    } else if (id === "bq") {
+    } else if (actionId === "blockquote") {
       toggleBlockquote();
-    } else if (id === "link") {
+    } else if (actionId === "insertLink") {
       openLinkModal();
-    } else if (id === "img") {
-      const url = window.prompt("Image URL:");
-      if (url) {
-        execCmd("insertImage", url);
+    } else if (actionId === "insertImage") {
+      const imageUrl = window.prompt("Image URL:");
+      if (imageUrl) {
+        execCmd("insertImage", imageUrl);
       }
-    } else if (id === "tbl") {
+    } else if (actionId === "insertTable") {
       const tableHTML =
         "<table><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>" +
         "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>" +
         "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr></table><p><br></p>";
       execCmd("insertHTML", tableHTML);
-    } else if (id === "style") {
-      applyBlockType(val);
+    } else if (actionId === "paragraphStyle") {
+      applyBlockType(actionValue);
     }
     rebalance();
     onContentChange(combinedHTML());
@@ -606,7 +605,7 @@ export const WriterEditor = ({
   dispatchActionRef.current = dispatchAction;
 
   useEffect(() => {
-    registerActions((id, val) => dispatchActionRef.current?.(id, val));
+    registerActions((actionId, actionValue) => dispatchActionRef.current?.(actionId, actionValue));
   }, []); // eslint-disable-line
 
   // ── Input + key handling ──────────────────────────────────────────────────
@@ -655,33 +654,33 @@ export const WriterEditor = ({
       r.selectNodeContents(editor);
       r.collapse(false);
     }
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(r);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(r);
   };
 
-  const tryCrossPageArrow = e => {
-    if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) {
+  const tryCrossPageArrow = arrowKeyEvent => {
+    if (arrowKeyEvent.metaKey || arrowKeyEvent.ctrlKey || arrowKeyEvent.altKey || arrowKeyEvent.shiftKey) {
       return false;
     }
-    const sel = window.getSelection();
-    if (!sel || !sel.rangeCount || !sel.isCollapsed) {
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount || !selection.isCollapsed) {
       return false;
     }
-    const idx = activePageIdx.current;
-    const editor = pageRefs.current[idx];
-    if (!editor || !editor.contains(sel.anchorNode)) {
+    const pageIndex = activePageIdx.current;
+    const editor = pageRefs.current[pageIndex];
+    if (!editor || !editor.contains(selection.anchorNode)) {
       return false;
     }
-    const range = sel.getRangeAt(0);
+    const range = selection.getRangeAt(0);
 
-    if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
-      const prev = pageRefs.current[idx - 1];
-      if (!prev) {
+    if (arrowKeyEvent.key === "ArrowUp" || arrowKeyEvent.key === "ArrowLeft") {
+      const prevEditor = pageRefs.current[pageIndex - 1];
+      if (!prevEditor) {
         return false;
       }
 
-      if (e.key === "ArrowLeft") {
+      if (arrowKeyEvent.key === "ArrowLeft") {
         // Only hop when caret is at the absolute start of the editor.
         const probe = document.createRange();
         probe.selectNodeContents(editor);
@@ -689,112 +688,112 @@ export const WriterEditor = ({
         if (probe.toString().length > 0) {
           return false;
         }
-        e.preventDefault();
-        prev.focus();
-        activePageIdx.current = idx - 1;
-        const r = document.createRange();
-        r.selectNodeContents(prev);
-        r.collapse(false);
-        sel.removeAllRanges();
-        sel.addRange(r);
+        arrowKeyEvent.preventDefault();
+        prevEditor.focus();
+        activePageIdx.current = pageIndex - 1;
+        const newRange = document.createRange();
+        newRange.selectNodeContents(prevEditor);
+        newRange.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
         return true;
       }
 
       // ArrowUp: only hop when caret is on the editor's first visual line.
-      const cRect = caretRect(range);
-      const eRect = editor.getBoundingClientRect();
-      if (cRect.top - eRect.top > cRect.height * 0.6) {
+      const caretBoundingRect  = caretRect(range);
+      const editorBoundingRect = editor.getBoundingClientRect();
+      if (caretBoundingRect.top - editorBoundingRect.top > caretBoundingRect.height * 0.6) {
         return false;
       }
-      e.preventDefault();
-      prev.focus();
-      activePageIdx.current = idx - 1;
-      const prevRect = prev.getBoundingClientRect();
+      arrowKeyEvent.preventDefault();
+      prevEditor.focus();
+      activePageIdx.current = pageIndex - 1;
+      const prevEditorRect = prevEditor.getBoundingClientRect();
       // Aim for the same x, just above the bottom edge of the previous page.
-      placeCaretAtPoint(prev, cRect.left, prevRect.bottom - Math.max(cRect.height, 8));
+      placeCaretAtPoint(prevEditor, caretBoundingRect.left, prevEditorRect.bottom - Math.max(caretBoundingRect.height, 8));
       return true;
     }
 
-    if (e.key === "ArrowDown" || e.key === "ArrowRight") {
-      const next = pageRefs.current[idx + 1];
-      if (!next) {
+    if (arrowKeyEvent.key === "ArrowDown" || arrowKeyEvent.key === "ArrowRight") {
+      const nextEditor = pageRefs.current[pageIndex + 1];
+      if (!nextEditor) {
         return false;
       }
 
-      if (e.key === "ArrowRight") {
+      if (arrowKeyEvent.key === "ArrowRight") {
         const probe = document.createRange();
         probe.selectNodeContents(editor);
         probe.setStart(range.startContainer, range.startOffset);
         if (probe.toString().length > 0) {
           return false;
         }
-        e.preventDefault();
-        next.focus();
-        activePageIdx.current = idx + 1;
-        const r = document.createRange();
-        r.selectNodeContents(next);
-        r.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(r);
+        arrowKeyEvent.preventDefault();
+        nextEditor.focus();
+        activePageIdx.current = pageIndex + 1;
+        const newRange = document.createRange();
+        newRange.selectNodeContents(nextEditor);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
         return true;
       }
 
       // ArrowDown: hop when caret is on the editor's last visual line.
-      const cRect = caretRect(range);
-      const eRect = editor.getBoundingClientRect();
-      if (eRect.bottom - cRect.bottom > cRect.height * 0.6) {
+      const caretBoundingRect  = caretRect(range);
+      const editorBoundingRect = editor.getBoundingClientRect();
+      if (editorBoundingRect.bottom - caretBoundingRect.bottom > caretBoundingRect.height * 0.6) {
         return false;
       }
-      e.preventDefault();
-      next.focus();
-      activePageIdx.current = idx + 1;
-      const nextRect = next.getBoundingClientRect();
-      placeCaretAtPoint(next, cRect.left, nextRect.top + Math.max(cRect.height, 8) * 0.5);
+      arrowKeyEvent.preventDefault();
+      nextEditor.focus();
+      activePageIdx.current = pageIndex + 1;
+      const nextEditorRect = nextEditor.getBoundingClientRect();
+      placeCaretAtPoint(nextEditor, caretBoundingRect.left, nextEditorRect.top + Math.max(caretBoundingRect.height, 8) * 0.5);
       return true;
     }
 
     return false;
   };
 
-  const handleKeyDown = e => {
+  const handleKeyDown = keyDownEvent => {
     if (
-      e.key === "ArrowUp" ||
-      e.key === "ArrowDown" ||
-      e.key === "ArrowLeft" ||
-      e.key === "ArrowRight"
+      keyDownEvent.key === "ArrowUp" ||
+      keyDownEvent.key === "ArrowDown" ||
+      keyDownEvent.key === "ArrowLeft" ||
+      keyDownEvent.key === "ArrowRight"
     ) {
-      if (tryCrossPageArrow(e)) {
+      if (tryCrossPageArrow(keyDownEvent)) {
         return;
       }
     }
-    if (e.metaKey || e.ctrlKey) {
-      if (e.key === "b") {
-        e.preventDefault();
+    if (keyDownEvent.metaKey || keyDownEvent.ctrlKey) {
+      if (keyDownEvent.key === "b") {
+        keyDownEvent.preventDefault();
         execCmd("bold");
         return;
       }
-      if (e.key === "i") {
-        e.preventDefault();
+      if (keyDownEvent.key === "i") {
+        keyDownEvent.preventDefault();
         execCmd("italic");
         return;
       }
-      if (e.key === "u") {
-        e.preventDefault();
+      if (keyDownEvent.key === "u") {
+        keyDownEvent.preventDefault();
         execCmd("underline");
         return;
       }
-      if (e.key === "k") {
-        e.preventDefault();
+      if (keyDownEvent.key === "k") {
+        keyDownEvent.preventDefault();
         openLinkModal();
         return;
       }
     }
-    if (e.key === "Tab") {
-      e.preventDefault();
+    if (keyDownEvent.key === "Tab") {
+      keyDownEvent.preventDefault();
       // Inside a list, Tab/Shift+Tab adjusts nesting level.
       // Outside, insert four non-breaking spaces (visible indent).
       if (nearestAncestor(["LI"])) {
-        if (e.shiftKey) {
+        if (keyDownEvent.shiftKey) {
           execCmd("outdent");
         } else {
           execCmd("indent");
@@ -804,7 +803,7 @@ export const WriterEditor = ({
         document.execCommand("insertHTML", false, "&nbsp;&nbsp;&nbsp;&nbsp;");
       }
     }
-    if (e.key === "Escape" && linkModalOpen) {
+    if (keyDownEvent.key === "Escape" && linkModalOpen) {
       setLinkModalOpen(false);
     }
   };
@@ -868,7 +867,7 @@ export const WriterEditor = ({
           right: 20,
           background: theme.elevated,
           border: `1px solid ${theme.border}`,
-          borderRadius: theme.rF,
+          borderRadius: theme.radiusFull,
           padding: "3px 10px",
           fontSize: 10,
           color: theme.textMuted,
@@ -889,9 +888,9 @@ export const WriterEditor = ({
             justifyContent: "center",
             paddingTop: 120,
           }}
-          onClick={e => {
+          onClick={overlayClickEvent => {
             // Click on backdrop closes the modal; clicks inside don't bubble here.
-            if (e.target === e.currentTarget) {
+            if (overlayClickEvent.target === overlayClickEvent.currentTarget) {
               setLinkModalOpen(false);
             }
           }}
@@ -900,7 +899,7 @@ export const WriterEditor = ({
             style={{
               background: theme.elevated,
               border: `1px solid ${theme.borderStrong}`,
-              borderRadius: theme.r14,
+              borderRadius: theme.radius14,
               padding: "16px 18px",
               boxShadow: "0 16px 48px rgba(0,0,0,0.4)",
               width: 360,
@@ -917,14 +916,14 @@ export const WriterEditor = ({
                 style={{ flex: 1, fontSize: 13 }}
                 placeholder="https://example.com"
                 value={linkUrl}
-                onChange={e => setLinkUrl(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
+                onChange={linkUrlChangeEvent => setLinkUrl(linkUrlChangeEvent.target.value)}
+                onKeyDown={linkUrlKeyDownEvent => {
+                  if (linkUrlKeyDownEvent.key === "Enter") {
+                    linkUrlKeyDownEvent.preventDefault();
                     confirmLink();
                   }
-                  if (e.key === "Escape") {
-                    e.preventDefault();
+                  if (linkUrlKeyDownEvent.key === "Escape") {
+                    linkUrlKeyDownEvent.preventDefault();
                     setLinkModalOpen(false);
                   }
                 }}

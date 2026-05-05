@@ -13,13 +13,11 @@ const _newItem = (depth = 0, text = "") => ({
 
 // Items are stored flat with a `depth` field. The subtree of items[i] runs
 // from i (inclusive) to the next index whose depth <= items[i].depth.
-const _subtreeEnd = (items, i) => {
-  const baseDepth = items[i].depth;
-  let j = i + 1;
-  while (j < items.length && items[j].depth > baseDepth) {
-    j++;
-  }
-  return j;
+const _subtreeEnd = (items, startIndex) => {
+  const baseDepth = items[startIndex].depth;
+  let endIndex = startIndex + 1;
+  for (; endIndex < items.length && items[endIndex].depth > baseDepth; endIndex++) {}
+  return endIndex;
 };
 
 const _normItem = (raw, fallbackDepth = 0) => ({
@@ -34,9 +32,9 @@ const _parseContent = (content) => {
     if (!content) {
       return { todo: [_newItem()], done: [] };
     }
-    const p = JSON.parse(content);
-    const todo = Array.isArray(p?.todo) ? p.todo.map(it => _normItem(it)) : [];
-    const done = Array.isArray(p?.done) ? p.done.map(it => _normItem(it)) : [];
+    const parsedContent = JSON.parse(content);
+    const todo = Array.isArray(parsedContent?.todo) ? parsedContent.todo.map(item => _normItem(item)) : [];
+    const done = Array.isArray(parsedContent?.done) ? parsedContent.done.map(item => _normItem(item)) : [];
     return {
       todo: todo.length ? todo : [_newItem()],
       done,
@@ -80,10 +78,10 @@ export const ListEditor = ({ appColor, doc, t: theme, onContentChange, onTitleCh
   }, [doc.id]);
 
   const commitTitle = () => {
-    const t = titleDraft.trim();
-    if (t && t !== doc.title) {
-      onTitleChange?.(t);
-    } else if (!t) {
+    const newTitle = titleDraft.trim();
+    if (newTitle && newTitle !== doc.title) {
+      onTitleChange?.(newTitle);
+    } else if (!newTitle) {
       // User cleared the field — revert the draft so the placeholder reflects
       // the current saved title rather than leaving an empty input.
       setTitleDraft(doc.title || "");
@@ -93,11 +91,11 @@ export const ListEditor = ({ appColor, doc, t: theme, onContentChange, onTitleCh
   // Focus newly created item's input.
   useEffect(() => {
     if (focusId && inputRefs.current[focusId]) {
-      const el = inputRefs.current[focusId];
-      el.focus();
-      const len = el.value.length;
+      const newListItem = inputRefs.current[focusId];
+      newListItem.focus();
+      const nliLength = newListItem.value.length;
       try {
-        el.setSelectionRange(len, len);
+        newListItem.setSelectionRange(nliLength, nliLength);
       } catch {
         // Ignore — some browsers throw on hidden/disconnected inputs.
       }
@@ -108,8 +106,8 @@ export const ListEditor = ({ appColor, doc, t: theme, onContentChange, onTitleCh
   const items = view === "todo" ? todo : done;
   const setItems = view === "todo" ? setTodo : setDone;
 
-  const updateText = (idx, text) => {
-    setItems(prev => prev.map((it, i) => (i === idx ? { ...it, text } : it)));
+  const updateText = (itemIndex, text) => {
+    setItems(prev => prev.map((listItem, currentIndex) => (currentIndex === itemIndex ? { ...listItem, text } : listItem)));
   };
 
   // Checking an item in "todo" moves its entire subtree to "done":
@@ -121,35 +119,35 @@ export const ListEditor = ({ appColor, doc, t: theme, onContentChange, onTitleCh
   const toggleDone = (idx) => {
     if (view === "todo") {
       setTD(prev => {
-        const end = _subtreeEnd(prev.todo, idx);
-        const subtree = prev.todo.slice(idx, end);
+        const subtreeEnd = _subtreeEnd(prev.todo, idx);
+        const subtree = prev.todo.slice(idx, subtreeEnd);
         const baseDepth = subtree[0].depth;
-        const moved = subtree.map((it, i) => ({
-          ...it,
-          depth: it.depth - baseDepth,
-          done: i === 0 ? true : it.done,
+        const movedSubtree = subtree.map((item, subIdx) => ({
+          ...item,
+          depth: item.depth - baseDepth,
+          done: subIdx === 0 ? true : item.done,
         }));
         return {
-          todo: [...prev.todo.slice(0, idx), ...prev.todo.slice(end)],
-          done: [...prev.done, ...moved],
+          todo: [...prev.todo.slice(0, idx), ...prev.todo.slice(subtreeEnd)],
+          done: [...prev.done, ...movedSubtree],
         };
       });
       return;
     }
 
-    const item = done[idx];
-    if (item.depth === 0) {
+    const clickedItem = done[idx];
+    if (clickedItem.depth === 0) {
       setTD(prev => {
-        const end = _subtreeEnd(prev.done, idx);
-        const subtree = prev.done.slice(idx, end);
-        const moved = subtree.map((it, i) => ({ ...it, done: i === 0 ? false : it.done }));
+        const subtreeEnd = _subtreeEnd(prev.done, idx);
+        const subtree = prev.done.slice(idx, subtreeEnd);
+        const movedSubtree = subtree.map((item, subIdx) => ({ ...item, done: subIdx === 0 ? false : item.done }));
         return {
-          todo: [...prev.todo, ...moved],
-          done: [...prev.done.slice(0, idx), ...prev.done.slice(end)],
+          todo: [...prev.todo, ...movedSubtree],
+          done: [...prev.done.slice(0, idx), ...prev.done.slice(subtreeEnd)],
         };
       });
     } else {
-      setDone(prev => prev.map((it, i) => (i === idx ? { ...it, done: !it.done } : it)));
+      setDone(prev => prev.map((item, itemIdx) => (itemIdx === idx ? { ...item, done: !item.done } : item)));
     }
   };
 
@@ -158,8 +156,8 @@ export const ListEditor = ({ appColor, doc, t: theme, onContentChange, onTitleCh
   // (so the moved subtree has a valid parent to attach under).
   const shiftDepth = (idx, delta) => {
     setItems(prev => {
-      const item = prev[idx];
-      const newDepth = item.depth + delta;
+      const currentItem = prev[idx];
+      const newDepth = currentItem.depth + delta;
       if (newDepth < 0 || newDepth > ListConstants.MAX_DEPTH) {
         return prev;
       }
@@ -167,16 +165,17 @@ export const ListEditor = ({ appColor, doc, t: theme, onContentChange, onTitleCh
         if (idx === 0) {
           return prev;
         }
-        if (prev[idx - 1].depth < item.depth) {
+        const previousItem = prev[idx - 1];
+        if (previousItem.depth < currentItem.depth) {
           return prev;
         }
       }
-      const end = _subtreeEnd(prev, idx);
-      return prev.map((it, i) => {
-        if (i >= idx && i < end) {
-          return { ...it, depth: it.depth + delta };
+      const subtreeEnd = _subtreeEnd(prev, idx);
+      return prev.map((item, itemIdx) => {
+        if (itemIdx >= idx && itemIdx < subtreeEnd) {
+          return { ...item, depth: item.depth + delta };
         }
-        return it;
+        return item;
       });
     });
   };
@@ -184,11 +183,11 @@ export const ListEditor = ({ appColor, doc, t: theme, onContentChange, onTitleCh
   // New sibling inserted just after this item's subtree, at the same depth.
   const addSiblingAfter = (idx) => {
     setItems(prev => {
-      const item = prev[idx];
-      const end = _subtreeEnd(prev, idx);
-      const newItem = _newItem(item.depth);
+      const currentItem = prev[idx];
+      const insertIndex = _subtreeEnd(prev, idx);
+      const newItem = _newItem(currentItem.depth);
       setFocusId(newItem.id);
-      return [...prev.slice(0, end), newItem, ...prev.slice(end)];
+      return [...prev.slice(0, insertIndex), newItem, ...prev.slice(insertIndex)];
     });
   };
 
@@ -196,17 +195,19 @@ export const ListEditor = ({ appColor, doc, t: theme, onContentChange, onTitleCh
   // it has no meaningful children — we still remove the subtree to be safe).
   const removeItem = (idx) => {
     setItems(prev => {
-      const end = _subtreeEnd(prev, idx);
+      const subtreeEnd = _subtreeEnd(prev, idx);
       // Keep at least one row in todo so the doc never appears blank.
-      if (view === "todo" && prev.length === end - idx) {
+      if (view === "todo" && prev.length === subtreeEnd - idx) {
         return prev;
       }
       if (idx > 0) {
-        setFocusId(prev[idx - 1].id);
-      } else if (end < prev.length) {
-        setFocusId(prev[end].id);
+        const previousItem = prev[idx - 1];
+        setFocusId(previousItem.id);
+      } else if (subtreeEnd < prev.length) {
+        const nextItem = prev[subtreeEnd];
+        setFocusId(nextItem.id);
       }
-      return [...prev.slice(0, idx), ...prev.slice(end)];
+      return [...prev.slice(0, idx), ...prev.slice(subtreeEnd)];
     });
   };
 
@@ -257,7 +258,7 @@ export const ListEditor = ({ appColor, doc, t: theme, onContentChange, onTitleCh
             width: "100%",
             background: titleFocused ? theme.surface : "transparent",
             border: `1px solid ${titleFocused ? appColor : "transparent"}`,
-            borderRadius: theme.r10,
+            borderRadius: theme.radius10,
             outline: "none",
             color: theme.text,
             fontSize: 24,
@@ -376,7 +377,7 @@ export const ListEditor = ({ appColor, doc, t: theme, onContentChange, onTitleCh
             padding: "8px 12px",
             background: "transparent",
             border: `1px dashed ${theme.border}`,
-            borderRadius: theme.r10,
+            borderRadius: theme.radius10,
             color: theme.textMuted,
             fontSize: 12,
             fontFamily: theme.fontFamily,
@@ -450,7 +451,8 @@ const ListItem = ({
             onEnter();
           } else if (e.key === "Tab") {
             e.preventDefault();
-            onIndent(e.shiftKey ? -1 : 1);
+            const depthDelta = e.shiftKey ? -1 : 1;
+            onIndent(depthDelta);
           } else if (e.key === "Backspace" && item.text === "") {
             e.preventDefault();
             onBackspaceEmpty();

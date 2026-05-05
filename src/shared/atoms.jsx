@@ -44,7 +44,7 @@ export const AppChip = ({ appId, size = 36, colorOverride }) => {
       style={{
         width: size,
         height: size,
-        borderRadius: theme.r10,
+        borderRadius: theme.radius10,
         background: bgTint,
         display: "flex",
         alignItems: "center",
@@ -74,7 +74,7 @@ export const NovaLogo = ({ compact, workspace }) => {
         style={{
           width: 30,
           height: 30,
-          borderRadius: theme.r10,
+          borderRadius: theme.radius10,
           background: bg,
           flexShrink: 0,
           display: "flex",

@@ -1,5 +1,6 @@
 # Nova
-
+Built with Claude saying dumb shit like 
+"types.js is already 447 lines of JSDoc — project is type-curious."
 Nova is the umbrella for the entire app: chrome, persistence, modal stack,
 and the registry of editor surfaces. The implementation entry point is
 [`src/nova_base.jsx`](../src/nova_base.jsx) (mounted from

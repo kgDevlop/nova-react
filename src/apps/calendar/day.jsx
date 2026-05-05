@@ -4,9 +4,9 @@ import { CalendarConstants } from "../../shared/_constants";
 import { _ymd, EventChip } from "./shared";
 
 export const DayView = ({ theme, appColor, cursor, expand, isToday, openNew, openEdit, calColor }) => {
-  const ymd  = _ymd(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
-  const list = expand(cursor, cursor)[ymd] || [];
-  const t    = isToday(cursor.getDate());
+  const dateString  = _ymd(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
+  const dayEvents   = expand(cursor, cursor)[dateString] || [];
+  const isCurrentDay = isToday(cursor.getDate());
 
   return (
     <div style={{ flex: 1, overflow: "auto", padding: 24 }}>
@@ -16,10 +16,10 @@ export const DayView = ({ theme, appColor, cursor, expand, isToday, openNew, ope
             style={{
               fontSize: 38,
               fontWeight: 800,
-              color: t ? "#fff" : theme.text,
-              background: t ? appColor : "transparent",
-              width: t ? 56 : "auto",
-              height: t ? 56 : "auto",
+              color: isCurrentDay ? "#fff" : theme.text,
+              background: isCurrentDay ? appColor : "transparent",
+              width: isCurrentDay ? 56 : "auto",
+              height: isCurrentDay ? 56 : "auto",
               borderRadius: "50%",
               display: "flex",
               alignItems: "center",
@@ -35,13 +35,13 @@ export const DayView = ({ theme, appColor, cursor, expand, isToday, openNew, ope
           </div>
         </div>
 
-        {list.length === 0 ? (
+        {dayEvents.length === 0 ? (
           <div
-            onClick={() => openNew(ymd)}
+            onClick={() => openNew(dateString)}
             style={{
               padding: 24,
               border: `1px dashed ${theme.border}`,
-              borderRadius: theme.r10,
+              borderRadius: theme.radius10,
               color: theme.textMuted,
               textAlign: "center",
               cursor: "pointer",
@@ -52,12 +52,12 @@ export const DayView = ({ theme, appColor, cursor, expand, isToday, openNew, ope
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {list.map(ev => (
-              <EventChip key={ev.id} ev={ev} theme={theme} color={calColor(ev.calId)} onOpen={openEdit} />
+            {dayEvents.map(event => (
+              <EventChip key={event.id} ev={event} theme={theme} color={calColor(event.calId)} onOpen={openEdit} />
             ))}
             <button
               className="nb ng"
-              onClick={() => openNew(ymd)}
+              onClick={() => openNew(dateString)}
               style={{ alignSelf: "flex-start", marginTop: 6, fontSize: 12 }}
             >
               <I.Plus size={12} /> Add event

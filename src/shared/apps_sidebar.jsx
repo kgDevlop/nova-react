@@ -301,80 +301,80 @@ export const MobileToolbarPanel = ({
   icon,
   items,
 }) => {
-  const t = useT();
-  const cfg = items || AppsSidebarConstants.TOOLBARS[appId] || [];
+  const theme = useT();
+  const toolbarItems = items || AppsSidebarConstants.TOOLBARS[appId] || [];
 
-  const groups = [];
-  let cur = [];
-  for (const it of cfg) {
-    if (it.type === "sep") {
-      if (cur.length) {
-        groups.push(cur);
-        cur = [];
+  const groupedItems = [];
+  let currentGroup = [];
+  for (const toolbarItem of toolbarItems) {
+    if (toolbarItem.type === "separator") {
+      if (currentGroup.length) {
+        groupedItems.push(currentGroup);
+        currentGroup = [];
       }
-    } else if (it.type === "spacer" || it.type === "label") {
+    } else if (toolbarItem.type === "spacer" || toolbarItem.type === "label") {
       // No vertical equivalent inside the drawer — skip.
     } else {
-      cur.push(it);
+      currentGroup.push(toolbarItem);
     }
   }
-  if (cur.length) {
-    groups.push(cur);
+  if (currentGroup.length) {
+    groupedItems.push(currentGroup);
   }
 
-  const renderItem = item => {
-    if (item.type === "dd") {
+  const renderToolbarItem = toolbarItem => {
+    if (toolbarItem.type === "dropdown") {
       return (
         <select
-          key={item.actionId}
-          onChange={e => onAction?.(item.actionId, e.target.value)}
-          defaultValue={item.opts?.[0]?.value}
+          key={toolbarItem.actionId}
+          onChange={changeEvent => onAction?.(toolbarItem.actionId, changeEvent.target.value)}
+          defaultValue={toolbarItem.options?.[0]?.value}
           style={{
             flex: 1,
             minWidth: 0,
-            background: t.surface,
-            border: `1px solid ${t.border}`,
-            color: t.text,
+            background: theme.surface,
+            border: `1px solid ${theme.border}`,
+            color: theme.text,
             fontSize: 12,
-            fontFamily: t.fontFamily,
-            borderRadius: t.r6,
+            fontFamily: theme.fontFamily,
+            borderRadius: theme.radius6,
             padding: "6px 13px 6px 8px",
             outline: "none",
           }}
         >
-          {item.opts?.map(o => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+          {toolbarItem.options?.map(option => (
+            <option key={option.value} value={option.value}>{option.label}</option>
           ))}
         </select>
       );
     }
-    if (item.type === "btn") {
-      const Icon = item.Icon;
-      const isText = !Icon && item.label;
+    if (toolbarItem.type === "button") {
+      const ButtonIcon = toolbarItem.Icon;
+      const isTextButton = !ButtonIcon && toolbarItem.label;
       return (
         <button
-          key={item.actionId}
-          title={item.label}
-          onClick={() => onAction?.(item.actionId)}
+          key={toolbarItem.actionId}
+          title={toolbarItem.label}
+          onClick={() => onAction?.(toolbarItem.actionId)}
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            width: isText ? undefined : 36,
+            width: isTextButton ? undefined : 36,
             height: 36,
-            padding: isText ? "0 12px" : 0,
-            borderRadius: t.r6,
-            border: `1px solid ${t.border}`,
-            background: t.surface,
-            color: appColor || t.text,
+            padding: isTextButton ? "0 12px" : 0,
+            borderRadius: theme.radius6,
+            border: `1px solid ${theme.border}`,
+            background: theme.surface,
+            color: appColor || theme.text,
             cursor: "pointer",
             flexShrink: 0,
-            fontFamily: t.fontFamily,
+            fontFamily: theme.fontFamily,
             fontSize: 11,
             fontWeight: 600,
           }}
         >
-          {Icon ? <Icon size={15} /> : item.label}
+          {ButtonIcon ? <ButtonIcon size={15} /> : toolbarItem.label}
         </button>
       );
     }
@@ -384,9 +384,9 @@ export const MobileToolbarPanel = ({
   return (
     <AppsSidebarSection title={title} icon={icon}>
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-        {groups.map((g, gi) => (
-          <div key={gi} style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-            {g.map(renderItem)}
+        {groupedItems.map((group, groupIndex) => (
+          <div key={groupIndex} style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            {group.map(renderToolbarItem)}
           </div>
         ))}
       </div>

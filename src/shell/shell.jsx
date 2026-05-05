@@ -34,7 +34,7 @@ const ErrBoundary = ({ children, onBack }) => {
           style={{
             width: 52,
             height: 52,
-            borderRadius: theme.r14,
+            borderRadius: theme.radius14,
             background: "rgba(232,82,82,0.1)",
             display: "flex",
             alignItems: "center",

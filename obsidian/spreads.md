@@ -47,5 +47,5 @@ yet partition the `cells` map.
 ## Conditional highlighting (planned)
 
 The original spec called for conditional highlighting based on cell value
-or formula result. Tracked in [[issues]]. The fastest implementation path is
+or formula result. Tracked in [[Releases]]. The fastest implementation path is
 a per-cell `cell.cf` rule list with `_evalFormula`-style predicates.

@@ -18,7 +18,7 @@ export const SettingsPanel = ({
   setMobileDisabled,
   onShowShortcuts,
 }) => {
-  const t = useT();
+  const tokens = useT();
   const device = useDeviceCaps();
   const isMobile = device.isMobile && !mobileDisabled;
   const [tab, setTab] = useState("appearance");
@@ -26,7 +26,7 @@ export const SettingsPanel = ({
   const [showCustomModal, setShowCustomModal] = useState(false);
 
   const activeSchemeId = theme.schemeId ?? "classic";
-  const activeIsCustom = customSchemes.some(s => s.schemeId === activeSchemeId);
+  const activeIsCustom = customSchemes.some(scheme => scheme.schemeId === activeSchemeId);
 
   const TABS = [
     { tabId: "appearance", label: "Appearance", Icon: I.Palette },
@@ -42,8 +42,8 @@ export const SettingsPanel = ({
   return (
     <div
       className="novl"
-      onClick={e => {
-        if (e.target === e.currentTarget) {
+      onClick={overlayClickEvent => {
+        if (overlayClickEvent.target === overlayClickEvent.currentTarget) {
           onClose();
         }
       }}
@@ -69,11 +69,11 @@ export const SettingsPanel = ({
               alignItems: "center",
               gap: 6,
               padding: "12px 14px",
-              borderBottom: `1px solid ${t.border}`,
+              borderBottom: `1px solid ${tokens.border}`,
               flexShrink: 0,
             }}
           >
-            <div style={{ fontSize: 14, fontWeight: 800, color: t.text, flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: tokens.text, flex: 1 }}>
               Settings
             </div>
             <button className="nb ni" style={{ padding: 6 }} onClick={onClose}>
@@ -85,12 +85,12 @@ export const SettingsPanel = ({
           <div
             style={{
               width: 172,
-              borderRight: `1px solid ${t.border}`,
+              borderRight: `1px solid ${tokens.border}`,
               padding: "18px 7px",
               flexShrink: 0,
             }}
           >
-            <div style={{ fontSize: 12, fontWeight: 800, color: t.text, padding: "3px 9px 14px" }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: tokens.text, padding: "3px 9px 14px" }}>
               Settings
             </div>
             {TABS.map(({ tabId, label, Icon: TabIcon }) => (
@@ -112,7 +112,7 @@ export const SettingsPanel = ({
               display: "flex",
               gap: 6,
               padding: "10px 12px",
-              borderBottom: `1px solid ${t.border}`,
+              borderBottom: `1px solid ${tokens.border}`,
               flexShrink: 0,
               overflowX: "auto",
             }}
@@ -128,19 +128,19 @@ export const SettingsPanel = ({
                     alignItems: "center",
                     gap: 6,
                     padding: "7px 12px",
-                    borderRadius: t.rF,
-                    border: `1px solid ${active ? t.accent + "66" : t.border}`,
-                    background: active ? t.accentSoft : "transparent",
-                    color: active ? t.text : t.textDim,
+                    borderRadius: tokens.radiusFull,
+                    border: `1px solid ${active ? tokens.accent + "66" : tokens.border}`,
+                    background: active ? tokens.accentSoft : "transparent",
+                    color: active ? tokens.text : tokens.textDim,
                     fontSize: 11,
                     fontWeight: 600,
-                    fontFamily: t.fontFamily,
+                    fontFamily: tokens.fontFamily,
                     cursor: "pointer",
                     flexShrink: 0,
                     outline: "none",
                   }}
                 >
-                  <TabIcon size={12} color={active ? t.accent : t.textDim} />
+                  <TabIcon size={12} color={active ? tokens.accent : tokens.textDim} />
                   {label}
                 </button>
               );
@@ -152,10 +152,10 @@ export const SettingsPanel = ({
         <div style={{ flex: 1, padding: isMobile ? "16px 16px" : "22px 24px", overflowY: "auto" }}>
           {tab === "appearance" && (
             <div>
-              <h3 style={{ fontSize: 14, fontWeight: 800, color: t.text, marginBottom: 3 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: tokens.text, marginBottom: 3 }}>
                 Appearance
               </h3>
-              <p style={{ fontSize: 11, color: t.textDim, marginBottom: 22 }}>
+              <p style={{ fontSize: 11, color: tokens.textDim, marginBottom: 22 }}>
                 Customise Nova's look and feel
               </p>
 
@@ -163,7 +163,7 @@ export const SettingsPanel = ({
                 style={{
                   fontSize: 10,
                   fontWeight: 700,
-                  color: t.textMuted,
+                  color: tokens.textMuted,
                   letterSpacing: "0.06em",
                   textTransform: "uppercase",
                   marginBottom: 9,
@@ -181,21 +181,21 @@ export const SettingsPanel = ({
                       style={{
                         flex: 1,
                         padding: "9px 7px",
-                        borderRadius: t.r10,
+                        borderRadius: tokens.radius10,
                         cursor: "pointer",
-                        border: `1px solid ${active ? t.accent + "66" : t.border}`,
-                        background: active ? t.accentSoft : "transparent",
+                        border: `1px solid ${active ? tokens.accent + "66" : tokens.border}`,
+                        background: active ? tokens.accentSoft : "transparent",
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
                         gap: 5,
-                        transition: t.transition,
-                        fontFamily: t.fontFamily,
+                        transition: tokens.transition,
+                        fontFamily: tokens.fontFamily,
                         outline: "none",
                       }}
                     >
-                      <ModeIcon size={15} color={active ? t.accent : t.textDim} />
-                      <span style={{ fontSize: 10, fontWeight: 600, color: active ? t.text : t.textDim }}>
+                      <ModeIcon size={15} color={active ? tokens.accent : tokens.textDim} />
+                      <span style={{ fontSize: 10, fontWeight: 600, color: active ? tokens.text : tokens.textDim }}>
                         {label}
                       </span>
                     </button>
@@ -207,7 +207,7 @@ export const SettingsPanel = ({
                 style={{
                   fontSize: 10,
                   fontWeight: 700,
-                  color: t.textMuted,
+                  color: tokens.textMuted,
                   letterSpacing: "0.06em",
                   textTransform: "uppercase",
                   marginBottom: 9,
@@ -218,16 +218,16 @@ export const SettingsPanel = ({
               <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
                 <select
                   value={activeSchemeId}
-                  onChange={e => setTheme(p => ({ ...p, schemeId: e.target.value }))}
+                  onChange={schemeChangeEvent => setTheme(currentTheme => ({ ...currentTheme, schemeId: schemeChangeEvent.target.value }))}
                   style={{
                     flex: 1,
-                    background: t.surface,
-                    border: `1px solid ${t.border}`,
-                    color: t.text,
-                    fontFamily: t.fontFamily,
+                    background: tokens.surface,
+                    border: `1px solid ${tokens.border}`,
+                    color: tokens.text,
+                    fontFamily: tokens.fontFamily,
                     fontSize: 12,
                     fontWeight: 600,
-                    borderRadius: t.r10,
+                    borderRadius: tokens.radius10,
                     padding: "9px 16px 9px 11px",
                     cursor: "pointer",
                     outline: "none",
@@ -265,8 +265,8 @@ export const SettingsPanel = ({
                   <I.Plus size={13} /> New
                 </button>
               </div>
-              <p style={{ fontSize: 10, color: t.textMuted, marginBottom: 22 }}>
-                <strong style={{ color: t.textDim }}>Classic</strong> follows the mode above.
+              <p style={{ fontSize: 10, color: tokens.textMuted, marginBottom: 22 }}>
+                <strong style={{ color: tokens.textDim }}>Classic</strong> follows the mode above.
                 Other schemes override the full palette.
               </p>
 
@@ -274,7 +274,7 @@ export const SettingsPanel = ({
                 style={{
                   fontSize: 10,
                   fontWeight: 700,
-                  color: t.textMuted,
+                  color: tokens.textMuted,
                   letterSpacing: "0.06em",
                   textTransform: "uppercase",
                   marginBottom: 9,
@@ -288,8 +288,8 @@ export const SettingsPanel = ({
                   alignItems: "center",
                   gap: 9,
                   padding: "9px 11px",
-                  borderRadius: t.r10,
-                  border: `1px solid ${t.border}`,
+                  borderRadius: tokens.radius10,
+                  border: `1px solid ${tokens.border}`,
                   cursor: "pointer",
                   marginBottom: 22,
                 }}
@@ -297,14 +297,14 @@ export const SettingsPanel = ({
                 <input
                   type="checkbox"
                   checked={!!mobileDisabled}
-                  onChange={e => setMobileDisabled?.(e.target.checked)}
+                  onChange={mobileToggleChangeEvent => setMobileDisabled?.(mobileToggleChangeEvent.target.checked)}
                   style={{ cursor: "pointer", margin: 0 }}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: tokens.text }}>
                     Disable mobile site
                   </div>
-                  <div style={{ fontSize: 10, color: t.textDim, marginTop: 2 }}>
+                  <div style={{ fontSize: 10, color: tokens.textDim, marginTop: 2 }}>
                     Always use the desktop layout, even on small screens.
                   </div>
                 </div>
@@ -314,18 +314,18 @@ export const SettingsPanel = ({
 
           {tab === "apps" && (
             <div>
-              <h3 style={{ fontSize: 14, fontWeight: 800, color: t.text, marginBottom: 3 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: tokens.text, marginBottom: 3 }}>
                 App colours
               </h3>
-              <p style={{ fontSize: 11, color: t.textDim, marginBottom: 18 }}>
+              <p style={{ fontSize: 11, color: tokens.textDim, marginBottom: 18 }}>
                 Override the accent for each app in{" "}
-                <strong style={{ color: t.text }}>{activeWS.name}</strong>
+                <strong style={{ color: tokens.text }}>{activeWS.name}</strong>
               </p>
               {NovaSettingsConstants.APPS.map(app => {
-                const def = t.appColorFor(app.appId);
+                const def = tokens.appColorFor(app.appId);
                 const cur = getAppColor(activeWS.id, app.appId, def);
                 const isOverridden = getAppColor(activeWS.id, app.appId, null) != null;
-                const isPreset = t.appColors.includes(cur);
+                const isPreset = tokens.appColors.includes(cur);
                 const isCustom = isOverridden && !isPreset;
                 return (
                   <div
@@ -335,27 +335,27 @@ export const SettingsPanel = ({
                       alignItems: "center",
                       gap: 10,
                       padding: "8px 0",
-                      borderBottom: `1px solid ${t.border}`,
+                      borderBottom: `1px solid ${tokens.border}`,
                     }}
                   >
                     <AppChip appId={app.appId} size={28} colorOverride={cur} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: t.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: tokens.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {app.label}
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-                      {t.appColors.slice(0, 8).map(c => (
+                      {tokens.appColors.slice(0, 8).map(c => (
                         <button
                           key={c}
                           onClick={() => setAppColor(activeWS.id, app.appId, c)}
                           style={{
                             width: 16,
                             height: 16,
-                            borderRadius: t.rF,
+                            borderRadius: tokens.radiusFull,
                             background: c,
                             cursor: "pointer",
-                            border: `2px solid ${cur === c ? t.text : "transparent"}`,
+                            border: `2px solid ${cur === c ? tokens.text : "transparent"}`,
                             outline: "none",
                             padding: 0,
                           }}
@@ -371,10 +371,10 @@ export const SettingsPanel = ({
                         style={{
                           width: 16,
                           height: 16,
-                          borderRadius: t.rF,
+                          borderRadius: tokens.radiusFull,
                           background: "conic-gradient(red,yellow,lime,cyan,blue,magenta,red)",
                           cursor: "pointer",
-                          border: `2px solid ${isCustom ? t.text : "transparent"}`,
+                          border: `2px solid ${isCustom ? tokens.text : "transparent"}`,
                           outline: "none",
                           overflow: "hidden",
                         }}
@@ -382,7 +382,7 @@ export const SettingsPanel = ({
                       <input
                         type="color"
                         value={cur}
-                        onChange={e => setAppColor(activeWS.id, app.appId, e.target.value)}
+                        onChange={appColorChangeEvent => setAppColor(activeWS.id, app.appId, appColorChangeEvent.target.value)}
                         style={{
                           position: "absolute",
                           opacity: 0,
@@ -421,7 +421,7 @@ export const SettingsPanel = ({
           )}
 
           {/* Shortcuts link at the bottom of every tab */}
-          <div style={{ marginTop: "auto", paddingTop: 20, borderTop: `1px solid ${t.border}` }}>
+          <div style={{ marginTop: "auto", paddingTop: 20, borderTop: `1px solid ${tokens.border}` }}>
             <button
               className="nb ng"
               style={{ width: "100%", fontSize: 11, justifyContent: "flex-start", gap: 8 }}
@@ -435,10 +435,10 @@ export const SettingsPanel = ({
                 style={{
                   marginLeft: "auto",
                   fontSize: 9,
-                  color: t.textMuted,
-                  background: t.surfaceAlt,
-                  border: `1px solid ${t.border}`,
-                  borderRadius: t.r6,
+                  color: tokens.textMuted,
+                  background: tokens.surfaceAlt,
+                  border: `1px solid ${tokens.border}`,
+                  borderRadius: tokens.radius6,
                   padding: "1px 5px",
                   fontFamily: "monospace",
                 }}

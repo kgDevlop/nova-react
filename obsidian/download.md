@@ -1,6 +1,6 @@
 # Download
 
-> **Status — not yet implemented.** Tracked in [[issues]].
+> **Status — not yet implemented.** Tracked in [[Releases]].
 
 Spec for the export-to-zip flow:
 

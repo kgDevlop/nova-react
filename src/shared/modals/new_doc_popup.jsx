@@ -108,7 +108,7 @@ export const NewDocModal = ({ onClose, onCreate, initType, getAppColor, activeWS
                 onClick={() => setType(app.appId)}
                 style={{
                   padding: "11px 11px",
-                  borderRadius: theme.r14,
+                  borderRadius: theme.radius14,
                   cursor: "pointer",
                   border: `1px solid ${selected ? color + "AA" : color + "33"}`,
                   background: selected

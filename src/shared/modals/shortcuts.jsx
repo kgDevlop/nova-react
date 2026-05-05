@@ -43,7 +43,7 @@ export const ShortcutsModal = ({ onClose }) => {
                     color: theme.text,
                     background: theme.surfaceAlt,
                     border: `1px solid ${theme.border}`,
-                    borderRadius: theme.r6,
+                    borderRadius: theme.radius6,
                     padding: "2px 7px",
                     fontFamily: "monospace",
                     whiteSpace: "nowrap",

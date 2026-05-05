@@ -5,97 +5,110 @@ export const NEW_CAL_COLORS = ["#F59E0B", "#EC4899", "#22D3EE", "#A78BFA", "#34D
 
 // 6×7 month grid (null-padded) so the layout never reflows.
 export const buildMonthCells = (year, month) => {
-  const firstDow = new Date(year, month, 1).getDay();
-  const daysIn   = new Date(year, month + 1, 0).getDate();
-  return Array.from({ length: 42 }, (_, i) => {
-    const d = i - firstDow + 1;
-    return d < 1 || d > daysIn ? null : d;
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const daysInMonth    = new Date(year, month + 1, 0).getDate();
+  return Array.from({ length: 42 }, (_, cellIndex) => {
+    const dayOfMonth = cellIndex - firstDayOfWeek + 1;
+    return dayOfMonth < 1 || dayOfMonth > daysInMonth ? null : dayOfMonth;
   });
 };
 
-export const _ymd = (y, m, d) =>
-  `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+export const _ymd = (year, monthIndex, dayOfMonth) =>
+  `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(dayOfMonth).padStart(2, "0")}`;
 
 // "HH:MM" (24hr, the form input format) → "h:mm AM/PM" for display.
-export const _fmtTime = (hhmm) => {
-  if (!hhmm) return "";
-  const [h, m] = hhmm.split(":").map(Number);
-  if (Number.isNaN(h) || Number.isNaN(m)) return hhmm;
-  const ampm = h < 12 ? "AM" : "PM";
-  const h12  = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+export const _fmtTime = (timeString) => {
+  if (!timeString) return "";
+  const [hour24, minute] = timeString.split(":").map(Number);
+  if (Number.isNaN(hour24) || Number.isNaN(minute)) return timeString;
+  const meridian   = hour24 < 12 ? "AM" : "PM";
+  const hour12     = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+  return `${hour12}:${String(minute).padStart(2, "0")} ${meridian}`;
 };
 
-const _normEvents = (arr) => arr
-  .filter(e => e && typeof e.id === "string" && typeof e.date === "string")
-  .map(e => ({
-    id:      e.id,
-    calId:   typeof e.calId === "string" ? e.calId : CalendarConstants.CALENDARS[0].calId,
-    title:   typeof e.title === "string" ? e.title : "",
-    date:    e.date,
-    time:    typeof e.time    === "string" ? e.time    : "",
-    endTime: typeof e.endTime === "string" ? e.endTime : "",
-    notes:   typeof e.notes   === "string" ? e.notes   : "",
-    links:   Array.isArray(e.links) ? e.links.filter(x => typeof x === "string") : [],
+const _normEvents = (rawEvents) => rawEvents
+  .filter(rawEvent => rawEvent && typeof rawEvent.id === "string" && typeof rawEvent.date === "string")
+  .map(rawEvent => ({
+    id:      rawEvent.id,
+    calId:   typeof rawEvent.calId === "string" ? rawEvent.calId : CalendarConstants.CALENDARS[0].calId,
+    title:   typeof rawEvent.title === "string" ? rawEvent.title : "",
+    date:    rawEvent.date,
+    time:    typeof rawEvent.time    === "string" ? rawEvent.time    : "",
+    endTime: typeof rawEvent.endTime === "string" ? rawEvent.endTime : "",
+    notes:   typeof rawEvent.notes   === "string" ? rawEvent.notes   : "",
+    links:   Array.isArray(rawEvent.links) ? rawEvent.links.filter(linkId => typeof linkId === "string") : [],
     // null = scheduling off; array = scheduling on with selected weekdays.
-    repeat:  Array.isArray(e.repeat)
-      ? e.repeat.filter(n => Number.isInteger(n) && n >= 0 && n <= 6)
+    repeat:  Array.isArray(rawEvent.repeat)
+      ? rawEvent.repeat.filter(weekday => Number.isInteger(weekday) && weekday >= 0 && weekday <= 6)
       : null,
     // null = no end date; "" or "YYYY-MM-DD" once user enables the cap.
-    endDate: typeof e.endDate === "string" ? e.endDate : null,
+    endDate: typeof rawEvent.endDate === "string" ? rawEvent.endDate : null,
   }));
 
-const _normCalendars = (arr) => arr
-  .filter(c => c && typeof c.calId === "string" && typeof c.name === "string" && typeof c.color === "string");
+const _normCalendars = (rawCalendars) => rawCalendars
+  .filter(rawCalendar =>
+    rawCalendar
+    && typeof rawCalendar.calId === "string"
+    && typeof rawCalendar.name === "string"
+    && typeof rawCalendar.color === "string",
+  );
 
 export const _parseDoc = (content) => {
   try {
-    const p = JSON.parse(content || "{}");
-    if (Array.isArray(p)) return { events: _normEvents(p), calendars: [] };
+    const parsed = JSON.parse(content || "{}");
+    if (Array.isArray(parsed)) return { events: _normEvents(parsed), calendars: [] };
     return {
-      events:    Array.isArray(p.events)    ? _normEvents(p.events)       : [],
-      calendars: Array.isArray(p.calendars) ? _normCalendars(p.calendars) : [],
+      events:    Array.isArray(parsed.events)    ? _normEvents(parsed.events)       : [],
+      calendars: Array.isArray(parsed.calendars) ? _normCalendars(parsed.calendars) : [],
     };
   } catch {
     return { events: [], calendars: [] };
   }
 };
 
-// Expand `events` into a `{ ymd → events[] }` map for the [from,to] window.
+// Expand `events` into a `{ ymd → events[] }` map for the [windowStart,windowEnd] window.
 // Honors weekday schedule + optional end-date cap + calendar visibility.
-export const expandEvents = (events, visible, from, to) => {
-  const out = {};
-  const push = (ymd, ev) => (out[ymd] = out[ymd] || []).push(ev);
-  for (const e of events) {
-    if (!visible.has(e.calId)) continue;
-    const start  = new Date(`${e.date}T00:00:00`);
-    const cap    = e.endDate ? new Date(`${e.endDate}T00:00:00`) : null;
-    const recurs = Array.isArray(e.repeat) && e.repeat.length > 0;
+export const expandEvents = (events, visibleCalendars, windowStart, windowEnd) => {
+  const eventsByDate = {};
+  const pushEvent = (dateString, event) =>
+    (eventsByDate[dateString] = eventsByDate[dateString] || []).push(event);
 
-    if (start >= from && start <= to && (!cap || start <= cap)) {
-      push(e.date, e);
+  for (const event of events) {
+    if (!visibleCalendars.has(event.calId)) continue;
+    const startDate     = new Date(`${event.date}T00:00:00`);
+    const endDateCap    = event.endDate ? new Date(`${event.endDate}T00:00:00`) : null;
+    const isRecurring   = Array.isArray(event.repeat) && event.repeat.length > 0;
+
+    if (startDate >= windowStart && startDate <= windowEnd && (!endDateCap || startDate <= endDateCap)) {
+      pushEvent(event.date, event);
     }
-    if (!recurs) continue;
+    if (!isRecurring) continue;
 
-    const cur = new Date(from);
-    while (cur <= to) {
-      const ymd = _ymd(cur.getFullYear(), cur.getMonth(), cur.getDate());
-      if (ymd !== e.date && cur >= start && (!cap || cur <= cap) && e.repeat.includes(cur.getDay())) {
-        push(ymd, e);
+    for (const cursor = new Date(windowStart); cursor <= windowEnd; cursor.setDate(cursor.getDate() + 1)) {
+      const cursorYmd = _ymd(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
+      if (
+        cursorYmd !== event.date
+        && cursor >= startDate
+        && (!endDateCap || cursor <= endDateCap)
+        && event.repeat.includes(cursor.getDay())
+      ) {
+        pushEvent(cursorYmd, event);
       }
-      cur.setDate(cur.getDate() + 1);
     }
   }
-  Object.values(out).forEach(list =>
-    list.sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99")));
-  return out;
+  Object.values(eventsByDate).forEach(eventList =>
+    eventList.sort((firstEvent, secondEvent) =>
+      (firstEvent.time || "99:99").localeCompare(secondEvent.time || "99:99"),
+    ),
+  );
+  return eventsByDate;
 };
 
 // Single event chip, reused by every view. The parent passes the resolved
 // calendar color so the chip stays a leaf component.
 export const EventChip = ({ ev, theme, color, compact = false, onOpen }) => (
   <button
-    onClick={e => { e.stopPropagation(); onOpen(ev); }}
+    onClick={chipClickEvent => { chipClickEvent.stopPropagation(); onOpen(ev); }}
     style={{
       display: "flex",
       alignItems: "center",

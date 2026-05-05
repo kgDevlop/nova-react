@@ -41,4 +41,4 @@ shows a centred call-to-action with a "New document" button bound to
 
 - [[app_catalogue]] — the alternate "browse all apps" landing view in the
   same file (`AppCatalogueScreen`).
-- [[issues]] — outstanding work for the home surface.
+- [[Releases]] — outstanding work for the home surface.

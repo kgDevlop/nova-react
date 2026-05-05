@@ -76,7 +76,7 @@ export const NewWSModal = ({ onClose, onCreate }) => {
             style={{
               width: 32,
               height: 32,
-              borderRadius: theme.r6,
+              borderRadius: theme.radius6,
               border: `1px solid ${emoji === "" ? theme.accent + "88" : theme.border}`,
               background: emoji === "" ? theme.accentSoft : "transparent",
               cursor: "pointer",
@@ -94,7 +94,7 @@ export const NewWSModal = ({ onClose, onCreate }) => {
               style={{
                 width: 32,
                 height: 32,
-                borderRadius: theme.r6,
+                borderRadius: theme.radius6,
                 border: `1px solid ${emoji === em ? theme.accent + "88" : theme.border}`,
                 background: emoji === em ? theme.accentSoft : "transparent",
                 cursor: "pointer",
@@ -162,7 +162,7 @@ export const NewWSModal = ({ onClose, onCreate }) => {
               style={{
                 width: 26,
                 height: 26,
-                borderRadius: theme.rF,
+                borderRadius: theme.radiusFull,
                 background: c,
                 cursor: "pointer",
                 border: `2px solid ${color === c ? theme.text : "transparent"}`,

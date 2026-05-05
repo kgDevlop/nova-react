@@ -15,12 +15,14 @@ const _load = () => {
     if (!Array.isArray(parsed) || !parsed.length) {
       return StoreConstants.WS_SEEDS;
     }
-    return parsed.map(w => ({
-      ...w,
-      docs: (w.docs || []).map(d => ({
-        ...d,
-        modified: d.modified ? new Date(d.modified) : new Date(),
-        created: d.created ? new Date(d.created) : (d.modified ? new Date(d.modified) : new Date()),
+    return parsed.map(rawWorkspace => ({
+      ...rawWorkspace,
+      docs: (rawWorkspace.docs || []).map(rawDoc => ({
+        ...rawDoc,
+        modified: rawDoc.modified ? new Date(rawDoc.modified) : new Date(),
+        created: rawDoc.created
+          ? new Date(rawDoc.created)
+          : (rawDoc.modified ? new Date(rawDoc.modified) : new Date()),
       })),
     }));
   } catch {
@@ -28,32 +30,32 @@ const _load = () => {
   }
 };
 
-const _save = ws => {
+const _save = workspaces => {
   try {
-    localStorage.setItem(StoreConstants.STORAGE_KEY, JSON.stringify(ws));
+    localStorage.setItem(StoreConstants.STORAGE_KEY, JSON.stringify(workspaces));
     return true;
   } catch {
     return false;
   }
 };
 
-const _loadActive = ws => {
+const _loadActive = workspaces => {
   try {
-    const id = localStorage.getItem(StoreConstants.ACTIVE_KEY);
-    if (id && ws.some(w => w.id === id)) {
-      return id;
+    const storedActiveId = localStorage.getItem(StoreConstants.ACTIVE_KEY);
+    if (storedActiveId && workspaces.some(workspace => workspace.id === storedActiveId)) {
+      return storedActiveId;
     }
   } catch {
     // Ignore — fall through to first workspace.
   }
-  return ws[0]?.id;
+  return workspaces[0]?.id;
 };
 
 // ── §6  STORE HOOKS ───────────────────────────────────────────────────────
 export const useWSStore = () => {
   const [ws, setWS] = useState(_load);
   const [activeId, setActiveId] = useState(() => _loadActive(_load()));
-  const active = ws.find(w => w.id === activeId) || ws[0];
+  const active = ws.find(workspace => workspace.id === activeId) || ws[0];
 
   useEffect(() => {
     _save(ws);
@@ -68,40 +70,40 @@ export const useWSStore = () => {
   }, [activeId]);
 
   const createWS = useCallback((name, emoji, color) => {
-    const w = {
+    const newWorkspace = {
       id: utils._uid(),
       name,
       emoji: emoji || "",
       color: color || "#C8A253",
       docs: [],
     };
-    setWS(p => [...p, w]);
-    setActiveId(w.id);
-    return w;
+    setWS(prevWorkspaces => [...prevWorkspaces, newWorkspace]);
+    setActiveId(newWorkspace.id);
+    return newWorkspace;
   }, []);
 
-  const renameWS = useCallback((id, name) => {
+  const renameWS = useCallback((workspaceId, name) => {
     if (!name?.trim()) {
       return;
     }
-    setWS(p => p.map(w => {
-      if (w.id !== id) {
-        return w;
+    setWS(prevWorkspaces => prevWorkspaces.map(workspace => {
+      if (workspace.id !== workspaceId) {
+        return workspace;
       }
-      return { ...w, name: name.trim() };
+      return { ...workspace, name: name.trim() };
     }));
   }, []);
 
-  const deleteWS = useCallback(id => {
-    setWS(p => {
-      if (p.length <= 1) {
-        return p;
+  const deleteWS = useCallback(workspaceId => {
+    setWS(prevWorkspaces => {
+      if (prevWorkspaces.length <= 1) {
+        return prevWorkspaces;
       }
-      const next = p.filter(w => w.id !== id);
-      if (id === activeId) {
-        setActiveId(next[0].id);
+      const remainingWorkspaces = prevWorkspaces.filter(workspace => workspace.id !== workspaceId);
+      if (workspaceId === activeId) {
+        setActiveId(remainingWorkspaces[0].id);
       }
-      return next;
+      return remainingWorkspaces;
     });
   }, [activeId]);
 
@@ -111,11 +113,11 @@ export const useWSStore = () => {
     }
     // Fall back to the first workspace if activeId is stale — mirrors the
     // `active` selector so we never silently no-op on a stale id.
-    const target = ws.find(w => w.id === activeId) || ws[0];
+    const targetWorkspace = ws.find(workspace => workspace.id === activeId) || ws[0];
     const now = new Date();
     const doc = {
       id: utils._uid(),
-      title: utils._uniqueTitle(target.docs, type, title || utils._autoName(type)),
+      title: utils._uniqueTitle(targetWorkspace.docs, type, title || utils._autoName(type)),
       type,
       created: now,
       modified: now,
@@ -123,61 +125,64 @@ export const useWSStore = () => {
       content: "",
       appColor,
     };
-    setWS(p => p.map(w => {
-      if (w.id !== target.id) {
-        return w;
+    setWS(prevWorkspaces => prevWorkspaces.map(workspace => {
+      if (workspace.id !== targetWorkspace.id) {
+        return workspace;
       }
-      return { ...w, docs: [doc, ...w.docs] };
+      return { ...workspace, docs: [doc, ...workspace.docs] };
     }));
     return doc;
   }, [ws, activeId]);
 
-  const updateDoc = useCallback((id, ch) => {
-    let resolved = ch;
-    setWS(p => p.map(w => {
-      if (w.id !== activeId) {
-        return w;
+  const updateDoc = useCallback((docId, changes) => {
+    let resolved = changes;
+    setWS(prevWorkspaces => prevWorkspaces.map(workspace => {
+      if (workspace.id !== activeId) {
+        return workspace;
       }
       return {
-        ...w,
-        docs: w.docs.map(d => {
-          if (d.id !== id) {
-            return d;
+        ...workspace,
+        docs: workspace.docs.map(workspaceDoc => {
+          if (workspaceDoc.id !== docId) {
+            return workspaceDoc;
           }
-          const next = { ...d, ...ch, modified: new Date() };
+          const nextDoc = { ...workspaceDoc, ...changes, modified: new Date() };
           // Title changes need uniqueness enforcement against siblings.
-          if (ch.title !== undefined && ch.title !== d.title) {
-            next.title = utils._uniqueTitle(w.docs, d.type, ch.title, id);
-            resolved = { ...ch, title: next.title };
+          if (changes.title !== undefined && changes.title !== workspaceDoc.title) {
+            nextDoc.title = utils._uniqueTitle(workspace.docs, workspaceDoc.type, changes.title, docId);
+            resolved = { ...changes, title: nextDoc.title };
           }
-          return next;
+          return nextDoc;
         }),
       };
     }));
     return resolved;
   }, [activeId]);
 
-  const deleteDoc = useCallback(id => {
-    setWS(p => p.map(w => {
-      if (w.id !== activeId) {
-        return w;
+  const deleteDoc = useCallback(docId => {
+    setWS(prevWorkspaces => prevWorkspaces.map(workspace => {
+      if (workspace.id !== activeId) {
+        return workspace;
       }
-      return { ...w, docs: w.docs.filter(d => d.id !== id) };
+      return {
+        ...workspace,
+        docs: workspace.docs.filter(workspaceDoc => workspaceDoc.id !== docId),
+      };
     }));
   }, [activeId]);
 
-  const toggleStar = useCallback(id => {
-    setWS(p => p.map(w => {
-      if (w.id !== activeId) {
-        return w;
+  const toggleStar = useCallback(docId => {
+    setWS(prevWorkspaces => prevWorkspaces.map(workspace => {
+      if (workspace.id !== activeId) {
+        return workspace;
       }
       return {
-        ...w,
-        docs: w.docs.map(d => {
-          if (d.id !== id) {
-            return d;
+        ...workspace,
+        docs: workspace.docs.map(workspaceDoc => {
+          if (workspaceDoc.id !== docId) {
+            return workspaceDoc;
           }
-          return { ...d, starred: !d.starred };
+          return { ...workspaceDoc, starred: !workspaceDoc.starred };
         }),
       };
     }));
@@ -247,30 +252,31 @@ const _loadAppColors = () => {
 };
 
 export const useAppColors = () => {
-  const [ov, set] = useState(_loadAppColors);
+  const [overrides, setOverrides] = useState(_loadAppColors);
 
   useEffect(() => {
     try {
-      localStorage.setItem(StoreConstants.APP_COLORS_KEY, JSON.stringify(ov));
+      localStorage.setItem(StoreConstants.APP_COLORS_KEY, JSON.stringify(overrides));
     } catch {
       // Ignore quota / availability — overrides just won't persist.
     }
-  }, [ov]);
+  }, [overrides]);
 
   const get = useCallback(
-    (wsId, appId, def) => ov[`${wsId}:${appId}`] || def,
-    [ov],
+    (wsId, appId, defaultColor) => overrides[`${wsId}:${appId}`] || defaultColor,
+    [overrides],
   );
   const put = useCallback(
-    (wsId, appId, c) => set(p => ({ ...p, [`${wsId}:${appId}`]: c })),
+    (wsId, appId, color) =>
+      setOverrides(prevOverrides => ({ ...prevOverrides, [`${wsId}:${appId}`]: color })),
     [],
   );
   // Clear the override so callers fall back to whatever default they pass
   // to `get` (the theme accent in display contexts).
-  const del = useCallback((wsId, appId) => set(p => {
-    const next = { ...p };
-    delete next[`${wsId}:${appId}`];
-    return next;
+  const del = useCallback((wsId, appId) => setOverrides(prevOverrides => {
+    const nextOverrides = { ...prevOverrides };
+    delete nextOverrides[`${wsId}:${appId}`];
+    return nextOverrides;
   }), []);
   return { get, put, del };
 };
@@ -294,22 +300,26 @@ const _loadEnabledBetas = () => {
 };
 
 export const useEnabledBetas = () => {
-  const [ids, setIds] = useState(_loadEnabledBetas);
+  const [enabledBetaIds, setEnabledBetaIds] = useState(_loadEnabledBetas);
 
   useEffect(() => {
     try {
-      localStorage.setItem(StoreConstants.ENABLED_BETAS_KEY, JSON.stringify(ids));
+      localStorage.setItem(StoreConstants.ENABLED_BETAS_KEY, JSON.stringify(enabledBetaIds));
     } catch {
       // Ignore quota / availability — selection just won't persist.
     }
-  }, [ids]);
+  }, [enabledBetaIds]);
 
-  const has = useCallback(id => ids.includes(id), [ids]);
-  const toggle = useCallback(id => {
-    setIds(p => (p.includes(id) ? p.filter(x => x !== id) : [...p, id]));
+  const has = useCallback(appId => enabledBetaIds.includes(appId), [enabledBetaIds]);
+  const toggle = useCallback(appId => {
+    setEnabledBetaIds(prevIds =>
+      prevIds.includes(appId)
+        ? prevIds.filter(currentId => currentId !== appId)
+        : [...prevIds, appId],
+    );
   }, []);
 
-  return { ids, has, toggle };
+  return { ids: enabledBetaIds, has, toggle };
 };
 
 // ── Tab management ────────────────────────────────────────────────────────
@@ -327,29 +337,29 @@ export const useTabs = () => {
     setActiveTabId(doc.id);
   }, []);
 
-  const closeTab = useCallback((docId, e) => {
-    e?.stopPropagation();
-    setTabs(prev => {
-      const idx = prev.findIndex(tab => tab.id === docId);
-      const next = prev.filter(tab => tab.id !== docId);
+  const closeTab = useCallback((docId, mouseEvent) => {
+    mouseEvent?.stopPropagation();
+    setTabs(prevTabs => {
+      const closingIndex = prevTabs.findIndex(tab => tab.id === docId);
+      const remainingTabs = prevTabs.filter(tab => tab.id !== docId);
       // If we just closed the active tab, fall back to the neighbour at the
       // same index (or the last tab if we closed the rightmost one).
-      setActiveTabId(cur => {
-        if (cur !== docId) {
-          return cur;
+      setActiveTabId(currentActiveId => {
+        if (currentActiveId !== docId) {
+          return currentActiveId;
         }
-        if (next.length === 0) {
+        if (remainingTabs.length === 0) {
           return null;
         }
-        return next[Math.min(idx, next.length - 1)].id;
+        return remainingTabs[Math.min(closingIndex, remainingTabs.length - 1)].id;
       });
-      return next;
+      return remainingTabs;
     });
   }, []);
 
-  const syncTab = useCallback((id, changes) => {
-    setTabs(prev => prev.map(tab => {
-      if (tab.id !== id) {
+  const syncTab = useCallback((tabId, changes) => {
+    setTabs(prevTabs => prevTabs.map(tab => {
+      if (tab.id !== tabId) {
         return tab;
       }
       return { ...tab, ...changes };
